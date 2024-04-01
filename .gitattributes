@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.txt text
+*.cob text
+*.c text
+*.h text
+*.nbt binary
