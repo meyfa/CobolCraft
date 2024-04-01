@@ -2,7 +2,7 @@
 COBC = cobc
 
 LIB = CBL_GC_SOCKET/CBL_GC_SOCKET.so
-SRC = server.cob
+SRC = server.cob src/*.cob
 BIN = server
 
 all: $(BIN)

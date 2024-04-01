@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y tini gcc g++ make gnucobol && rm -rf /v
 # Copy source files
 COPY Makefile .
 COPY server.cob .
+COPY src ./src
 COPY CBL_GC_SOCKET ./CBL_GC_SOCKET
 
 # Build
