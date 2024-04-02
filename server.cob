@@ -56,6 +56,12 @@ ReceivePacket SECTION.
         EXIT SECTION
     END-IF
 
+    *> Status state
+    IF CLIENT-STATE = 1
+        PERFORM HandleStatus
+        EXIT SECTION
+    END-IF
+
     *> TODO: Implement login state, play state, etc.
     DISPLAY "Login state not implemented."
     MOVE 255 TO CLIENT-STATE.
@@ -83,6 +89,33 @@ HandleHandshake SECTION.
     ELSE
         DISPLAY "  Target state: " CLIENT-STATE
     END-IF
+
+    EXIT SECTION.
+
+HandleStatus SECTION.
+    EVALUATE TRUE
+        WHEN PACKET-ID = 0
+            *> Status request
+            DISPLAY "  Responding to status request"
+            MOVE 0 TO PACKET-ID
+            MOVE " {""version"":{""name"":""1.20.4"",""protocol"":765},""players"":{""max"":1,""online"":0,""sample"":[]},""description"":{""text"":""CobolCraft""}}" TO BUFFER
+            MOVE FUNCTION CHAR(123 + 1) TO BUFFER(1:1)
+            MOVE 124 TO BYTE-COUNT
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
+        WHEN PACKET-ID = 1
+            *> Ping request: respond with the same payload and close the connection
+            DISPLAY "  Responding to ping request"
+            MOVE PACKET-LENGTH TO BYTE-COUNT
+            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+            PERFORM HandleError
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
+            MOVE 255 TO CLIENT-STATE
+        WHEN OTHER
+            DISPLAY "  Unexpected packet ID: " PACKET-ID
+            MOVE 255 TO CLIENT-STATE
+    END-EVALUATE.
 
     EXIT SECTION.
 
