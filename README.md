@@ -1,13 +1,13 @@
 # CobolCraft
 
-A Minecraft server written in COBOL.
+A Minecraft server written in COBOL. It supports Minecraft 1.20.4 (the latest version at time of writing).
 
 ## Progress/TODO
 
 The following features are already working:
 
 - [X] basic TCP server
-- [ ] respond to ping (i.e., show as online in the server list)
+- [X] respond to ping (i.e., show as online in the server list)
 - [ ] player login
 - [ ] player movement
 - [ ] sending chunk data to client
