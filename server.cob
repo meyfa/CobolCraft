@@ -4,11 +4,17 @@ PROGRAM-ID. server.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 PORT             PIC X(5) VALUE "25565".
+    01 WHITELIST-ENABLE PIC 9(1) VALUE 0.
+    01 WHITELIST-PLAYER PIC X(16) VALUE "Notch".
+    *> Socket variables (server socket handle, client socket handle, error number)
     01 LISTEN           PIC X(4).
     01 HNDL             PIC X(4).
     01 ERRNO            PIC 9(3) VALUE 0.
     *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = play, 255 = disconnect)
     01 CLIENT-STATE     PIC 9(3) VALUE 0.
+    *> Player data
+    01 USERNAME         PIC X(16).
+    01 USERNAME-LENGTH  PIC 9(3).
     *> Incoming packet data
     01 BYTE-COUNT       PIC 9(5).
     01 PACKET-LENGTH    PIC S9(10).
@@ -51,20 +57,20 @@ ReceivePacket SECTION.
     DISPLAY "[state=" CLIENT-STATE "] Received packet ID: " PACKET-ID " with length " PACKET-LENGTH " bytes.".
 
     *> Handshake
-    IF CLIENT-STATE = 0 THEN
-        PERFORM HandleHandshake
-        EXIT SECTION
-    END-IF
-
-    *> Status state
-    IF CLIENT-STATE = 1
-        PERFORM HandleStatus
-        EXIT SECTION
-    END-IF
-
-    *> TODO: Implement login state, play state, etc.
-    DISPLAY "Login state not implemented."
-    MOVE 255 TO CLIENT-STATE.
+    EVALUATE TRUE
+        WHEN CLIENT-STATE = 0
+            PERFORM HandleHandshake
+        WHEN CLIENT-STATE = 1
+            PERFORM HandleStatus
+        WHEN CLIENT-STATE = 2
+            PERFORM HandleLogin
+        WHEN CLIENT-STATE = 3
+            *> TODO: Implement play state
+            MOVE 255 TO CLIENT-STATE
+        WHEN OTHER
+            DISPLAY "  Invalid state: " CLIENT-STATE
+            MOVE 255 TO CLIENT-STATE
+    END-EVALUATE.
 
     EXIT SECTION.
 
@@ -116,6 +122,47 @@ HandleStatus SECTION.
             DISPLAY "  Unexpected packet ID: " PACKET-ID
             MOVE 255 TO CLIENT-STATE
     END-EVALUATE.
+
+    EXIT SECTION.
+
+HandleLogin SECTION.
+    IF PACKET-ID NOT = 0 THEN
+        DISPLAY "  Unexpected packet ID: " PACKET-ID
+        MOVE 255 TO CLIENT-STATE
+        EXIT SECTION
+    END-IF
+
+    CALL "Read-String" USING HNDL ERRNO BYTE-COUNT USERNAME
+    MOVE BYTE-COUNT TO USERNAME-LENGTH
+    DISPLAY "  Login with username: " USERNAME
+
+    IF WHITELIST-ENABLE > 0 AND USERNAME NOT = WHITELIST-PLAYER THEN
+        DISPLAY "  Player not whitelisted: " USERNAME
+        MOVE 0 TO PACKET-ID
+        MOVE " {""text"":""Not whitelisted!""}" TO BUFFER
+        MOVE FUNCTION CHAR(29 + 1) TO BUFFER(1:1)
+        MOVE 30 TO BYTE-COUNT
+        CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+        PERFORM HandleError
+        MOVE 255 TO CLIENT-STATE
+        EXIT SECTION
+    END-IF
+
+    *> For now, just disconnect the player
+    MOVE 0 TO PACKET-ID
+    MOVE " {""text"":""Not implemented!""}" TO BUFFER
+    MOVE FUNCTION CHAR(29 + 1) TO BUFFER(1:1)
+    MOVE 30 TO BYTE-COUNT
+    CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+    PERFORM HandleError
+    MOVE 255 TO CLIENT-STATE
+
+    *> TODO: send login success
+    *> TODO: send join game
+    *> TOOD: send inventory
+    *> TODO: send chunks
+    *> TODO: send position
+    *> TODO: spawn player
 
     EXIT SECTION.
 
