@@ -51,6 +51,11 @@ AcceptConnection.
 ReceivePacket SECTION.
     *> Read packet length
     CALL "Read-VarInt" USING HNDL ERRNO BYTE-COUNT PACKET-LENGTH.
+    IF ERRNO = 2
+        DISPLAY "Client lost connection"
+        MOVE 255 TO CLIENT-STATE
+        EXIT SECTION
+    END-IF
     PERFORM HandleError.
 
     *> Read packet ID
