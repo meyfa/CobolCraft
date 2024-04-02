@@ -8,6 +8,7 @@ The following features are already working:
 
 - [X] basic TCP server
 - [X] respond to ping (i.e., show as online in the server list)
+- [X] whitelist (single player, edit `server.cob` to enable/set username)
 - [ ] player login
 - [ ] player movement
 - [ ] sending chunk data to client
