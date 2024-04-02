@@ -10,11 +10,12 @@ WORKING-STORAGE SECTION.
     01 LISTEN           PIC X(4).
     01 HNDL             PIC X(4).
     01 ERRNO            PIC 9(3) VALUE 0.
-    *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = play, 255 = disconnect)
+    *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = configuration, 4 = play, 255 = disconnect)
     01 CLIENT-STATE     PIC 9(3) VALUE 0.
     *> Player data
     01 USERNAME         PIC X(16).
     01 USERNAME-LENGTH  PIC 9(3).
+    01 CONFIG-FINISH    PIC 9(1) VALUE 0.
     *> Incoming packet data
     01 BYTE-COUNT       PIC 9(5).
     01 PACKET-LENGTH    PIC S9(10).
@@ -34,6 +35,9 @@ AcceptConnection.
     PERFORM HandleError.
 
     MOVE 0 TO CLIENT-STATE.
+    MOVE SPACES TO USERNAME.
+    MOVE 0 TO USERNAME-LENGTH.
+    MOVE 0 TO CONFIG-FINISH.
     PERFORM ReceivePacket UNTIL CLIENT-STATE = 255.
 
     DISPLAY "Disconnecting..."
@@ -65,8 +69,9 @@ ReceivePacket SECTION.
         WHEN CLIENT-STATE = 2
             PERFORM HandleLogin
         WHEN CLIENT-STATE = 3
-            *> TODO: Implement play state
-            MOVE 255 TO CLIENT-STATE
+            PERFORM HandleConfiguration
+        WHEN CLIENT-STATE = 4
+            PERFORM HandlePlay
         WHEN OTHER
             DISPLAY "  Invalid state: " CLIENT-STATE
             MOVE 255 TO CLIENT-STATE
@@ -120,49 +125,145 @@ HandleStatus SECTION.
             MOVE 255 TO CLIENT-STATE
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
-            MOVE 255 TO CLIENT-STATE
+            MOVE PACKET-LENGTH TO BYTE-COUNT
+            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+            PERFORM HandleError
     END-EVALUATE.
 
     EXIT SECTION.
 
 HandleLogin SECTION.
-    IF PACKET-ID NOT = 0 THEN
-        DISPLAY "  Unexpected packet ID: " PACKET-ID
-        MOVE 255 TO CLIENT-STATE
-        EXIT SECTION
-    END-IF
+    EVALUATE TRUE
+        *> Login start
+        WHEN PACKET-ID = 0
+            *> Read username
+            CALL "Read-String" USING HNDL ERRNO BYTE-COUNT USERNAME
+            PERFORM HandleError
+            MOVE BYTE-COUNT TO USERNAME-LENGTH
+            DISPLAY "  Login with username: " USERNAME
 
-    CALL "Read-String" USING HNDL ERRNO BYTE-COUNT USERNAME
-    MOVE BYTE-COUNT TO USERNAME-LENGTH
-    DISPLAY "  Login with username: " USERNAME
+            *> Read UUID (since we don't need it, we just skip it)
+            MOVE 16 TO BYTE-COUNT
+            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+            PERFORM HandleError
 
-    IF WHITELIST-ENABLE > 0 AND USERNAME NOT = WHITELIST-PLAYER THEN
-        DISPLAY "  Player not whitelisted: " USERNAME
-        MOVE 0 TO PACKET-ID
-        MOVE " {""text"":""Not whitelisted!""}" TO BUFFER
-        MOVE FUNCTION CHAR(29 + 1) TO BUFFER(1:1)
-        MOVE 30 TO BYTE-COUNT
-        CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-        PERFORM HandleError
-        MOVE 255 TO CLIENT-STATE
-        EXIT SECTION
-    END-IF
+            IF WHITELIST-ENABLE > 0 AND USERNAME NOT = WHITELIST-PLAYER THEN
+                DISPLAY "  Player not whitelisted: " USERNAME
+                MOVE 0 TO PACKET-ID
+                MOVE " {""text"":""Not whitelisted!""}" TO BUFFER
+                MOVE FUNCTION CHAR(29 + 1) TO BUFFER(1:1)
+                MOVE 30 TO BYTE-COUNT
+                CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+                PERFORM HandleError
+                MOVE 255 TO CLIENT-STATE
+                EXIT SECTION
+            END-IF
 
-    *> For now, just disconnect the player
-    MOVE 0 TO PACKET-ID
-    MOVE " {""text"":""Not implemented!""}" TO BUFFER
-    MOVE FUNCTION CHAR(29 + 1) TO BUFFER(1:1)
-    MOVE 30 TO BYTE-COUNT
-    CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-    PERFORM HandleError
-    MOVE 255 TO CLIENT-STATE
+            *> Send login success. This should result in a "login acknowledged" packet by the client.
+            *> UUID of the player (value: 00000...01)
+            MOVE 0 TO BYTE-COUNT
+            PERFORM UNTIL BYTE-COUNT = 15
+                ADD 1 TO BYTE-COUNT
+                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            END-PERFORM
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(2) TO BUFFER(BYTE-COUNT:1)
+            *> Username (string prefixed with VarInt length)
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(USERNAME-LENGTH + 1) TO BUFFER(BYTE-COUNT:1)
+            MOVE USERNAME(1:USERNAME-LENGTH) TO BUFFER(BYTE-COUNT + 1:USERNAME-LENGTH)
+            ADD USERNAME-LENGTH TO BYTE-COUNT
+            *> Number of properties
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> End of properties
+            *> send packet
+            MOVE 2 TO PACKET-ID
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
 
-    *> TODO: send login success
-    *> TODO: send join game
-    *> TOOD: send inventory
-    *> TODO: send chunks
-    *> TODO: send position
-    *> TODO: spawn player
+        *> Login acknowledge
+        WHEN PACKET-ID = 3
+            *> Must not happen before login start
+            IF USERNAME-LENGTH = 0 THEN
+                DISPLAY "  Unexpected login acknowledge"
+                MOVE 255 TO CLIENT-STATE
+                EXIT SECTION
+            END-IF
+
+            *> We don't expect any payload, but better safe than sorry
+            MOVE PACKET-LENGTH TO BYTE-COUNT
+            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+            PERFORM HandleError
+
+            *> Can move to configuration state
+            DISPLAY "  Acknowledged login"
+            ADD 1 TO CLIENT-STATE
+
+        WHEN OTHER
+            DISPLAY "  Unexpected packet ID: " PACKET-ID
+            MOVE PACKET-LENGTH TO BYTE-COUNT
+            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+            PERFORM HandleError
+    END-EVALUATE.
+
+    EXIT SECTION.
+
+HandleConfiguration SECTION.
+    EVALUATE TRUE
+        *> Client information
+        WHEN PACKET-ID = 0
+            DISPLAY "  Received client information"
+
+            *> Read payload
+            MOVE PACKET-LENGTH TO BYTE-COUNT
+            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+            PERFORM HandleError
+
+            *> Send finish configuration
+            MOVE 2 TO PACKET-ID
+            MOVE 0 TO BYTE-COUNT
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
+
+            *> We now expect an acknowledge packet
+            MOVE 1 TO CONFIG-FINISH
+
+        *> Acknowledge finish configuration
+        WHEN PACKET-ID = 2
+            IF CONFIG-FINISH = 0 THEN
+                DISPLAY "  Unexpected acknowledge finish configuration"
+                MOVE 255 TO CLIENT-STATE
+                EXIT SECTION
+            END-IF
+
+            *> Can move to play state
+            DISPLAY "  Acknowledged finish configuration"
+            ADD 1 TO CLIENT-STATE
+
+            *> TODO: send join game
+            *> TOOD: send inventory
+            *> TODO: send chunks
+            *> TODO: send position
+            *> TODO: spawn player
+
+        WHEN OTHER
+            DISPLAY "  Unexpected packet ID: " PACKET-ID
+            MOVE PACKET-LENGTH TO BYTE-COUNT
+            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+            PERFORM HandleError
+    END-EVALUATE.
+
+    EXIT SECTION.
+
+HandlePlay SECTION.
+    *> Consume the packet
+    MOVE PACKET-LENGTH TO BYTE-COUNT
+    CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+    PERFORM HandleError.
+
+    DISPLAY "  Play state not implemented"
+    *> MOVE 255 TO CLIENT-STATE
 
     EXIT SECTION.
 
