@@ -176,11 +176,9 @@ HandleLogin SECTION.
 
             IF WHITELIST-ENABLE > 0 AND USERNAME NOT = WHITELIST-PLAYER THEN
                 DISPLAY "  Player not whitelisted: " USERNAME
-                MOVE 0 TO PACKET-ID
-                MOVE " {""text"":""Not whitelisted!""}" TO BUFFER
-                MOVE FUNCTION CHAR(29 + 1) TO BUFFER(1:1)
-                MOVE 30 TO BYTE-COUNT
-                CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+                MOVE "Not whitelisted!" TO BUFFER
+                MOVE 16 TO BYTE-COUNT
+                CALL "SendPacket-LoginDisconnect" USING BY REFERENCE HNDL ERRNO BUFFER BYTE-COUNT
                 PERFORM HandleError
                 MOVE 255 TO CLIENT-STATE
                 EXIT SECTION

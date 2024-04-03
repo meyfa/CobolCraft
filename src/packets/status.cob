@@ -20,7 +20,7 @@ LINKAGE SECTION.
     01 LK-MOTD      PIC X(64).
 
 PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-MOTD.
-    *> Encode the JSON string into the buffer.
+    *> Encode the JSON payload
     MOVE 1 TO JSONPOS
 
     *> {
