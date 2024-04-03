@@ -1,7 +1,17 @@
 IDENTIFICATION DIVISION.
 PROGRAM-ID. server.
 
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION.
+FILE-CONTROL.
+SELECT FD-REGISTRY-BLOB ASSIGN TO "blobs/registry_packet.txt"
+    ORGANIZATION IS LINE SEQUENTIAL.
+
 DATA DIVISION.
+FILE SECTION.
+FD FD-REGISTRY-BLOB.
+    01 REGISTRY-BLOB-REC    PIC X(64).
+
 WORKING-STORAGE SECTION.
     01 PORT             PIC X(5) VALUE "25565".
     01 WHITELIST-ENABLE PIC 9(1) VALUE 0.
@@ -16,11 +26,17 @@ WORKING-STORAGE SECTION.
     01 USERNAME         PIC X(16).
     01 USERNAME-LENGTH  PIC 9(3).
     01 CONFIG-FINISH    PIC 9(1) VALUE 0.
-    *> Incoming packet data
+    01 KEEPALIVE-ID     PIC 9(10) VALUE 0.
+    *> Incoming/outgoing packet data
     01 BYTE-COUNT       PIC 9(5).
     01 PACKET-LENGTH    PIC S9(10).
     01 PACKET-ID        PIC S9(10).
     01 BUFFER           PIC X(64000).
+    *> Temporary variables
+    01 TEMP-BUFFER      PIC X(64000).
+    01 TEMP-BYTE-COUNT  PIC 9(5).
+    01 TEMP-INT32       PIC 9(10).
+    01 TEMP-INT64       PIC 9(20).
 
 PROCEDURE DIVISION.
 
@@ -38,6 +54,7 @@ AcceptConnection.
     MOVE SPACES TO USERNAME.
     MOVE 0 TO USERNAME-LENGTH.
     MOVE 0 TO CONFIG-FINISH.
+    MOVE 0 TO KEEPALIVE-ID.
     PERFORM ReceivePacket UNTIL CLIENT-STATE = 255.
 
     DISPLAY "Disconnecting..."
@@ -225,6 +242,39 @@ HandleConfiguration SECTION.
             CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
             PERFORM HandleError
 
+            *> Send registry data
+            OPEN INPUT FD-REGISTRY-BLOB
+            MOVE 64 TO TEMP-BYTE-COUNT
+            PERFORM UNTIL TEMP-BYTE-COUNT = 0
+                MOVE SPACES TO TEMP-BUFFER(1:64)
+                READ FD-REGISTRY-BLOB INTO TEMP-BUFFER
+                    AT END
+                        MOVE 0 TO TEMP-BYTE-COUNT
+                    NOT AT END
+                        CALL "DecodeHexString" USING TEMP-BUFFER TEMP-BYTE-COUNT BUFFER BYTE-COUNT
+                        CALL "Write-Raw" USING BY REFERENCE HNDL BYTE-COUNT BUFFER ERRNO
+                        PERFORM HandleError
+                END-READ
+            END-PERFORM
+            CLOSE FD-REGISTRY-BLOB
+
+            *> Send feature flags
+            MOVE 0 TO BYTE-COUNT
+            *> count=1
+            MOVE 1 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> feature flag="minecraft:vanilla"
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(17 + 1) TO BUFFER(BYTE-COUNT:1)
+            MOVE "minecraft:vanilla" TO BUFFER(BYTE-COUNT + 1:17)
+            ADD 17 TO BYTE-COUNT
+            *> send packet
+            MOVE 8 TO PACKET-ID
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
+
             *> Send finish configuration
             MOVE 2 TO PACKET-ID
             MOVE 0 TO BYTE-COUNT
@@ -246,11 +296,200 @@ HandleConfiguration SECTION.
             DISPLAY "  Acknowledged finish configuration"
             ADD 1 TO CLIENT-STATE
 
-            *> TODO: send join game
-            *> TOOD: send inventory
-            *> TODO: send chunks
-            *> TODO: send position
-            *> TODO: spawn player
+            *> send "Login (play)"
+            MOVE 0 TO BYTE-COUNT
+            *> entity ID=0x00000001 (suffix of UUID)
+            PERFORM 4 TIMES
+                ADD 1 TO BYTE-COUNT
+                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            END-PERFORM
+            MOVE FUNCTION CHAR(2) TO BUFFER(BYTE-COUNT:1)
+            *> is hardcore=false
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> dimension count=1
+            MOVE 1 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> dimension name array=["minecraft:overworld"]
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(19 + 1) TO BUFFER(BYTE-COUNT:1)
+            MOVE "minecraft:overworld" TO BUFFER(BYTE-COUNT + 1:19)
+            ADD 19 TO BYTE-COUNT
+            *> max players=1
+            MOVE 10 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> view distance=10
+            MOVE 10 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> simulation distance=10
+            MOVE 1 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> reduced debug info=false
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> enable respawn screen=true
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> do limited crafting=false
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> dimension type="minecraft:overworld"
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(19 + 1) TO BUFFER(BYTE-COUNT:1)
+            MOVE "minecraft:overworld" TO BUFFER(BYTE-COUNT + 1:19)
+            ADD 19 TO BYTE-COUNT
+            *> dimension name="minecraft:overworld"
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(19 + 1) TO BUFFER(BYTE-COUNT:1)
+            MOVE "minecraft:overworld" TO BUFFER(BYTE-COUNT + 1:19)
+            ADD 19 TO BYTE-COUNT
+            *> hashed seed=0 (8-byte long)
+            PERFORM 8 TIMES
+                ADD 1 TO BYTE-COUNT
+                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            END-PERFORM
+            *> gamemode=1 (creative)
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(2) TO BUFFER(BYTE-COUNT:1)
+            *> previous gamemode=-1
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(255 + 1) TO BUFFER(BYTE-COUNT:1)
+            *> is debug=false
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> is flat=false
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> has death location=false
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> portal cooldown=0
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> send packet
+            MOVE 41 TO PACKET-ID
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
+
+            *> send game event "start waiting for level chunks"
+            MOVE "06200d00000000" TO BUFFER
+            MOVE 14 TO BYTE-COUNT
+            CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
+            CALL "Write-Raw" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
+            PERFORM HandleError
+
+            *> set ticking state
+            MOVE "066e41a0000000" TO BUFFER
+            MOVE 14 TO BYTE-COUNT
+            CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
+            CALL "Write-Raw" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
+            PERFORM HandleError
+
+            *> tick
+            MOVE "026f00" TO BUFFER
+            MOVE 6 TO BYTE-COUNT
+            CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
+            CALL "Write-Raw" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
+            PERFORM HandleError
+
+            *> send inventory ("Set Container Content" with window ID=0)
+            MOVE 0 TO BYTE-COUNT
+            *> window ID=0
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> state ID=0
+            MOVE 0 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> count=46 (https://wiki.vg/Inventory#Player_Inventory)
+            MOVE 46 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> slot data (all empty)
+            PERFORM UNTIL TEMP-INT32 = 0
+                ADD 1 TO BYTE-COUNT
+                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+                SUBTRACT 1 FROM TEMP-INT32
+            END-PERFORM
+            *> carried item (empty)
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> send packet
+            MOVE 19 TO PACKET-ID
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
+
+            *> send "Set Center Chunk"
+            MOVE 0 TO BYTE-COUNT
+            *> chunk X=0
+            MOVE 0 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> chunk Z=0
+            MOVE 0 TO TEMP-INT32
+            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> send packet
+            MOVE 82 TO PACKET-ID
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
+
+            *> TODO: send chunk data ("Chunk Data and Update Light")
+
+            *> send position ("Synchronize Player Position")
+            MOVE 0 TO BYTE-COUNT
+            *> X=0
+            MOVE FUNCTION CHAR(64 + 1) TO BUFFER(BYTE-COUNT + 1:1)
+            MOVE FUNCTION CHAR(111 + 1) TO BUFFER(BYTE-COUNT + 2:1)
+            MOVE FUNCTION CHAR(224 + 1) TO BUFFER(BYTE-COUNT + 3:1)
+            ADD 3 TO BYTE-COUNT
+            PERFORM 5 TIMES
+                ADD 1 TO BYTE-COUNT
+                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            END-PERFORM
+            *> Y=255 (IEEE 754 double-precision floating-point)
+            MOVE FUNCTION CHAR(64 + 1) TO BUFFER(BYTE-COUNT + 1:1)
+            MOVE FUNCTION CHAR(111 + 1) TO BUFFER(BYTE-COUNT + 2:1)
+            MOVE FUNCTION CHAR(224 + 1) TO BUFFER(BYTE-COUNT + 3:1)
+            ADD 3 TO BYTE-COUNT
+            PERFORM 5 TIMES
+                ADD 1 TO BYTE-COUNT
+                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            END-PERFORM
+            *> Z=0
+            PERFORM 8 TIMES
+                ADD 1 TO BYTE-COUNT
+                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            END-PERFORM
+            *> yaw=pitch=0
+            PERFORM UNTIL BYTE-COUNT = 32
+                ADD 1 TO BYTE-COUNT
+                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            END-PERFORM
+            *> flags=0
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> teleport ID=0
+            ADD 1 TO BYTE-COUNT
+            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
+            *> send packet
+            MOVE 62 TO PACKET-ID
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            PERFORM HandleError
+
+            *> TODO: receive "Confirm Teleportation"
 
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
@@ -262,13 +501,42 @@ HandleConfiguration SECTION.
     EXIT SECTION.
 
 HandlePlay SECTION.
+    *> TODO: implement packets
+
+    EVALUATE TRUE
+        *> Set player position
+        WHEN PACKET-ID = 23
+            CONTINUE
+        *> Set player position and rotation
+        WHEN PACKET-ID = 24
+            CONTINUE
+        *> Set player rotation
+        WHEN PACKET-ID = 25
+            CONTINUE
+        *> Set player on ground
+        WHEN PACKET-ID = 26
+            CONTINUE
+    END-EVALUATE
+
     *> Consume the packet
     MOVE PACKET-LENGTH TO BYTE-COUNT
     CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-    PERFORM HandleError.
+    PERFORM HandleError
 
-    DISPLAY "  Play state not implemented"
-    *> MOVE 255 TO CLIENT-STATE
+    *> Send keep-alive (TODO: move this out of packet handling!)
+    *> but not in reaction to a keep-alive response packet, for obvious reasons
+    *> Note: We abuse the fact that the client sends movement packets at least once per second, even standing still.
+    IF PACKET-ID NOT = 21 THEN
+        ADD 1 TO KEEPALIVE-ID
+        MOVE 0 TO BYTE-COUNT
+        MOVE KEEPALIVE-ID TO TEMP-INT64
+        CALL "Encode-Long" USING TEMP-INT64 TEMP-BUFFER TEMP-BYTE-COUNT
+        MOVE TEMP-BUFFER(1:TEMP-BYTE-COUNT) TO BUFFER(1:TEMP-BYTE-COUNT)
+        ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+        MOVE 36 TO PACKET-ID
+        CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+        PERFORM HandleError
+    END-IF
 
     EXIT SECTION.
 
