@@ -32,8 +32,8 @@ WORKING-STORAGE SECTION.
     *> Temporary variables
     01 TEMP-BUFFER      PIC X(64000).
     01 TEMP-BYTE-COUNT  PIC 9(5).
-    01 TEMP-INT32       PIC 9(10).
-    01 TEMP-INT64       PIC 9(20).
+    01 TEMP-INT32       PIC S9(10).
+    01 TEMP-INT64       PIC S9(20).
 
 LINKAGE SECTION.
     *> Configuration provided by main program
