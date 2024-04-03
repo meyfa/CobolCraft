@@ -71,18 +71,23 @@ AcceptConnection.
 
 ReceivePacket SECTION.
     *> Read packet length
-    CALL "Read-VarInt" USING HNDL ERRNO BYTE-COUNT PACKET-LENGTH.
+    CALL "Read-VarInt" USING HNDL ERRNO BYTE-COUNT PACKET-LENGTH
     IF ERRNO = 2
         DISPLAY "Client lost connection"
         MOVE 255 TO CLIENT-STATE
         EXIT SECTION
     END-IF
-    PERFORM HandleError.
+    PERFORM HandleError
+    IF PACKET-LENGTH < 1
+        DISPLAY "Invalid packet length: " PACKET-LENGTH
+        MOVE 255 TO CLIENT-STATE
+        EXIT SECTION
+    END-IF
 
     *> Read packet ID
-    CALL "Read-VarInt" USING HNDL ERRNO BYTE-COUNT PACKET-ID.
-    PERFORM HandleError.
-    SUBTRACT BYTE-COUNT FROM PACKET-LENGTH GIVING PACKET-LENGTH.
+    CALL "Read-VarInt" USING HNDL ERRNO BYTE-COUNT PACKET-ID
+    PERFORM HandleError
+    SUBTRACT BYTE-COUNT FROM PACKET-LENGTH GIVING PACKET-LENGTH
 
     DISPLAY "[state=" CLIENT-STATE "] Received packet ID: " PACKET-ID " with length " PACKET-LENGTH " bytes.".
 
