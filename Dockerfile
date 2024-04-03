@@ -9,6 +9,7 @@ COPY Makefile .
 COPY server.cob .
 COPY src ./src
 COPY CBL_GC_SOCKET ./CBL_GC_SOCKET
+COPY blobs ./blobs
 
 # Build
 RUN make

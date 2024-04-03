@@ -47,10 +47,16 @@ You heard right - I had no prior COBOL experience going into this.
 Writing a Minecraft server was perhaps not the best idea for a first COBOL project, since COBOL offers basically
 no functionality regarding low-level data manipulation (bits and bytes) which the Minecraft protocol needs lots of.
 But remember: I didn't know this starting out, and quitting before having a working prototype was not on the table!
+A lot of this functionality had to be implemented completely from scratch.
+For large, complex data, I opted for recording packets from a "real" server via Wireshark (see `blobs` directory) and
+playing them back to clients.
 
 If you too have never written COBOL before but are interested in CobolCraft, I recommend reading the GnuCOBOL
 Programmer's Guide:
 https://gnucobol.sourceforge.io/HTML/gnucobpg.html
+
+To learn more about the Minecraft protocol, you can refer to https://wiki.vg/Protocol.
+In some cases, it may be helpful to look at real server traffic to better understand the flow of information.
 
 ## Legal Notices
 
