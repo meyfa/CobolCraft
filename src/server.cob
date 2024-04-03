@@ -1,5 +1,5 @@
 IDENTIFICATION DIVISION.
-PROGRAM-ID. server.
+PROGRAM-ID. Server.
 
 ENVIRONMENT DIVISION.
 INPUT-OUTPUT SECTION.
@@ -13,9 +13,6 @@ FD FD-REGISTRY-BLOB.
     01 REGISTRY-BLOB-REC    PIC X(64).
 
 WORKING-STORAGE SECTION.
-    01 PORT             PIC X(5) VALUE "25565".
-    01 WHITELIST-ENABLE PIC 9(1) VALUE 0.
-    01 WHITELIST-PLAYER PIC X(16) VALUE "Notch".
     *> Socket variables (server socket handle, client socket handle, error number)
     01 LISTEN           PIC X(4).
     01 HNDL             PIC X(4).
@@ -38,9 +35,14 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT32       PIC 9(10).
     01 TEMP-INT64       PIC 9(20).
 
-PROCEDURE DIVISION.
+LINKAGE SECTION.
+    *> Configuration provided by main program
+    01 PORT             PIC X(5).
+    01 WHITELIST-ENABLE PIC 9(1).
+    01 WHITELIST-PLAYER PIC X(16).
 
-Main.
+PROCEDURE DIVISION USING PORT WHITELIST-ENABLE WHITELIST-PLAYER.
+StartServer.
     DISPLAY "Starting server...".
     CALL "Socket-Listen" USING PORT LISTEN ERRNO.
     PERFORM HandleError.
@@ -548,4 +550,4 @@ HandleError SECTION.
 
     EXIT SECTION.
 
-END PROGRAM server.
+END PROGRAM Server.

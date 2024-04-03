@@ -38,6 +38,8 @@ docker build -t cobolcraft .
 docker run --rm -p 25565:25565 cobolcraft
 ```
 
+To configure the server, edit the variables in `main.cob` (limited options available).
+
 ## Why?
 
 Well, there are quite a lot of rumors and stigma surrounding COBOL.
