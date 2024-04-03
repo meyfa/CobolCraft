@@ -2,8 +2,8 @@
 COBC = cobc
 
 LIB = CBL_GC_SOCKET/CBL_GC_SOCKET.so
-SRC = server.cob src/*.cob
-BIN = server
+SRC = main.cob src/*.cob
+BIN = cobolcraft
 
 all: $(BIN)
 
