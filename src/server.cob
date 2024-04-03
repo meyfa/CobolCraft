@@ -37,11 +37,13 @@ WORKING-STORAGE SECTION.
 
 LINKAGE SECTION.
     *> Configuration provided by main program
-    01 PORT             PIC X(5).
-    01 WHITELIST-ENABLE PIC 9(1).
-    01 WHITELIST-PLAYER PIC X(16).
+    01 SERVER-CONFIG.
+        02 PORT                 PIC X(5).
+        02 WHITELIST-ENABLE     PIC 9(1).
+        02 WHITELIST-PLAYER     PIC X(16).
+        02 MOTD                 PIC X(64).
 
-PROCEDURE DIVISION USING PORT WHITELIST-ENABLE WHITELIST-PLAYER.
+PROCEDURE DIVISION USING SERVER-CONFIG.
 StartServer.
     DISPLAY "Starting server...".
     CALL "Socket-Listen" USING PORT LISTEN ERRNO.
@@ -132,11 +134,7 @@ HandleStatus SECTION.
         WHEN PACKET-ID = 0
             *> Status request
             DISPLAY "  Responding to status request"
-            MOVE 0 TO PACKET-ID
-            MOVE " {""version"":{""name"":""1.20.4"",""protocol"":765},""players"":{""max"":1,""online"":0,""sample"":[]},""description"":{""text"":""CobolCraft""}}" TO BUFFER
-            MOVE FUNCTION CHAR(123 + 1) TO BUFFER(1:1)
-            MOVE 124 TO BYTE-COUNT
-            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket-Status" USING HNDL ERRNO MOTD
             PERFORM HandleError
         WHEN PACKET-ID = 1
             *> Ping request: respond with the same payload and close the connection
