@@ -253,7 +253,8 @@ HandleConfiguration SECTION.
                         MOVE 0 TO TEMP-BYTE-COUNT
                     NOT AT END
                         CALL "DecodeHexString" USING TEMP-BUFFER TEMP-BYTE-COUNT BUFFER BYTE-COUNT
-                        CALL "Write-Raw" USING BY REFERENCE HNDL BYTE-COUNT BUFFER ERRNO
+                        MOVE BYTE-COUNT TO TEMP-INT32
+                        CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-INT32 BUFFER
                         PERFORM HandleError
                 END-READ
             END-PERFORM
@@ -384,21 +385,24 @@ HandleConfiguration SECTION.
             MOVE "06200d00000000" TO BUFFER
             MOVE 14 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            CALL "Write-Raw" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
+            MOVE TEMP-BYTE-COUNT TO TEMP-INT32
+            CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-INT32 TEMP-BUFFER
             PERFORM HandleError
 
             *> set ticking state
             MOVE "066e41a0000000" TO BUFFER
             MOVE 14 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            CALL "Write-Raw" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
+            MOVE TEMP-BYTE-COUNT TO TEMP-INT32
+            CALL "Socket-Write" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
             PERFORM HandleError
 
             *> tick
             MOVE "026f00" TO BUFFER
             MOVE 6 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            CALL "Write-Raw" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
+            MOVE TEMP-BYTE-COUNT TO TEMP-INT32
+            CALL "Socket-Write" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
             PERFORM HandleError
 
             *> send inventory ("Set Container Content" with window ID=0)
