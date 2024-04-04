@@ -43,7 +43,9 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO.
 END PROGRAM Socket-Close.
 
 *> --- Socket-Read ---
-*> Read a raw byte array from the socket. The number of bytes to read can be arbitrarily large.
+*> Read a raw byte array from the socket. At most 64000 bytes can be read at once.
+*> This operation is associated with a timeout, so it may not read all the bytes requested.
+*> The number of bytes actually read is returned in LK-READ-COUNT.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Socket-Read.
 
@@ -51,39 +53,32 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 CHUNK-BUFFER         PIC X(64000).
 LOCAL-STORAGE SECTION.
-    01 BYTES-READ           PIC 9(10)   VALUE 0.
-    01 REMAINING            PIC 9(10)   VALUE 0.
-    01 CHUNK-SIZE           PIC 9(5)    VALUE 0.
+    *> The socket library requires X(6) for the timeout parameter
+    01 TIMEOUT-PARAM        PIC X(6).
 LINKAGE SECTION.
     01 LK-HNDL              PIC X(4).
     01 LK-ERRNO             PIC 9(3).
-    01 LK-READ-COUNT        PIC 9(10).
-    01 LK-BUFFER            PIC X(2100000).
+    01 LK-READ-COUNT        PIC 9(5).
+    01 LK-BUFFER            PIC X(64000).
+    01 LK-TIMEOUT-MS        PIC 9(5).
 
-PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-READ-COUNT LK-BUFFER.
-    IF LK-READ-COUNT < 1 OR LK-READ-COUNT > 2100000
+PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-READ-COUNT LK-BUFFER LK-TIMEOUT-MS.
+    IF LK-READ-COUNT < 1 OR LK-READ-COUNT > 64000
         MOVE 1 TO LK-ERRNO
         GOBACK
     END-IF
 
-    *> If the number of bytes to read is at most 64000, we can read it all at once
-    IF LK-READ-COUNT <= 64000
-        MOVE LK-READ-COUNT TO CHUNK-SIZE
-        CALL "CBL_GC_SOCKET" USING "04" LK-HNDL CHUNK-SIZE LK-BUFFER GIVING LK-ERRNO
+    MOVE ZEROES TO TIMEOUT-PARAM
+    MOVE LK-TIMEOUT-MS TO TIMEOUT-PARAM(2:5)
+
+    CALL "CBL_GC_SOCKET" USING "08" LK-HNDL LK-READ-COUNT LK-BUFFER TIMEOUT-PARAM GIVING LK-ERRNO
+
+    *> Treat timeout as a successful read of 0 bytes
+    IF LK-ERRNO = 4
+        MOVE 0 TO LK-READ-COUNT
+        MOVE 0 TO LK-ERRNO
         GOBACK
     END-IF
-
-    *> Read in chunks of up to 64000 bytes
-    PERFORM UNTIL BYTES-READ >= LK-READ-COUNT
-        COMPUTE REMAINING = LK-READ-COUNT - BYTES-READ
-        COMPUTE CHUNK-SIZE = FUNCTION MIN(64000, REMAINING)
-        CALL "CBL_GC_SOCKET" USING "04" LK-HNDL CHUNK-SIZE CHUNK-BUFFER GIVING LK-ERRNO
-        IF LK-ERRNO NOT = 0
-            EXIT PERFORM
-        END-IF
-        MOVE CHUNK-BUFFER(1:CHUNK-SIZE) TO LK-BUFFER(BYTES-READ + 1:CHUNK-SIZE)
-        ADD CHUNK-SIZE TO BYTES-READ
-    END-PERFORM
 
     GOBACK.
 
