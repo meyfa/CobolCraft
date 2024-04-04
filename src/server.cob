@@ -21,12 +21,16 @@ WORKING-STORAGE SECTION.
     01 CLIENT-STATE     PIC 9(3) VALUE 0.
     *> Player data
     01 USERNAME         PIC X(16).
-    01 USERNAME-LENGTH  PIC 9(3).
+    01 USERNAME-LENGTH  PIC 9(5).
     01 CONFIG-FINISH    PIC 9(1) VALUE 0.
     01 KEEPALIVE-ID     PIC 9(10) VALUE 0.
+    *> Packet reading: packet length (-1 if not yet known), packet buffer, read/decode position
+    *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
+    01 PACKET-LENGTH    PIC S9(10).
+    01 PACKET-BUFFER    PIC X(2100000).
+    01 PACKET-POSITION  PIC 9(10).
     *> Incoming/outgoing packet data
     01 BYTE-COUNT       PIC 9(5).
-    01 PACKET-LENGTH    PIC S9(10).
     01 PACKET-ID        PIC S9(10).
     01 BUFFER           PIC X(64000).
     *> Temporary variables
@@ -51,45 +55,70 @@ StartServer.
 
 AcceptConnection.
     DISPLAY "Waiting for client..."
-    CALL "Socket-Accept" USING LISTEN HNDL ERRNO.
-    PERFORM HandleError.
+    CALL "Socket-Accept" USING LISTEN HNDL ERRNO
+    PERFORM HandleError
 
-    MOVE 0 TO CLIENT-STATE.
-    MOVE SPACES TO USERNAME.
-    MOVE 0 TO USERNAME-LENGTH.
-    MOVE 0 TO CONFIG-FINISH.
-    MOVE 0 TO KEEPALIVE-ID.
-    PERFORM ReceivePacket UNTIL CLIENT-STATE = 255.
+    MOVE 0 TO CLIENT-STATE
+    MOVE SPACES TO USERNAME
+    MOVE 0 TO USERNAME-LENGTH
+    MOVE 0 TO CONFIG-FINISH
+    MOVE 0 TO KEEPALIVE-ID
+    PERFORM ReceivePacket UNTIL CLIENT-STATE = 255
 
     DISPLAY "Disconnecting..."
-    CALL "Socket-Close" USING HNDL ERRNO.
-    PERFORM HandleError.
+    CALL "Socket-Close" USING HNDL ERRNO
+    PERFORM HandleError
 
     GO TO AcceptConnection.
 
     STOP RUN.
 
 ReceivePacket SECTION.
-    *> Read packet length
-    CALL "Read-VarInt" USING HNDL ERRNO BYTE-COUNT PACKET-LENGTH
-    IF ERRNO = 2
-        DISPLAY "Client lost connection"
-        MOVE 255 TO CLIENT-STATE
-        EXIT SECTION
-    END-IF
-    PERFORM HandleError
-    IF PACKET-LENGTH < 1
+    *> Read packet length - read bytes one at a time until the VarInt becomes valid
+    MOVE -1 TO PACKET-LENGTH
+    MOVE 0 TO BYTE-COUNT        *> number of VarInt bytes read
+    MOVE 1 TO TEMP-BYTE-COUNT   *> read one byte at a time
+    PERFORM UNTIL PACKET-LENGTH >= 0 OR BYTE-COUNT > 5
+        CALL "Read-Raw" USING HNDL TEMP-BYTE-COUNT ERRNO TEMP-BUFFER
+        IF ERRNO = 2
+            DISPLAY "Client lost connection"
+            MOVE 255 TO CLIENT-STATE
+            EXIT SECTION
+        END-IF
+        PERFORM HandleError
+        ADD 1 TO BYTE-COUNT
+        MOVE TEMP-BUFFER(1:1) TO BUFFER(BYTE-COUNT:1)
+        *> This is the last VarInt byte if the most significant bit is not set.
+        *> Note: ORD(...) returns the ASCII code of the character + 1, meaning we need to check for <= 128.
+        IF FUNCTION ORD(BUFFER(BYTE-COUNT:1)) <= 128 THEN
+            MOVE 1 TO PACKET-POSITION
+            CALL "Decode-VarInt" USING BUFFER PACKET-POSITION PACKET-LENGTH
+        END-IF
+    END-PERFORM
+
+    *> Validate packet length - note that it must be at least 1 due to the packet ID
+    IF PACKET-LENGTH < 1 OR PACKET-LENGTH > 2097151 THEN
         DISPLAY "Invalid packet length: " PACKET-LENGTH
         MOVE 255 TO CLIENT-STATE
         EXIT SECTION
     END-IF
 
-    *> Read packet ID
-    CALL "Read-VarInt" USING HNDL ERRNO BYTE-COUNT PACKET-ID
-    PERFORM HandleError
-    SUBTRACT BYTE-COUNT FROM PACKET-LENGTH GIVING PACKET-LENGTH
+    *> Read the packet into the buffer - note that we may only read 64k at a time
+    MOVE 1 TO PACKET-POSITION
+    PERFORM UNTIL PACKET-POSITION > PACKET-LENGTH
+        COMPUTE TEMP-INT32 = FUNCTION MIN(64000, PACKET-LENGTH - PACKET-POSITION + 1)
+        MOVE TEMP-INT32 TO BYTE-COUNT
+        CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
+        PERFORM HandleError
+        MOVE BUFFER(1:BYTE-COUNT) TO PACKET-BUFFER(PACKET-POSITION:BYTE-COUNT)
+        ADD BYTE-COUNT TO PACKET-POSITION
+    END-PERFORM
 
-    DISPLAY "[state=" CLIENT-STATE "] Received packet ID: " PACKET-ID " with length " PACKET-LENGTH " bytes.".
+    *> Start decoding the packet by decoding the packet ID
+    MOVE 1 TO PACKET-POSITION
+    CALL "Decode-VarInt" USING PACKET-BUFFER PACKET-POSITION PACKET-ID
+
+    DISPLAY "[state=" CLIENT-STATE "] Received packet: " PACKET-ID
 
     *> Handshake
     EVALUATE TRUE
@@ -117,14 +146,8 @@ HandleHandshake SECTION.
         EXIT SECTION
     END-IF
 
-    *> Read payload. The final byte encodes the target state.
-    MOVE PACKET-LENGTH TO BYTE-COUNT
-    CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-    PERFORM HandleError
-    MOVE FUNCTION ORD(BUFFER(BYTE-COUNT:1)) TO CLIENT-STATE
-    SUBTRACT 1 FROM CLIENT-STATE
-
-    *> Validate target state
+    *> The final byte of the payload encodes the target state.
+    COMPUTE CLIENT-STATE = FUNCTION ORD(PACKET-BUFFER(PACKET-LENGTH:1)) - 1
     IF CLIENT-STATE NOT = 1 AND CLIENT-STATE NOT = 2 THEN
         DISPLAY "  Invalid target state: " CLIENT-STATE
         MOVE 255 TO CLIENT-STATE
@@ -144,17 +167,14 @@ HandleStatus SECTION.
         WHEN PACKET-ID = 1
             *> Ping request: respond with the same payload and close the connection
             DISPLAY "  Responding to ping request"
-            MOVE PACKET-LENGTH TO BYTE-COUNT
-            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-            PERFORM HandleError
+            COMPUTE BYTE-COUNT = 8
+            MOVE PACKET-BUFFER(PACKET-POSITION:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
+            MOVE 1 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
             PERFORM HandleError
             MOVE 255 TO CLIENT-STATE
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
-            MOVE PACKET-LENGTH TO BYTE-COUNT
-            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-            PERFORM HandleError
     END-EVALUATE.
 
     EXIT SECTION.
@@ -163,16 +183,12 @@ HandleLogin SECTION.
     EVALUATE TRUE
         *> Login start
         WHEN PACKET-ID = 0
-            *> Read username
-            CALL "Read-String" USING HNDL ERRNO BYTE-COUNT USERNAME
-            PERFORM HandleError
-            MOVE BYTE-COUNT TO USERNAME-LENGTH
+            *> Decode username
+            CALL "Decode-String" USING BY REFERENCE PACKET-BUFFER PACKET-POSITION USERNAME-LENGTH USERNAME
             DISPLAY "  Login with username: " USERNAME
 
-            *> Read UUID (since we don't need it, we just skip it)
-            MOVE 16 TO BYTE-COUNT
-            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-            PERFORM HandleError
+            *> Skip the UUID (16 bytes)
+            ADD 16 TO PACKET-POSITION
 
             IF WHITELIST-ENABLE > 0 AND USERNAME NOT = WHITELIST-PLAYER THEN
                 DISPLAY "  Player not whitelisted: " USERNAME
@@ -216,20 +232,12 @@ HandleLogin SECTION.
                 EXIT SECTION
             END-IF
 
-            *> We don't expect any payload, but better safe than sorry
-            MOVE PACKET-LENGTH TO BYTE-COUNT
-            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-            PERFORM HandleError
-
             *> Can move to configuration state
             DISPLAY "  Acknowledged login"
             ADD 1 TO CLIENT-STATE
 
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
-            MOVE PACKET-LENGTH TO BYTE-COUNT
-            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-            PERFORM HandleError
     END-EVALUATE.
 
     EXIT SECTION.
@@ -238,12 +246,8 @@ HandleConfiguration SECTION.
     EVALUATE TRUE
         *> Client information
         WHEN PACKET-ID = 0
+            *> Note: payload is ignored for now
             DISPLAY "  Received client information"
-
-            *> Read payload
-            MOVE PACKET-LENGTH TO BYTE-COUNT
-            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-            PERFORM HandleError
 
             *> Send registry data
             OPEN INPUT FD-REGISTRY-BLOB
@@ -496,9 +500,6 @@ HandleConfiguration SECTION.
 
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
-            MOVE PACKET-LENGTH TO BYTE-COUNT
-            CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-            PERFORM HandleError
     END-EVALUATE.
 
     EXIT SECTION.
@@ -520,11 +521,6 @@ HandlePlay SECTION.
         WHEN PACKET-ID = 26
             CONTINUE
     END-EVALUATE
-
-    *> Consume the packet
-    MOVE PACKET-LENGTH TO BYTE-COUNT
-    CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-    PERFORM HandleError
 
     *> Send keep-alive (TODO: move this out of packet handling!)
     *> but not in reaction to a keep-alive response packet, for obvious reasons
