@@ -74,12 +74,13 @@ AcceptConnection.
     STOP RUN.
 
 ReceivePacket SECTION.
-    *> Read packet length - read bytes one at a time until the VarInt becomes valid
+    *> Read packet length
     MOVE -1 TO PACKET-LENGTH
-    MOVE 0 TO BYTE-COUNT        *> number of VarInt bytes read
-    MOVE 1 TO TEMP-BYTE-COUNT   *> read one byte at a time
+    MOVE 0 TO BYTE-COUNT
+    *> read bytes one at a time until the VarInt becomes valid
     PERFORM UNTIL PACKET-LENGTH >= 0 OR BYTE-COUNT > 5
-        CALL "Read-Raw" USING HNDL TEMP-BYTE-COUNT ERRNO TEMP-BUFFER
+        MOVE 1 TO TEMP-INT32
+        CALL "Socket-Read" USING HNDL ERRNO TEMP-INT32 BUFFER
         IF ERRNO = 2
             DISPLAY "Client lost connection"
             MOVE 255 TO CLIENT-STATE
@@ -87,12 +88,12 @@ ReceivePacket SECTION.
         END-IF
         PERFORM HandleError
         ADD 1 TO BYTE-COUNT
-        MOVE TEMP-BUFFER(1:1) TO BUFFER(BYTE-COUNT:1)
+        MOVE BUFFER(1:1) TO PACKET-BUFFER(BYTE-COUNT:1)
         *> This is the last VarInt byte if the most significant bit is not set.
         *> Note: ORD(...) returns the ASCII code of the character + 1, meaning we need to check for <= 128.
-        IF FUNCTION ORD(BUFFER(BYTE-COUNT:1)) <= 128 THEN
+        IF FUNCTION ORD(PACKET-BUFFER(BYTE-COUNT:1)) <= 128 THEN
             MOVE 1 TO PACKET-POSITION
-            CALL "Decode-VarInt" USING BUFFER PACKET-POSITION PACKET-LENGTH
+            CALL "Decode-VarInt" USING PACKET-BUFFER PACKET-POSITION PACKET-LENGTH
         END-IF
     END-PERFORM
 
@@ -103,16 +104,9 @@ ReceivePacket SECTION.
         EXIT SECTION
     END-IF
 
-    *> Read the packet into the buffer - note that we may only read 64k at a time
-    MOVE 1 TO PACKET-POSITION
-    PERFORM UNTIL PACKET-POSITION > PACKET-LENGTH
-        COMPUTE TEMP-INT32 = FUNCTION MIN(64000, PACKET-LENGTH - PACKET-POSITION + 1)
-        MOVE TEMP-INT32 TO BYTE-COUNT
-        CALL "Read-Raw" USING HNDL BYTE-COUNT ERRNO BUFFER
-        PERFORM HandleError
-        MOVE BUFFER(1:BYTE-COUNT) TO PACKET-BUFFER(PACKET-POSITION:BYTE-COUNT)
-        ADD BYTE-COUNT TO PACKET-POSITION
-    END-PERFORM
+    *> Read the packet into the buffer
+    CALL "Socket-Read" USING HNDL ERRNO PACKET-LENGTH PACKET-BUFFER
+    PERFORM HandleError
 
     *> Start decoding the packet by decoding the packet ID
     MOVE 1 TO PACKET-POSITION
