@@ -24,11 +24,12 @@ WORKING-STORAGE SECTION.
     01 USERNAME-LENGTH  PIC 9(5).
     01 CONFIG-FINISH    PIC 9(1) VALUE 0.
     01 KEEPALIVE-ID     PIC 9(10) VALUE 0.
-    *> Packet reading: packet length (-1 if not yet known), packet buffer, read/decode position
+    *> Packet reading: packet length (-1 if not yet known), packet buffer, read/decode position, timeout
     *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
     01 PACKET-LENGTH    PIC S9(10).
     01 PACKET-BUFFER    PIC X(2100000).
     01 PACKET-POSITION  PIC 9(10).
+    01 TIMEOUT-MS       PIC 9(5).
     *> Incoming/outgoing packet data
     01 BYTE-COUNT       PIC 9(5).
     01 PACKET-ID        PIC S9(10).
@@ -38,6 +39,9 @@ WORKING-STORAGE SECTION.
     01 TEMP-BYTE-COUNT  PIC 9(5).
     01 TEMP-INT32       PIC S9(10).
     01 TEMP-INT64       PIC S9(20).
+    *> Time measurement
+    01 CURRENT-TIME     PIC 9(20).
+    01 TICK-ENDTIME     PIC 9(20).
 
 LINKAGE SECTION.
     *> Configuration provided by main program
@@ -63,7 +67,23 @@ AcceptConnection.
     MOVE 0 TO USERNAME-LENGTH
     MOVE 0 TO CONFIG-FINISH
     MOVE 0 TO KEEPALIVE-ID
-    PERFORM ReceivePacket UNTIL CLIENT-STATE = 255
+
+    MOVE -1 TO PACKET-LENGTH
+    MOVE 1 TO PACKET-POSITION
+
+    *> Loop until the client disconnects - each iteration is one game tick (1/20th of a second).
+    PERFORM UNTIL CLIENT-STATE = 255
+        CALL "Util-SystemTimeMillis" USING CURRENT-TIME
+        COMPUTE TICK-ENDTIME = CURRENT-TIME + (1000 / 20)
+
+        *> Here is where we would do the game loop.
+
+        *> The remaining time of this tick can be used for receiving packets.
+        PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME OR CLIENT-STATE = 255
+            PERFORM ReceivePacket
+            CALL "Util-SystemTimeMillis" USING CURRENT-TIME
+        END-PERFORM
+    END-PERFORM
 
     DISPLAY "Disconnecting..."
     CALL "Socket-Close" USING HNDL ERRNO
@@ -74,39 +94,63 @@ AcceptConnection.
     STOP RUN.
 
 ReceivePacket SECTION.
-    *> Read packet length
-    MOVE -1 TO PACKET-LENGTH
-    MOVE 0 TO BYTE-COUNT
-    *> read bytes one at a time until the VarInt becomes valid
-    PERFORM UNTIL PACKET-LENGTH >= 0 OR BYTE-COUNT > 5
-        MOVE 1 TO TEMP-INT32
-        CALL "Socket-Read" USING HNDL ERRNO TEMP-INT32 BUFFER
+    *> If the packet length is not yet known, try to read more bytes one by one until the VarInt is valid
+    IF PACKET-LENGTH < 0 THEN
+        MOVE 1 TO BYTE-COUNT
+        MOVE 1 TO TIMEOUT-MS
+        CALL "Socket-Read" USING HNDL ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
         IF ERRNO = 2
             DISPLAY "Client lost connection"
             MOVE 255 TO CLIENT-STATE
             EXIT SECTION
         END-IF
         PERFORM HandleError
-        ADD 1 TO BYTE-COUNT
-        MOVE BUFFER(1:1) TO PACKET-BUFFER(BYTE-COUNT:1)
+
+        *> Check if anything was read. If not, just try again later.
+        IF BYTE-COUNT = 0 THEN
+            EXIT SECTION
+        END-IF
+
+        MOVE BUFFER(1:1) TO PACKET-BUFFER(PACKET-POSITION:1)
+        ADD 1 TO PACKET-POSITION
+
         *> This is the last VarInt byte if the most significant bit is not set.
         *> Note: ORD(...) returns the ASCII code of the character + 1, meaning we need to check for <= 128.
-        IF FUNCTION ORD(PACKET-BUFFER(BYTE-COUNT:1)) <= 128 THEN
+        IF FUNCTION ORD(BUFFER(1:1)) <= 128 THEN
             MOVE 1 TO PACKET-POSITION
             CALL "Decode-VarInt" USING PACKET-BUFFER PACKET-POSITION PACKET-LENGTH
         END-IF
-    END-PERFORM
 
-    *> Validate packet length - note that it must be at least 1 due to the packet ID
-    IF PACKET-LENGTH < 1 OR PACKET-LENGTH > 2097151 THEN
-        DISPLAY "Invalid packet length: " PACKET-LENGTH
-        MOVE 255 TO CLIENT-STATE
+        *> Validate packet length - note that it must be at least 1 due to the packet ID
+        IF PACKET-LENGTH < 1 OR PACKET-LENGTH > 2097151 THEN
+            DISPLAY "Invalid packet length: " PACKET-LENGTH
+            MOVE 255 TO CLIENT-STATE
+            EXIT SECTION
+        END-IF
+
+        *> The length is now known. The remainder of the packet can be read in further invocations.
+        MOVE 1 TO PACKET-POSITION
         EXIT SECTION
     END-IF
 
-    *> Read the packet into the buffer
-    CALL "Socket-Read" USING HNDL ERRNO PACKET-LENGTH PACKET-BUFFER
-    PERFORM HandleError
+    *> Read more bytes if necessary
+    IF PACKET-POSITION <= PACKET-LENGTH THEN
+        COMPUTE TEMP-INT32 = PACKET-LENGTH - PACKET-POSITION + 1
+        COMPUTE BYTE-COUNT = FUNCTION MIN(TEMP-INT32, 64000)
+        MOVE 1 TO TIMEOUT-MS
+        CALL "Socket-Read" USING HNDL ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
+        IF ERRNO = 2
+            DISPLAY "Client lost connection"
+            MOVE 255 TO CLIENT-STATE
+            EXIT SECTION
+        END-IF
+        PERFORM HandleError
+        MOVE BUFFER(1:BYTE-COUNT) TO PACKET-BUFFER(PACKET-POSITION:BYTE-COUNT)
+        ADD BYTE-COUNT TO PACKET-POSITION
+        EXIT SECTION
+    END-IF
+
+    *> If we're at this point, everything is read and we can start processing the packet.
 
     *> Start decoding the packet by decoding the packet ID
     MOVE 1 TO PACKET-POSITION
@@ -114,7 +158,6 @@ ReceivePacket SECTION.
 
     DISPLAY "[state=" CLIENT-STATE "] Received packet: " PACKET-ID
 
-    *> Handshake
     EVALUATE TRUE
         WHEN CLIENT-STATE = 0
             PERFORM HandleHandshake
@@ -129,7 +172,11 @@ ReceivePacket SECTION.
         WHEN OTHER
             DISPLAY "  Invalid state: " CLIENT-STATE
             MOVE 255 TO CLIENT-STATE
-    END-EVALUATE.
+    END-EVALUATE
+
+    *> Reset packet position and length for the next packet
+    MOVE -1 TO PACKET-LENGTH
+    MOVE 1 TO PACKET-POSITION
 
     EXIT SECTION.
 

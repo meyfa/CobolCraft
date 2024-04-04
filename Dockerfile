@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y tini gcc g++ make gnucobol && rm -rf /v
 COPY Makefile .
 COPY main.cob .
 COPY src ./src
+COPY cpp ./cpp
 COPY CBL_GC_SOCKET ./CBL_GC_SOCKET
 COPY blobs ./blobs
 
@@ -15,7 +16,7 @@ COPY blobs ./blobs
 RUN make
 
 # Include runtime dependencies
-ENV COB_PRE_LOAD=CBL_GC_SOCKET:CBL_GC_SOCKET/CBL_GC_SOCKET.so
+ENV COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL
 
 # Run the server within Tini (to handle signals properly)
 ENTRYPOINT ["/usr/bin/tini", "--"]
