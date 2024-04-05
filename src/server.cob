@@ -131,11 +131,6 @@ ReceivePacket SECTION.
         MOVE 1 TO BYTE-COUNT
         MOVE 1 TO TIMEOUT-MS
         CALL "Socket-Read" USING HNDL ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
-        IF ERRNO = 2
-            DISPLAY "Client lost connection"
-            MOVE -1 TO CLIENT-STATE
-            EXIT SECTION
-        END-IF
         PERFORM HandleClientError
 
         *> Check if anything was read. If not, just try again later.
@@ -171,11 +166,6 @@ ReceivePacket SECTION.
         COMPUTE BYTE-COUNT = FUNCTION MIN(BYTE-COUNT, 64000)
         MOVE 1 TO TIMEOUT-MS
         CALL "Socket-Read" USING HNDL ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
-        IF ERRNO = 2
-            DISPLAY "Client lost connection"
-            MOVE -1 TO CLIENT-STATE
-            EXIT SECTION
-        END-IF
         PERFORM HandleClientError
         MOVE BUFFER(1:BYTE-COUNT) TO PACKET-BUFFER(PACKET-POSITION:BYTE-COUNT)
         ADD BYTE-COUNT TO PACKET-POSITION

@@ -81,6 +81,11 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-READ-COUNT LK-BUFFER L
         GOBACK
     END-IF
 
+    *> Treat "fewer bytes read than requested" as a successful read
+    IF LK-ERRNO = 2
+        MOVE 0 TO LK-ERRNO
+    END-IF
+
     MOVE READ-COUNT-PARAM TO LK-READ-COUNT
 
     GOBACK.
