@@ -3,22 +3,22 @@ PROGRAM-ID. SendPacket-LoginDisconnect.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID    PIC 9(10)       VALUE 0.
+    01 PACKET-ID    BINARY-LONG             VALUE 0.
     *> buffer used to store the JSON string
     01 JSONBUFFER   PIC X(64000).
-    01 JSONPOS      PIC 9(5).
+    01 JSONPOS      BINARY-LONG UNSIGNED.
     *> temporary data used during encoding
-    01 INT32        PIC S9(10).
+    01 INT32        BINARY-LONG.
     01 STR          PIC X(1000).
-    01 STRLEN       PIC 9(5).
+    01 STRLEN       BINARY-LONG UNSIGNED.
     *> buffer used to store the packet data
     01 PAYLOAD      PIC X(64000).
-    01 PAYLOADLEN   PIC 9(5).
+    01 PAYLOADLEN   BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-HNDL      PIC X(4).
     01 LK-ERRNO     PIC 9(3).
     01 LK-REASON    PIC X(1000).
-    01 LK-REASONLEN PIC 9(5).
+    01 LK-REASONLEN BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-REASON LK-REASONLEN.
     *> Encode the JSON payload {"text":"<reason>"}

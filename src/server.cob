@@ -16,29 +16,29 @@ WORKING-STORAGE SECTION.
     *> Socket variables (server socket handle, client socket handle, error number)
     01 LISTEN           PIC X(4).
     01 HNDL             PIC X(4).
-    01 ERRNO            PIC 9(3) VALUE 0.
-    *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = configuration, 4 = play, 255 = disconnect)
-    01 CLIENT-STATE     PIC 9(3) VALUE 0.
+    01 ERRNO            PIC 9(3)                VALUE 0.
+    *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = configuration, 4 = play, -1 = disconnect)
+    01 CLIENT-STATE     BINARY-CHAR             VALUE 0.
     *> Player data
     01 USERNAME         PIC X(16).
-    01 USERNAME-LENGTH  PIC 9(5).
-    01 CONFIG-FINISH    PIC 9(1) VALUE 0.
-    01 KEEPALIVE-ID     PIC 9(10) VALUE 0.
+    01 USERNAME-LENGTH  BINARY-LONG.
+    01 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
+    01 KEEPALIVE-ID     BINARY-LONG-LONG        VALUE 0.
     *> Packet reading: packet length (-1 if not yet known), packet buffer, read/decode position, timeout
     *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
-    01 PACKET-LENGTH    PIC S9(10).
+    01 PACKET-LENGTH    BINARY-LONG.
     01 PACKET-BUFFER    PIC X(2100000).
-    01 PACKET-POSITION  PIC 9(10).
+    01 PACKET-POSITION  BINARY-LONG UNSIGNED.
     01 TIMEOUT-MS       BINARY-SHORT UNSIGNED.
     *> Incoming/outgoing packet data
-    01 BYTE-COUNT       PIC 9(5).
-    01 PACKET-ID        PIC S9(10).
+    01 PACKET-ID        BINARY-LONG.
     01 BUFFER           PIC X(64000).
+    01 BYTE-COUNT       BINARY-LONG UNSIGNED.
     *> Temporary variables
     01 TEMP-BUFFER      PIC X(64000).
-    01 TEMP-BYTE-COUNT  PIC 9(5).
-    01 TEMP-INT32       PIC S9(10).
-    01 TEMP-INT64       PIC S9(20).
+    01 TEMP-BYTE-COUNT  BINARY-LONG UNSIGNED.
+    01 TEMP-INT32       BINARY-LONG.
+    01 TEMP-INT64       BINARY-LONG-LONG.
     *> Time measurement
     01 CURRENT-TIME     BINARY-LONG-LONG.
     01 TICK-ENDTIME     BINARY-LONG-LONG.
@@ -47,7 +47,7 @@ LINKAGE SECTION.
     *> Configuration provided by main program
     01 SERVER-CONFIG.
         02 PORT                 PIC X(5).
-        02 WHITELIST-ENABLE     PIC 9(1).
+        02 WHITELIST-ENABLE     BINARY-CHAR.
         02 WHITELIST-PLAYER     PIC X(16).
         02 MOTD                 PIC X(64).
 
@@ -72,14 +72,14 @@ AcceptConnection.
     MOVE 1 TO PACKET-POSITION
 
     *> Loop until the client disconnects - each iteration is one game tick (1/20th of a second).
-    PERFORM UNTIL CLIENT-STATE = 255
+    PERFORM UNTIL CLIENT-STATE < 0
         CALL "Util-SystemTimeMillis" USING CURRENT-TIME
         COMPUTE TICK-ENDTIME = CURRENT-TIME + (1000 / 20)
 
         *> Here is where we would do the game loop.
 
         *> The remaining time of this tick can be used for receiving packets.
-        PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME OR CLIENT-STATE = 255
+        PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME OR CLIENT-STATE < 0
             PERFORM ReceivePacket
             CALL "Util-SystemTimeMillis" USING CURRENT-TIME
         END-PERFORM
@@ -101,7 +101,7 @@ ReceivePacket SECTION.
         CALL "Socket-Read" USING HNDL ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
         IF ERRNO = 2
             DISPLAY "Client lost connection"
-            MOVE 255 TO CLIENT-STATE
+            MOVE -1 TO CLIENT-STATE
             EXIT SECTION
         END-IF
         PERFORM HandleError
@@ -124,7 +124,7 @@ ReceivePacket SECTION.
         *> Validate packet length - note that it must be at least 1 due to the packet ID
         IF PACKET-LENGTH < 1 OR PACKET-LENGTH > 2097151 THEN
             DISPLAY "Invalid packet length: " PACKET-LENGTH
-            MOVE 255 TO CLIENT-STATE
+            MOVE -1 TO CLIENT-STATE
             EXIT SECTION
         END-IF
 
@@ -141,7 +141,7 @@ ReceivePacket SECTION.
         CALL "Socket-Read" USING HNDL ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
         IF ERRNO = 2
             DISPLAY "Client lost connection"
-            MOVE 255 TO CLIENT-STATE
+            MOVE -1 TO CLIENT-STATE
             EXIT SECTION
         END-IF
         PERFORM HandleError
@@ -171,7 +171,7 @@ ReceivePacket SECTION.
             PERFORM HandlePlay
         WHEN OTHER
             DISPLAY "  Invalid state: " CLIENT-STATE
-            MOVE 255 TO CLIENT-STATE
+            MOVE -1 TO CLIENT-STATE
     END-EVALUATE
 
     *> Reset packet position and length for the next packet
@@ -183,7 +183,7 @@ ReceivePacket SECTION.
 HandleHandshake SECTION.
     IF PACKET-ID NOT = 0 THEN
         DISPLAY "  Unexpected packet ID: " PACKET-ID
-        MOVE 255 TO CLIENT-STATE
+        MOVE -1 TO CLIENT-STATE
         EXIT SECTION
     END-IF
 
@@ -191,7 +191,7 @@ HandleHandshake SECTION.
     COMPUTE CLIENT-STATE = FUNCTION ORD(PACKET-BUFFER(PACKET-LENGTH:1)) - 1
     IF CLIENT-STATE NOT = 1 AND CLIENT-STATE NOT = 2 THEN
         DISPLAY "  Invalid target state: " CLIENT-STATE
-        MOVE 255 TO CLIENT-STATE
+        MOVE -1 TO CLIENT-STATE
     ELSE
         DISPLAY "  Target state: " CLIENT-STATE
     END-IF
@@ -213,7 +213,7 @@ HandleStatus SECTION.
             MOVE 1 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
             PERFORM HandleError
-            MOVE 255 TO CLIENT-STATE
+            MOVE -1 TO CLIENT-STATE
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
     END-EVALUATE.
@@ -237,7 +237,7 @@ HandleLogin SECTION.
                 MOVE 16 TO BYTE-COUNT
                 CALL "SendPacket-LoginDisconnect" USING BY REFERENCE HNDL ERRNO BUFFER BYTE-COUNT
                 PERFORM HandleError
-                MOVE 255 TO CLIENT-STATE
+                MOVE -1 TO CLIENT-STATE
                 EXIT SECTION
             END-IF
 
@@ -269,7 +269,7 @@ HandleLogin SECTION.
             *> Must not happen before login start
             IF USERNAME-LENGTH = 0 THEN
                 DISPLAY "  Unexpected login acknowledge"
-                MOVE 255 TO CLIENT-STATE
+                MOVE -1 TO CLIENT-STATE
                 EXIT SECTION
             END-IF
 
@@ -337,7 +337,7 @@ HandleConfiguration SECTION.
         WHEN PACKET-ID = 2
             IF CONFIG-FINISH = 0 THEN
                 DISPLAY "  Unexpected acknowledge finish configuration"
-                MOVE 255 TO CLIENT-STATE
+                MOVE -1 TO CLIENT-STATE
                 EXIT SECTION
             END-IF
 
@@ -432,24 +432,21 @@ HandleConfiguration SECTION.
             MOVE "06200d00000000" TO BUFFER
             MOVE 14 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BYTE-COUNT TO TEMP-INT32
-            CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-INT32 TEMP-BUFFER
+            CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
             PERFORM HandleError
 
             *> set ticking state
             MOVE "066e41a0000000" TO BUFFER
             MOVE 14 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BYTE-COUNT TO TEMP-INT32
-            CALL "Socket-Write" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
+            CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
             PERFORM HandleError
 
             *> tick
             MOVE "026f00" TO BUFFER
             MOVE 6 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BYTE-COUNT TO TEMP-INT32
-            CALL "Socket-Write" USING BY REFERENCE HNDL TEMP-BYTE-COUNT TEMP-BUFFER ERRNO
+            CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
             PERFORM HandleError
 
             *> send inventory ("Set Container Content" with window ID=0)
