@@ -29,7 +29,7 @@ WORKING-STORAGE SECTION.
     01 PACKET-LENGTH    PIC S9(10).
     01 PACKET-BUFFER    PIC X(2100000).
     01 PACKET-POSITION  PIC 9(10).
-    01 TIMEOUT-MS       PIC 9(5).
+    01 TIMEOUT-MS       BINARY-SHORT UNSIGNED.
     *> Incoming/outgoing packet data
     01 BYTE-COUNT       PIC 9(5).
     01 PACKET-ID        PIC S9(10).
@@ -40,8 +40,8 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT32       PIC S9(10).
     01 TEMP-INT64       PIC S9(20).
     *> Time measurement
-    01 CURRENT-TIME     PIC 9(20).
-    01 TICK-ENDTIME     PIC 9(20).
+    01 CURRENT-TIME     BINARY-LONG-LONG.
+    01 TICK-ENDTIME     BINARY-LONG-LONG.
 
 LINKAGE SECTION.
     *> Configuration provided by main program

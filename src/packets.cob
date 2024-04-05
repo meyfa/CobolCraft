@@ -6,7 +6,7 @@ PROGRAM-ID. SendPacket.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 BUFFER                   PIC X(64000).
-    01 PACKET-LENGTH            PIC 9(5).
+    01 PACKET-LENGTH            BINARY-LONG UNSIGNED.
 LOCAL-STORAGE SECTION.
     01 NUM-BYTES                PIC 9(5).
     01 INT32                    PIC S9(10).
