@@ -67,5 +67,7 @@ See LICENSE for further information.
 
 This project includes the 3rd-party CBL_GC_SOCKET shared library, licensed under the LGPL v3.
 See CBL_GC_SOCKET/COPYING.lesser for further information.
+Note that line 939 of `CBL_GC_SOCKET/cob_socket.cpp` has been modified (compared to the original distribution of that
+library) to fix improper `snprintf` usage.
 
 "Minecraft" is a trademark of Mojang Synergies AB.
