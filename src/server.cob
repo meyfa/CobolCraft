@@ -53,6 +53,7 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING SERVER-CONFIG.
 StartServer.
     DISPLAY "Starting server...".
+    CALL "Util-IgnoreSIGPIPE".
     CALL "Socket-Listen" USING PORT LISTEN ERRNO.
     PERFORM HandleError.
 
