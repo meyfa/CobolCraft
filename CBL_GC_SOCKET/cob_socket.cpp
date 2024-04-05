@@ -936,7 +936,7 @@ int _cobsocket_readn(char* p_socket, char* p_bytes, char* p_data, unsigned int p
 
 	// store the number of bytes we have read into buffer
 	//
-	snprintf(l_buf,5,"%.5d",l_bytes);
+	snprintf(l_buf,6,"%.5d",l_bytes);
 	memcpy(p_bytes,l_buf,5);
 
 	return l_ret;
