@@ -1,0 +1,189 @@
+*> --- SendPacket-ChunkData ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. SendPacket-ChunkData.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 PACKET-ID        BINARY-LONG             VALUE 37.
+    *> constants
+    01 ALL-1-BITS       PIC X(8)                VALUE X"ffffffffffffffff".
+    01 EMPTY-COMP       PIC X(2)                VALUE X"0a00".
+    *> buffer used to store the packet data
+    01 PAYLOAD          PIC X(64000).
+    01 PAYLOADLEN       BINARY-LONG UNSIGNED.
+    *> temporary data
+    01 BUFFER           PIC X(64).
+    01 BUFFERLEN        BINARY-LONG UNSIGNED.
+    01 INT32            BINARY-LONG.
+    01 INT64            BINARY-LONG-LONG.
+    *> chunk data
+    01 CHUNK-SEC        BINARY-LONG UNSIGNED.
+    01 CHUNK-DATA       PIC X(64000).
+    01 DATA-LEN         BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-HNDL          PIC X(4).
+    01 LK-ERRNO         PIC 9(3).
+    01 LK-CHUNK-X       BINARY-LONG.
+    01 LK-CHUNK-Z       BINARY-LONG.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-CHUNK-X LK-CHUNK-Z.
+    MOVE 0 TO PAYLOADLEN
+
+    *> chunk x
+    CALL "Encode-Int" USING LK-CHUNK-X BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> chunk z
+    CALL "Encode-Int" USING LK-CHUNK-Z BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> heightmap NBT - send an empty compound tag for now
+    MOVE EMPTY-COMP TO PAYLOAD(PAYLOADLEN + 1:2)
+    ADD 2 TO PAYLOADLEN
+
+    *> construct chunk data
+    MOVE 0 TO DATA-LEN
+    PERFORM VARYING CHUNK-SEC FROM 1 BY 1 UNTIL CHUNK-SEC > 24
+        CALL "CreateChunkSection" USING CHUNK-SEC BUFFER BUFFERLEN
+        MOVE BUFFER(1:BUFFERLEN) TO CHUNK-DATA(DATA-LEN + 1:BUFFERLEN)
+        ADD BUFFERLEN TO DATA-LEN
+    END-PERFORM
+
+    *> size of data
+    CALL "Encode-VarInt" USING DATA-LEN BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> data
+    MOVE CHUNK-DATA(1:DATA-LEN) TO PAYLOAD(PAYLOADLEN + 1:DATA-LEN)
+    ADD DATA-LEN TO PAYLOADLEN
+
+    *> number of block entities
+    MOVE 0 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> block entities
+
+    *> sky light mask
+    *> Note: Each 16x16x16 section needs a bit + 1 below the chunk + 1 above the chunk => 26 bits => 1 long.
+    MOVE 1 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+    MOVE 0 TO INT64
+    CALL "Encode-Long" USING INT64 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> block light mask
+    MOVE 1 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+    MOVE 0 TO INT64
+    CALL "Encode-Long" USING INT64 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> empty sky light mask - set all bits to 1
+    MOVE 1 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+    MOVE ALL-1-BITS TO PAYLOAD(PAYLOADLEN + 1:8)
+    ADD 8 TO PAYLOADLEN
+
+    *> empty block light mask - set all bits to 1
+    MOVE 1 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+    MOVE ALL-1-BITS TO PAYLOAD(PAYLOADLEN + 1:8)
+    ADD 8 TO PAYLOADLEN
+
+    *> sky light array count
+    MOVE 0 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> sky light array
+
+    *> block light array count
+    MOVE 0 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> block light array
+
+    *> send packet
+    CALL "SendPacket" USING LK-HNDL PACKET-ID PAYLOAD PAYLOADLEN LK-ERRNO
+    GOBACK.
+
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. CreateChunkSection.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 INT16            BINARY-SHORT.
+        01 INT32            BINARY-LONG.
+        01 BUFFER           PIC X(64).
+        01 BUFFERLEN        BINARY-LONG UNSIGNED.
+    LINKAGE SECTION.
+        01 LK-CHUNK-SEC     BINARY-LONG UNSIGNED.
+        01 LK-BUFFER        PIC X(64).
+        01 LK-BUFFERLEN     BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION USING BY REFERENCE LK-CHUNK-SEC LK-BUFFER LK-BUFFERLEN.
+        MOVE 0 TO LK-BUFFERLEN
+
+        *> block count
+        MOVE 4096 TO INT16
+        CALL "Encode-Short" USING INT16 BUFFER BUFFERLEN
+        MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
+        ADD BUFFERLEN TO LK-BUFFERLEN
+
+        *> block states
+        *> - bits per entry: 0 = single-valued
+        MOVE FUNCTION CHAR(1) TO LK-BUFFER(LK-BUFFERLEN + 1:1)
+        ADD 1 TO LK-BUFFERLEN
+        *> - palette: id of the block
+        IF LK-CHUNK-SEC < 18
+            MOVE 1 TO INT32
+        ELSE
+            MOVE 0 TO INT32
+        END-IF
+        CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+        MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
+        ADD BUFFERLEN TO LK-BUFFERLEN
+        *> - data array length: 0, since we have a single-valued palette
+        MOVE 0 TO INT32
+        CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+        MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
+        ADD BUFFERLEN TO LK-BUFFERLEN
+        *> - data array: empty
+
+        *> biomes
+        *> - bits per entry: 0 = single-valued
+        MOVE FUNCTION CHAR(1) TO LK-BUFFER(LK-BUFFERLEN + 1:1)
+        ADD 1 TO LK-BUFFERLEN
+        *> - palette: id of the biome
+        MOVE 0 TO INT32
+        CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+        MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
+        ADD BUFFERLEN TO LK-BUFFERLEN
+        *> - data array length: 0, since we have a single-valued palette
+        MOVE 0 TO INT32
+        CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+        MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
+        ADD BUFFERLEN TO LK-BUFFERLEN
+        *> - data array: empty
+
+        GOBACK.
+
+END PROGRAM SendPacket-ChunkData.

@@ -44,6 +44,9 @@ WORKING-STORAGE SECTION.
     *> Time measurement
     01 CURRENT-TIME     BINARY-LONG-LONG.
     01 TICK-ENDTIME     BINARY-LONG-LONG.
+    *> Chunk data
+    01 CHUNK-X          BINARY-LONG.
+    01 CHUNK-Z          BINARY-LONG.
 
 LINKAGE SECTION.
     *> Configuration provided by main program
@@ -398,7 +401,7 @@ HandleConfiguration SECTION.
             MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
             ADD TEMP-BYTE-COUNT TO BYTE-COUNT
             *> simulation distance=10
-            MOVE 1 TO TEMP-INT32
+            MOVE 10 TO TEMP-INT32
             CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
             MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
             ADD TEMP-BYTE-COUNT TO BYTE-COUNT
@@ -516,16 +519,18 @@ HandleConfiguration SECTION.
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
             PERFORM HandleClientError
 
-            *> TODO: send chunk data ("Chunk Data and Update Light")
+            *> send chunk data ("Chunk Data and Update Light") - 9x9 chunks
+            PERFORM VARYING CHUNK-X FROM -4 BY 1 UNTIL CHUNK-X > 4
+                PERFORM VARYING CHUNK-Z FROM -4 BY 1 UNTIL CHUNK-Z > 4
+                    CALL "SendPacket-ChunkData" USING HNDL ERRNO CHUNK-X CHUNK-Z
+                    PERFORM HandleClientError
+                END-PERFORM
+            END-PERFORM
 
             *> send position ("Synchronize Player Position")
             MOVE 0 TO BYTE-COUNT
             *> X=0
-            MOVE FUNCTION CHAR(64 + 1) TO BUFFER(BYTE-COUNT + 1:1)
-            MOVE FUNCTION CHAR(111 + 1) TO BUFFER(BYTE-COUNT + 2:1)
-            MOVE FUNCTION CHAR(224 + 1) TO BUFFER(BYTE-COUNT + 3:1)
-            ADD 3 TO BYTE-COUNT
-            PERFORM 5 TIMES
+            PERFORM 8 TIMES
                 ADD 1 TO BYTE-COUNT
                 MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
             END-PERFORM
