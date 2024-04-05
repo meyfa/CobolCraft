@@ -1,3 +1,69 @@
+*> --- Encode-Short ---
+*> Encode a 16-bit integer and store it in a buffer (big-endian).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Encode-Short.
+
+DATA DIVISION.
+LOCAL-STORAGE SECTION.
+    01 CURRENT-VALUE        BINARY-SHORT UNSIGNED.
+    01 CURRENT-VALUE-BYTE   BINARY-CHAR UNSIGNED.
+    01 I                    INDEX.
+LINKAGE SECTION.
+    01 LK-VALUE-IN          BINARY-SHORT.
+    01 LK-VALUE-OUT         PIC X(2).
+    01 LK-OUT-LENGTH        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
+    *> If the number is negative, we need to take the two's complement.
+    *> This is done by computing 2^16 - |x|, where x is the input number.
+    IF LK-VALUE-IN < 0
+        COMPUTE CURRENT-VALUE = 65536 + LK-VALUE-IN
+    ELSE
+        MOVE LK-VALUE-IN TO CURRENT-VALUE
+    END-IF
+    *> Perform the conversion to bytes
+    MOVE 2 TO LK-OUT-LENGTH
+    PERFORM VARYING I FROM 1 BY 1 UNTIL I > LK-OUT-LENGTH
+        DIVIDE CURRENT-VALUE BY 256 GIVING CURRENT-VALUE REMAINDER CURRENT-VALUE-BYTE
+        MOVE FUNCTION CHAR(CURRENT-VALUE-BYTE + 1) TO LK-VALUE-OUT(LK-OUT-LENGTH + 1 - I:1)
+    END-PERFORM
+    GOBACK.
+
+END PROGRAM Encode-Short.
+
+*> --- Encode-Int ---
+*> Encode a 32-bit integer and store it in a buffer (big-endian).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Encode-Int.
+
+DATA DIVISION.
+LOCAL-STORAGE SECTION.
+    01 CURRENT-VALUE        BINARY-LONG UNSIGNED.
+    01 CURRENT-VALUE-BYTE   BINARY-CHAR UNSIGNED.
+    01 I                    INDEX.
+LINKAGE SECTION.
+    01 LK-VALUE-IN          BINARY-LONG.
+    01 LK-VALUE-OUT         PIC X(4).
+    01 LK-OUT-LENGTH        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
+    *> If the number is negative, we need to take the two's complement.
+    *> This is done by computing 2^32 - |x|, where x is the input number.
+    IF LK-VALUE-IN < 0
+        COMPUTE CURRENT-VALUE = 4294967296 + LK-VALUE-IN
+    ELSE
+        MOVE LK-VALUE-IN TO CURRENT-VALUE
+    END-IF
+    *> Perform the conversion to bytes
+    MOVE 4 TO LK-OUT-LENGTH
+    PERFORM VARYING I FROM 1 BY 1 UNTIL I > LK-OUT-LENGTH
+        DIVIDE CURRENT-VALUE BY 256 GIVING CURRENT-VALUE REMAINDER CURRENT-VALUE-BYTE
+        MOVE FUNCTION CHAR(CURRENT-VALUE-BYTE + 1) TO LK-VALUE-OUT(LK-OUT-LENGTH + 1 - I:1)
+    END-PERFORM
+    GOBACK.
+
+END PROGRAM Encode-Int.
+
 *> --- Encode-VarInt ---
 *> Encode a signed 32-bit integer to a VarInt and store it in a buffer.
 IDENTIFICATION DIVISION.
@@ -16,7 +82,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
     *> If the number is negative, we need to take the two's complement.
     *> This is done by computing 2^32 - |x|, where x is the input number.
     IF LK-VALUE-IN < 0
-        COMPUTE CURRENT-VALUE = 4294967296 - CURRENT-VALUE
+        COMPUTE CURRENT-VALUE = 4294967296 + LK-VALUE-IN
     ELSE
         MOVE LK-VALUE-IN TO CURRENT-VALUE
     END-IF
@@ -55,7 +121,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
     *> If the number is negative, we need to take the two's complement.
     *> This is done by computing 2^64 - |x|, where x is the input number.
     IF LK-VALUE-IN < 0
-        COMPUTE CURRENT-VALUE = 18446744073709551616 - CURRENT-VALUE
+        COMPUTE CURRENT-VALUE = 18446744073709551616 + LK-VALUE-IN
     ELSE
         MOVE LK-VALUE-IN TO CURRENT-VALUE
     END-IF
