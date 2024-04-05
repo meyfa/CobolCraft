@@ -52,15 +52,16 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING SERVER-CONFIG.
 StartServer.
-    DISPLAY "Starting server...".
-    CALL "Util-IgnoreSIGPIPE".
-    CALL "Socket-Listen" USING PORT LISTEN ERRNO.
-    PERFORM HandleError.
+    DISPLAY "Starting server..."
+    CALL "Util-IgnoreSIGPIPE"
+    CALL "Socket-Listen" USING PORT LISTEN ERRNO
+    PERFORM HandleServerError
+    .
 
 AcceptConnection.
     DISPLAY "Waiting for client..."
     CALL "Socket-Accept" USING LISTEN HNDL ERRNO
-    PERFORM HandleError
+    PERFORM HandleServerError
 
     MOVE 0 TO CLIENT-STATE
     MOVE SPACES TO USERNAME
@@ -85,9 +86,9 @@ AcceptConnection.
         END-PERFORM
     END-PERFORM
 
-    DISPLAY "Disconnecting..."
+    DISPLAY "Client disconnected."
     CALL "Socket-Close" USING HNDL ERRNO
-    PERFORM HandleError
+    PERFORM HandleServerError
 
     GO TO AcceptConnection.
 
@@ -104,7 +105,7 @@ ReceivePacket SECTION.
             MOVE -1 TO CLIENT-STATE
             EXIT SECTION
         END-IF
-        PERFORM HandleError
+        PERFORM HandleClientError
 
         *> Check if anything was read. If not, just try again later.
         IF BYTE-COUNT = 0 THEN
@@ -144,7 +145,7 @@ ReceivePacket SECTION.
             MOVE -1 TO CLIENT-STATE
             EXIT SECTION
         END-IF
-        PERFORM HandleError
+        PERFORM HandleClientError
         MOVE BUFFER(1:BYTE-COUNT) TO PACKET-BUFFER(PACKET-POSITION:BYTE-COUNT)
         ADD BYTE-COUNT TO PACKET-POSITION
         EXIT SECTION
@@ -204,7 +205,7 @@ HandleStatus SECTION.
             *> Status request
             DISPLAY "  Responding to status request"
             CALL "SendPacket-Status" USING HNDL ERRNO MOTD
-            PERFORM HandleError
+            PERFORM HandleClientError
         WHEN PACKET-ID = 1
             *> Ping request: respond with the same payload and close the connection
             DISPLAY "  Responding to ping request"
@@ -212,7 +213,7 @@ HandleStatus SECTION.
             MOVE PACKET-BUFFER(PACKET-POSITION:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
             MOVE 1 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleError
+            PERFORM HandleClientError
             MOVE -1 TO CLIENT-STATE
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
@@ -236,7 +237,7 @@ HandleLogin SECTION.
                 MOVE "Not whitelisted!" TO BUFFER
                 MOVE 16 TO BYTE-COUNT
                 CALL "SendPacket-LoginDisconnect" USING BY REFERENCE HNDL ERRNO BUFFER BYTE-COUNT
-                PERFORM HandleError
+                PERFORM HandleClientError
                 MOVE -1 TO CLIENT-STATE
                 EXIT SECTION
             END-IF
@@ -262,7 +263,7 @@ HandleLogin SECTION.
             *> send packet
             MOVE 2 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleError
+            PERFORM HandleClientError
 
         *> Login acknowledge
         WHEN PACKET-ID = 3
@@ -301,7 +302,7 @@ HandleConfiguration SECTION.
                     NOT AT END
                         CALL "DecodeHexString" USING TEMP-BUFFER TEMP-BYTE-COUNT BUFFER BYTE-COUNT
                         CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO BYTE-COUNT BUFFER
-                        PERFORM HandleError
+                        PERFORM HandleClientError
                 END-READ
             END-PERFORM
             CLOSE FD-REGISTRY-BLOB
@@ -321,13 +322,13 @@ HandleConfiguration SECTION.
             *> send packet
             MOVE 8 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> Send finish configuration
             MOVE 2 TO PACKET-ID
             MOVE 0 TO BYTE-COUNT
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> We now expect an acknowledge packet
             MOVE 1 TO CONFIG-FINISH
@@ -425,28 +426,28 @@ HandleConfiguration SECTION.
             *> send packet
             MOVE 41 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> send game event "start waiting for level chunks"
             MOVE "06200d00000000" TO BUFFER
             MOVE 14 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
             CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> set ticking state
             MOVE "066e41a0000000" TO BUFFER
             MOVE 14 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
             CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> tick
             MOVE "026f00" TO BUFFER
             MOVE 6 TO BYTE-COUNT
             CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
             CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> send inventory ("Set Container Content" with window ID=0)
             MOVE 0 TO BYTE-COUNT
@@ -475,7 +476,7 @@ HandleConfiguration SECTION.
             *> send packet
             MOVE 19 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> send "Set Center Chunk"
             MOVE 0 TO BYTE-COUNT
@@ -492,7 +493,7 @@ HandleConfiguration SECTION.
             *> send packet
             MOVE 82 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> TODO: send chunk data ("Chunk Data and Update Light")
 
@@ -535,7 +536,7 @@ HandleConfiguration SECTION.
             *> send packet
             MOVE 62 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleError
+            PERFORM HandleClientError
 
             *> TODO: receive "Confirm Teleportation"
 
@@ -574,15 +575,23 @@ HandlePlay SECTION.
         ADD TEMP-BYTE-COUNT TO BYTE-COUNT
         MOVE 36 TO PACKET-ID
         CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-        PERFORM HandleError
+        PERFORM HandleClientError
     END-IF
 
     EXIT SECTION.
 
-HandleError SECTION.
+HandleServerError SECTION.
     IF ERRNO NOT = 0 THEN
-        DISPLAY "Error: " ERRNO
+        DISPLAY "Server socket error: " ERRNO
         STOP RUN
+    END-IF.
+
+    EXIT SECTION.
+
+HandleClientError SECTION.
+    IF ERRNO NOT = 0 THEN
+        DISPLAY "Client socket error: " ERRNO
+        MOVE -1 TO CLIENT-STATE
     END-IF.
 
     EXIT SECTION.
