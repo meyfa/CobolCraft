@@ -23,7 +23,10 @@ WORKING-STORAGE SECTION.
     01 USERNAME         PIC X(16).
     01 USERNAME-LENGTH  BINARY-LONG.
     01 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
-    01 KEEPALIVE-ID     BINARY-LONG-LONG        VALUE 0.
+    *> Last keepalive ID sent and received
+    01 KEEPALIVE-SENT   BINARY-LONG-LONG        VALUE 0.
+    01 KEEPALIVE-RECV   BINARY-LONG-LONG        VALUE 0.
+    01 KEEPALIVE-DELTA  BINARY-LONG-LONG.
     *> Packet reading: packet length (-1 if not yet known), packet buffer, read/decode position, timeout
     *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
     01 PACKET-LENGTH    BINARY-LONG.
@@ -67,7 +70,9 @@ AcceptConnection.
     MOVE SPACES TO USERNAME
     MOVE 0 TO USERNAME-LENGTH
     MOVE 0 TO CONFIG-FINISH
-    MOVE 0 TO KEEPALIVE-ID
+
+    MOVE 0 TO KEEPALIVE-SENT
+    MOVE 0 TO KEEPALIVE-RECV
 
     MOVE -1 TO PACKET-LENGTH
     MOVE 1 TO PACKET-POSITION
@@ -78,6 +83,8 @@ AcceptConnection.
         COMPUTE TICK-ENDTIME = CURRENT-TIME + (1000 / 20)
 
         *> Here is where we would do the game loop.
+
+        PERFORM KeepAlive
 
         *> The remaining time of this tick can be used for receiving packets.
         PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME OR CLIENT-STATE < 0
@@ -93,6 +100,30 @@ AcceptConnection.
     GO TO AcceptConnection.
 
     STOP RUN.
+
+KeepAlive SECTION.
+    *> Give the client some time for keepalive when the connection is established
+    IF KEEPALIVE-RECV = 0
+        MOVE CURRENT-TIME TO KEEPALIVE-RECV
+    END-IF
+
+    *> If the client has not responded to keepalive within 15 seconds, disconnect
+    COMPUTE KEEPALIVE-DELTA = CURRENT-TIME - KEEPALIVE-RECV
+    IF KEEPALIVE-DELTA >= 15000
+        DISPLAY "Client timed out"
+        MOVE -1 TO CLIENT-STATE
+        EXIT SECTION
+    END-IF
+
+    *> Send keepalive packet every second, but only in play state
+    COMPUTE KEEPALIVE-DELTA = CURRENT-TIME - KEEPALIVE-SENT
+    IF CLIENT-STATE = 4 AND KEEPALIVE-DELTA >= 1000
+        MOVE CURRENT-TIME TO KEEPALIVE-SENT
+        CALL "SendPacket-KeepAlive" USING HNDL ERRNO KEEPALIVE-SENT
+        PERFORM HandleClientError
+    END-IF
+
+    EXIT SECTION.
 
 ReceivePacket SECTION.
     *> If the packet length is not yet known, try to read more bytes one by one until the VarInt is valid
@@ -550,6 +581,9 @@ HandlePlay SECTION.
     *> TODO: implement packets
 
     EVALUATE TRUE
+        *> KeepAlive response
+        WHEN PACKET-ID = 21
+            CALL "Decode-Long" USING PACKET-BUFFER PACKET-POSITION KEEPALIVE-RECV
         *> Set player position
         WHEN PACKET-ID = 23
             CONTINUE
@@ -563,20 +597,6 @@ HandlePlay SECTION.
         WHEN PACKET-ID = 26
             CONTINUE
     END-EVALUATE
-
-    *> Send keep-alive (TODO: move this out of packet handling!)
-    *> but not in reaction to a keep-alive response packet, for obvious reasons
-    *> Note: We abuse the fact that the client sends movement packets at least once per second, even standing still.
-    IF PACKET-ID NOT = 21 THEN
-        ADD 1 TO KEEPALIVE-ID
-        MOVE 0 TO BYTE-COUNT
-        CALL "Encode-Long" USING KEEPALIVE-ID TEMP-BUFFER TEMP-BYTE-COUNT
-        MOVE TEMP-BUFFER(1:TEMP-BYTE-COUNT) TO BUFFER(1:TEMP-BYTE-COUNT)
-        ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-        MOVE 36 TO PACKET-ID
-        CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
-        PERFORM HandleClientError
-    END-IF
 
     EXIT SECTION.
 
