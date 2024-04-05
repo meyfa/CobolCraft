@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstring>
 #include <cstdio>
+#include <csignal>
 
 #define ERRNO_PARAMS 99
 
@@ -53,6 +54,11 @@ extern "C" int COBOLCRAFT_UTIL(char *p_code, char *p1)
     // p1: X(15) - output
     case 0:
         return system_time_millis(p1);
+
+    // Ignore SIGPIPE.
+    case 1:
+        signal(SIGPIPE, SIG_IGN);
+        return 0;
     }
 
     return ERRNO_PARAMS;

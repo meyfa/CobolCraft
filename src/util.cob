@@ -21,3 +21,22 @@ PROCEDURE DIVISION USING LK-INT64.
     GOBACK.
 
 END PROGRAM Util-SystemTimeMillis.
+
+*> --- Util-IgnoreSIGPIPE ---
+*> Calls the function "01" of CobolCraft's utility module written in C++.
+*> This sets the SIGPIPE signal to be ignored to avoid crashing the program when writing to a closed socket.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Util-IgnoreSIGPIPE.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 ERRNO            PIC 9(3).
+
+PROCEDURE DIVISION.
+    CALL "COBOLCRAFT_UTIL" USING "01" GIVING ERRNO
+    IF ERRNO NOT = 0 THEN
+        DISPLAY "Failed to ignore SIGPIPE signal."
+    END-IF
+    GOBACK.
+
+END PROGRAM Util-IgnoreSIGPIPE.
