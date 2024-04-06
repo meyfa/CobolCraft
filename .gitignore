@@ -1,3 +1,5 @@
 .idea
 *.so
 /cobolcraft
+/test
+/test.log
