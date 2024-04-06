@@ -5,6 +5,7 @@ PROGRAM-ID. Test-Decode.
 PROCEDURE DIVISION.
     DISPLAY "Test: decode.cob"
     CALL "Test-Decode-VarInt"
+    CALL "Test-Decode-Long"
     GOBACK.
 
     *> --- Test: Decode-VarInt ---
@@ -114,5 +115,75 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Decode-VarInt.
+
+    *> --- Test: Decode-Long ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-Long.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(10).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 RESULT       BINARY-LONG-LONG.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-Long".
+    Long0.
+        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        MOVE X"0000000000000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Long" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 0 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Long1.
+        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        MOVE X"0000000000000001" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Long" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 1 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    PositiveMax.
+        DISPLAY "    Case: 9223372036854775807 - " WITH NO ADVANCING
+        MOVE X"7FFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Long" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 9223372036854775807 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Negative1.
+        DISPLAY "    Case: -1 - " WITH NO ADVANCING
+        MOVE X"FFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Long" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -1 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeMax.
+        DISPLAY "    Case: -9223372036854775808 - " WITH NO ADVANCING
+        MOVE X"8000000000000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Long" USING BUFFER BUFFERPOS RESULT
+        *> Unfortunately in this case, the C compiler doesn't like the literal -9223372036854775808.
+        *> So instead, we add 1 to the result and compare it to (-9223372036854775808 + 1).
+        ADD 1 TO RESULT
+        IF RESULT = -9223372036854775807 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Decode-Long.
 
 END PROGRAM Test-Decode.
