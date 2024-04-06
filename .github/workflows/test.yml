@@ -1,0 +1,24 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GnuCOBOL
+        run: "sudo apt-get install -y gnucobol"
+
+      - name: Run tests
+        run: "make test | tee test.log; (grep -q FAIL test.log && exit 1 || exit 0)"

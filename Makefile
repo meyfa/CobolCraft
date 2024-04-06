@@ -5,6 +5,8 @@ SOCKET_LIB = CBL_GC_SOCKET.so
 UTIL_LIB = COBOLCRAFT_UTIL.so
 SRC = main.cob src/*.cob src/*/*.cob
 BIN = cobolcraft
+TEST_SRC = test.cob tests/*.cob
+TEST_BIN = test
 
 all: $(BIN)
 
@@ -22,6 +24,12 @@ clean:
 	rm -f $(BIN)
 	rm -f $(SOCKET_LIB)
 	rm -f $(UTIL_LIB)
+	rm -f $(TEST_BIN)
 
 run: $(BIN)
 	COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL ./$(BIN)
+
+$(TEST_BIN): $(TEST_SRC) $(SRC)
+	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -o $@ $^
+	./$(TEST_BIN)
+	rm -f $(TEST_BIN)
