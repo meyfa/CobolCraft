@@ -25,17 +25,16 @@ PROCEDURE DIVISION USING BY REFERENCE LK-BUFFER LK-BUFFERPOS LK-VALUE.
         *> Extract the lower 7 bits
         MOVE FUNCTION MOD(VARINT-BYTE, 128) TO VARINT-BYTE-VALUE
         *> This yields the value when multiplied by the position multiplier
-        MULTIPLY VARINT-BYTE-VALUE BY VARINT-MULTIPLIER GIVING VARINT-BYTE-VALUE
-        ADD VARINT-BYTE-VALUE TO UINT-VALUE
+        COMPUTE UINT-VALUE = UINT-VALUE + VARINT-BYTE-VALUE * VARINT-MULTIPLIER
         MULTIPLY VARINT-MULTIPLIER BY 128 GIVING VARINT-MULTIPLIER
         *> Check if we need to continue (if the high bit is set and the maximum number of bytes has not been reached)
         IF VARINT-BYTE < 128 OR VARINT-READ-COUNT >= 5
             MOVE 0 TO VARINT-CONTINUE
         END-IF
     END-PERFORM
-    *> Check if the number is negative (i.e., larger than 2^31-1) and compute the two's complement (2^32 - value)
+    *> Check if the number should be negative (i.e., is larger than 2^31-1) and compute its signed value
     IF UINT-VALUE > 2147483647
-        COMPUTE LK-VALUE = 4294967296 - UINT-VALUE
+        COMPUTE LK-VALUE = UINT-VALUE - 4294967296
     ELSE
         MOVE UINT-VALUE TO LK-VALUE
     END-IF
