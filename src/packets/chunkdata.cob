@@ -9,24 +9,29 @@ WORKING-STORAGE SECTION.
     01 ALL-0-BITS       PIC X(8)                VALUE X"0000000000000000".
     01 EMPTY-COMP       PIC X(2)                VALUE X"0a00".
     *> buffer used to store the packet data
-    01 PAYLOAD          PIC X(64000).
+    01 PAYLOAD          PIC X(256000).
     01 PAYLOADLEN       BINARY-LONG UNSIGNED.
     *> temporary data
-    01 BUFFER           PIC X(64).
+    01 BUFFER           PIC X(256000).
     01 BUFFERLEN        BINARY-LONG UNSIGNED.
     01 INT32            BINARY-LONG.
     01 INT64            BINARY-LONG-LONG.
     *> chunk data
     01 CHUNK-SEC        BINARY-LONG UNSIGNED.
-    01 CHUNK-DATA       PIC X(64000).
+    01 CHUNK-DATA       PIC X(256000).
     01 DATA-LEN         BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-HNDL          PIC X(4).
     01 LK-ERRNO         PIC 9(3).
-    01 LK-CHUNK-X       BINARY-LONG.
-    01 LK-CHUNK-Z       BINARY-LONG.
+    01 LK-CHUNK.
+        02 LK-CHUNK-X BINARY-LONG.
+        02 LK-CHUNK-Z BINARY-LONG.
+        *> block IDs (16x384x16) - X increases fastest, then Z, then Y
+        02 LK-CHUNK-BLOCKS.
+            03 LK-BLOCK OCCURS 98304 TIMES.
+                04 LK-BLOCK-ID BINARY-CHAR UNSIGNED.
 
-PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-CHUNK-X LK-CHUNK-Z.
+PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-CHUNK.
     MOVE 0 TO PAYLOADLEN
 
     *> chunk x
@@ -45,8 +50,8 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-CHUNK-X LK-CHUNK-Z.
 
     *> construct chunk data
     MOVE 0 TO DATA-LEN
-    PERFORM VARYING CHUNK-SEC FROM 1 BY 1 UNTIL CHUNK-SEC > 24
-        CALL "CreateChunkSection" USING CHUNK-SEC BUFFER BUFFERLEN
+    PERFORM VARYING CHUNK-SEC FROM 0 BY 1 UNTIL CHUNK-SEC >= 24
+        CALL "EncodeChunkSection" USING CHUNK-SEC LK-CHUNK-BLOCKS BUFFER BUFFERLEN
         MOVE BUFFER(1:BUFFERLEN) TO CHUNK-DATA(DATA-LEN + 1:BUFFERLEN)
         ADD BUFFERLEN TO DATA-LEN
     END-PERFORM
@@ -121,48 +126,60 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-CHUNK-X LK-CHUNK-Z.
     CALL "SendPacket" USING LK-HNDL PACKET-ID PAYLOAD PAYLOADLEN LK-ERRNO
     GOBACK.
 
+    *> --- EncodeChunkSection ---
     IDENTIFICATION DIVISION.
-    PROGRAM-ID. CreateChunkSection.
+    PROGRAM-ID. EncodeChunkSection.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         01 INT16            BINARY-SHORT.
         01 INT32            BINARY-LONG.
-        01 BUFFER           PIC X(64).
+        01 BUFFER           PIC X(16000).
         01 BUFFERLEN        BINARY-LONG UNSIGNED.
+        01 BLOCK-INDEX      BINARY-LONG UNSIGNED.
+        01 PALETTE-ENTRY    BINARY-LONG-LONG UNSIGNED.
+        01 PALETTE-BUFF     PIC X(8).
+        01 PALETTE-BUFFLEN  BINARY-LONG UNSIGNED.
     LINKAGE SECTION.
         01 LK-CHUNK-SEC     BINARY-LONG UNSIGNED.
-        01 LK-BUFFER        PIC X(64).
+        01 LK-CHUNK-BLOCKS.
+            02 LK-BLOCK OCCURS 98304 TIMES.
+                03 LK-BLOCK-ID BINARY-CHAR UNSIGNED.
+        01 LK-BUFFER        PIC X(16000).
         01 LK-BUFFERLEN     BINARY-LONG UNSIGNED.
 
-    PROCEDURE DIVISION USING BY REFERENCE LK-CHUNK-SEC LK-BUFFER LK-BUFFERLEN.
+    PROCEDURE DIVISION USING BY REFERENCE LK-CHUNK-SEC LK-CHUNK-BLOCKS LK-BUFFER LK-BUFFERLEN.
         MOVE 0 TO LK-BUFFERLEN
 
-        *> block count
+        *> block count (16x16x16)
         MOVE 4096 TO INT16
         CALL "Encode-Short" USING INT16 BUFFER BUFFERLEN
         MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
         ADD BUFFERLEN TO LK-BUFFERLEN
 
+        *> TODO: implement an actual palette to save bandwidth, and improve performance
+
         *> block states
-        *> - bits per entry: 0 = single-valued
-        MOVE FUNCTION CHAR(1) TO LK-BUFFER(LK-BUFFERLEN + 1:1)
+        *> - bits per entry: 15 = direct palette
+        MOVE FUNCTION CHAR(15 + 1) TO LK-BUFFER(LK-BUFFERLEN + 1:1)
         ADD 1 TO LK-BUFFERLEN
-        *> - palette: id of the block
-        IF LK-CHUNK-SEC < 18
-            MOVE 1 TO INT32
-        ELSE
-            MOVE 0 TO INT32
-        END-IF
+        *> - palette: empty, since we have a direct palette
+        *> - data array length: (4096 / 4 = 1024)
+        MOVE 1024 TO INT32
         CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
         MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
         ADD BUFFERLEN TO LK-BUFFERLEN
-        *> - data array length: 0, since we have a single-valued palette
-        MOVE 0 TO INT32
-        CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
-        MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
-        ADD BUFFERLEN TO LK-BUFFERLEN
-        *> - data array: empty
+        *> - data array: block ids - x increases fastest, then z, then y
+        COMPUTE BLOCK-INDEX = LK-CHUNK-SEC * 4096 + 1
+        PERFORM 1024 TIMES
+            *> Each block uses 15 bits, and 4 blocks are packed into a 64-bit long starting from the least
+            *> significant bit. Since only 60 bits are used, the 4 most significant bits become padding (0).
+            COMPUTE PALETTE-ENTRY = LK-BLOCK-ID(BLOCK-INDEX) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 1) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 2) + 32768 * LK-BLOCK-ID(BLOCK-INDEX + 3)))
+            CALL "Encode-Long" USING PALETTE-ENTRY PALETTE-BUFF PALETTE-BUFFLEN
+            MOVE PALETTE-BUFF(1:PALETTE-BUFFLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:PALETTE-BUFFLEN)
+            ADD PALETTE-BUFFLEN TO LK-BUFFERLEN
+            ADD 4 TO BLOCK-INDEX
+        END-PERFORM
 
         *> biomes
         *> - bits per entry: 0 = single-valued
@@ -181,5 +198,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-CHUNK-X LK-CHUNK-Z.
         *> - data array: empty
 
         GOBACK.
+
+    END PROGRAM EncodeChunkSection.
 
 END PROGRAM SendPacket-ChunkData.

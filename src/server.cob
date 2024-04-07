@@ -24,7 +24,7 @@ WORKING-STORAGE SECTION.
     01 USERNAME-LENGTH  BINARY-LONG.
     01 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
     01 PLAYER-X         FLOAT-LONG              VALUE 0.
-    01 PLAYER-Y         FLOAT-LONG              VALUE 208.
+    01 PLAYER-Y         FLOAT-LONG              VALUE 64.
     01 PLAYER-Z         FLOAT-LONG              VALUE 0.
     01 PLAYER-YAW       FLOAT-SHORT             VALUE 0.
     01 PLAYER-PITCH     FLOAT-SHORT             VALUE 0.
@@ -47,12 +47,29 @@ WORKING-STORAGE SECTION.
     01 TEMP-BYTE-COUNT  BINARY-LONG UNSIGNED.
     01 TEMP-INT32       BINARY-LONG.
     01 TEMP-DOUBLE      FLOAT-LONG.
+    01 TEMP-POSITION.
+        02 TEMP-POSITION-X  BINARY-LONG.
+        02 TEMP-POSITION-Y  BINARY-LONG.
+        02 TEMP-POSITION-Z  BINARY-LONG.
     *> Time measurement
     01 CURRENT-TIME     BINARY-LONG-LONG.
     01 TICK-ENDTIME     BINARY-LONG-LONG.
-    *> Chunk data
+    *> Variables for working with chunks
     01 CHUNK-X          BINARY-LONG.
     01 CHUNK-Z          BINARY-LONG.
+    01 CHUNK-INDEX      BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX      BINARY-LONG UNSIGNED.
+    *> World storage (7x7 chunks, each 16x384x16 blocks)
+    01 WORLD-CHUNKS.
+        02 WORLD-CHUNKS-COUNT-X BINARY-LONG VALUE 7.
+        02 WORLD-CHUNKS-COUNT-Z BINARY-LONG VALUE 7.
+        02 WORLD-CHUNK OCCURS 49 TIMES.
+            03 WORLD-CHUNK-X BINARY-LONG.
+            03 WORLD-CHUNK-Z BINARY-LONG.
+            *> block IDs (16x384x16) - X increases fastest, then Z, then Y
+            03 WORLD-CHUNK-BLOCKS.
+                04 WORLD-BLOCK OCCURS 98304 TIMES.
+                    05 WORLD-BLOCK-ID BINARY-CHAR UNSIGNED VALUE 0.
 
 LINKAGE SECTION.
     *> Configuration provided by main program
@@ -63,6 +80,37 @@ LINKAGE SECTION.
         02 MOTD                 PIC X(64).
 
 PROCEDURE DIVISION USING SERVER-CONFIG.
+GenerateWorld.
+    DISPLAY "Generating world..."
+    PERFORM VARYING CHUNK-Z FROM -3 BY 1 UNTIL CHUNK-Z > 3
+        PERFORM VARYING CHUNK-X FROM -3 BY 1 UNTIL CHUNK-X > 3
+            COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
+            MOVE CHUNK-X TO WORLD-CHUNK-X(CHUNK-INDEX)
+            MOVE CHUNK-Z TO WORLD-CHUNK-Z(CHUNK-INDEX)
+
+            *> turn all blocks with Y < 63 (i.e., the bottom 128 blocks) into stone
+            PERFORM VARYING TEMP-POSITION-Y FROM 0 BY 1 UNTIL TEMP-POSITION-Y >= 128
+                PERFORM VARYING TEMP-POSITION-Z FROM 0 BY 1 UNTIL TEMP-POSITION-Z >= 16
+                    PERFORM VARYING TEMP-POSITION-X FROM 0 BY 1 UNTIL TEMP-POSITION-X >= 16
+                        COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
+                        MOVE 1 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                    END-PERFORM
+                END-PERFORM
+            END-PERFORM
+
+            *> turn all blocks with Y = 63 (i.e., the top 16 blocks) into grass
+            *> Note: grass has ID 9 with the 1.20.4 registry and no data packs/mods, but this may change
+            *> TODO: find a more permanent solution to get a specific block ID
+            MOVE 127 TO TEMP-POSITION-Y
+            PERFORM VARYING TEMP-POSITION-Z FROM 0 BY 1 UNTIL TEMP-POSITION-Z >= 16
+                PERFORM VARYING TEMP-POSITION-X FROM 0 BY 1 UNTIL TEMP-POSITION-X >= 16
+                    COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
+                    MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                END-PERFORM
+            END-PERFORM
+        END-PERFORM
+    END-PERFORM.
+
 StartServer.
     DISPLAY "Starting server..."
     CALL "Util-IgnoreSIGPIPE"
@@ -525,12 +573,12 @@ HandleConfiguration SECTION.
             CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
             PERFORM HandleClientError
 
-            *> send chunk data ("Chunk Data and Update Light") - 9x9 chunks
-            PERFORM VARYING CHUNK-X FROM -4 BY 1 UNTIL CHUNK-X > 4
-                PERFORM VARYING CHUNK-Z FROM -4 BY 1 UNTIL CHUNK-Z > 4
-                    CALL "SendPacket-ChunkData" USING HNDL ERRNO CHUNK-X CHUNK-Z
-                    PERFORM HandleClientError
-                END-PERFORM
+            *> send chunk data ("Chunk Data and Update Light") for all chunks
+            *> TODO: only send chunks around the player
+            COMPUTE TEMP-INT32 = WORLD-CHUNKS-COUNT-X * WORLD-CHUNKS-COUNT-Z
+            PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > TEMP-INT32
+                CALL "SendPacket-ChunkData" USING HNDL ERRNO WORLD-CHUNK(CHUNK-INDEX)
+                PERFORM HandleClientError
             END-PERFORM
 
             *> send position ("Synchronize Player Position")
