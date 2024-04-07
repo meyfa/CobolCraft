@@ -1,17 +1,7 @@
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Server.
 
-ENVIRONMENT DIVISION.
-INPUT-OUTPUT SECTION.
-FILE-CONTROL.
-SELECT FD-REGISTRY-BLOB ASSIGN TO "blobs/registry_packet.txt"
-    ORGANIZATION IS LINE SEQUENTIAL.
-
 DATA DIVISION.
-FILE SECTION.
-FD FD-REGISTRY-BLOB.
-    01 REGISTRY-BLOB-REC    PIC X(64).
-
 WORKING-STORAGE SECTION.
     *> Socket variables (server socket handle, error number from last operation)
     01 LISTEN           PIC X(4).
@@ -479,20 +469,8 @@ HandleConfiguration SECTION.
             DISPLAY "  Received client information"
 
             *> Send registry data
-            OPEN INPUT FD-REGISTRY-BLOB
-            MOVE 64 TO TEMP-BYTE-COUNT
-            PERFORM UNTIL TEMP-BYTE-COUNT = 0
-                MOVE SPACES TO TEMP-BUFFER(1:64)
-                READ FD-REGISTRY-BLOB INTO TEMP-BUFFER
-                    AT END
-                        MOVE 0 TO TEMP-BYTE-COUNT
-                    NOT AT END
-                        CALL "DecodeHexString" USING TEMP-BUFFER TEMP-BYTE-COUNT BUFFER BYTE-COUNT
-                        CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
-                        PERFORM HandleClientError
-                END-READ
-            END-PERFORM
-            CLOSE FD-REGISTRY-BLOB
+            CALL "SendPacket-Registry" USING CLIENT-HNDL(CLIENT-ID) ERRNO
+            PERFORM HandleClientError
 
             *> Send feature flags
             MOVE 0 TO BYTE-COUNT
@@ -537,24 +515,21 @@ HandleConfiguration SECTION.
             PERFORM HandleClientError
 
             *> send game event "start waiting for level chunks"
-            MOVE "06200d00000000" TO BUFFER
-            MOVE 14 TO BYTE-COUNT
-            CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
+            MOVE X"06200d00000000" TO BUFFER
+            MOVE 7 TO BYTE-COUNT
+            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
             PERFORM HandleClientError
 
             *> set ticking state
-            MOVE "066e41a0000000" TO BUFFER
-            MOVE 14 TO BYTE-COUNT
-            CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
+            MOVE X"066e41a0000000" TO BUFFER
+            MOVE 7 TO BYTE-COUNT
+            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
             PERFORM HandleClientError
 
             *> tick
-            MOVE "026f00" TO BUFFER
-            MOVE 6 TO BYTE-COUNT
-            CALL "DecodeHexString" USING BUFFER BYTE-COUNT TEMP-BUFFER TEMP-BYTE-COUNT
-            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
+            MOVE X"026f00" TO BUFFER
+            MOVE 3 TO BYTE-COUNT
+            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
             PERFORM HandleClientError
 
             *> send inventory
