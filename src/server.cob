@@ -28,6 +28,13 @@ WORKING-STORAGE SECTION.
     01 PLAYER-Z         FLOAT-LONG              VALUE 0.
     01 PLAYER-YAW       FLOAT-SHORT             VALUE 0.
     01 PLAYER-PITCH     FLOAT-SHORT             VALUE 0.
+    01 PLAYER-INVENTORY.
+        02 PLAYER-INVENTORY-SLOT OCCURS 46 TIMES.
+            *> If no item is present, the count is 0 and the ID is -1
+            03 PLAYER-INVENTORY-SLOT-ID         BINARY-LONG             VALUE 0.
+            03 PLAYER-INVENTORY-SLOT-COUNT      BINARY-CHAR UNSIGNED    VALUE 0.
+            03 PLAYER-INVENTORY-SLOT-NBT-LENGTH BINARY-SHORT UNSIGNED   VALUE 0.
+            03 PLAYER-INVENTORY-SLOT-NBT-DATA   PIC X(1024).
     *> Last keepalive ID sent and received
     01 KEEPALIVE-SENT   BINARY-LONG-LONG        VALUE 0.
     01 KEEPALIVE-RECV   BINARY-LONG-LONG        VALUE 0.
@@ -45,6 +52,8 @@ WORKING-STORAGE SECTION.
     *> Temporary variables
     01 TEMP-BUFFER      PIC X(64000).
     01 TEMP-BYTE-COUNT  BINARY-LONG UNSIGNED.
+    01 TEMP-INT8        BINARY-LONG.
+    01 TEMP-INT16       BINARY-LONG.
     01 TEMP-INT32       BINARY-LONG.
     01 TEMP-DOUBLE      FLOAT-LONG.
     01 TEMP-POSITION.
@@ -527,33 +536,8 @@ HandleConfiguration SECTION.
             CALL "Socket-Write" USING BY REFERENCE HNDL ERRNO TEMP-BYTE-COUNT TEMP-BUFFER
             PERFORM HandleClientError
 
-            *> send inventory ("Set Container Content" with window ID=0)
-            MOVE 0 TO BYTE-COUNT
-            *> window ID=0
-            ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            *> state ID=0
-            MOVE 0 TO TEMP-INT32
-            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> count=46 (https://wiki.vg/Inventory#Player_Inventory)
-            MOVE 46 TO TEMP-INT32
-            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> slot data (all empty)
-            PERFORM UNTIL TEMP-INT32 = 0
-                ADD 1 TO BYTE-COUNT
-                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-                SUBTRACT 1 FROM TEMP-INT32
-            END-PERFORM
-            *> carried item (empty)
-            ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            *> send packet
-            MOVE 19 TO PACKET-ID
-            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+            *> send inventory
+            CALL "SendPacket-SetContainerContent" USING HNDL ERRNO PLAYER-INVENTORY
             PERFORM HandleClientError
 
             *> send "Set Center Chunk"
@@ -682,6 +666,33 @@ HandlePlay SECTION.
         WHEN PACKET-ID = 53
             *> TODO
             CONTINUE
+        *> Set creative mode slot
+        WHEN PACKET-ID = 47
+            *> slot ID
+            CALL "Decode-Short" USING PACKET-BUFFER PACKET-POSITION TEMP-INT16
+            *> TODO: spawn item entity when slot ID is -1
+            *> slot description (present (boolean) [, item ID (VarInt), count (byte), NBT data])
+            CALL "Decode-Byte" USING PACKET-BUFFER PACKET-POSITION TEMP-INT8
+            IF TEMP-INT16 >= 0 AND TEMP-INT16 < 46
+                IF TEMP-INT8 = 0
+                    MOVE -1 TO PLAYER-INVENTORY-SLOT-ID(TEMP-INT16 + 1)
+                    MOVE 0 TO PLAYER-INVENTORY-SLOT-COUNT(TEMP-INT16 + 1)
+                ELSE
+                    CALL "Decode-VarInt" USING PACKET-BUFFER PACKET-POSITION TEMP-INT32
+                    MOVE TEMP-INT32 TO PLAYER-INVENTORY-SLOT-ID(TEMP-INT16 + 1)
+                    CALL "Decode-Byte" USING PACKET-BUFFER PACKET-POSITION TEMP-INT8
+                    MOVE TEMP-INT8 TO PLAYER-INVENTORY-SLOT-COUNT(TEMP-INT16 + 1)
+                    *> remainder is NBT
+                    COMPUTE BYTE-COUNT = PACKET-LENGTH - PACKET-POSITION + 1
+                    IF BYTE-COUNT <= 1024
+                        MOVE BYTE-COUNT TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(TEMP-INT16 + 1)
+                        MOVE PACKET-BUFFER(PACKET-POSITION:BYTE-COUNT) TO PLAYER-INVENTORY-SLOT-NBT-DATA(TEMP-INT16 + 1)(1:BYTE-COUNT)
+                    ELSE
+                        MOVE 0 TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(TEMP-INT16 + 1)
+                        DISPLAY "  Item NBT data too long: " BYTE-COUNT
+                    END-IF
+                END-IF
+            END-IF
     END-EVALUATE
 
     EXIT SECTION.

@@ -1,0 +1,83 @@
+IDENTIFICATION DIVISION.
+PROGRAM-ID. SendPacket-SetContainerContent.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 PACKET-ID    BINARY-LONG             VALUE 19.
+    *> buffer used to store the packet data
+    01 PAYLOAD      PIC X(64000).
+    01 PAYLOADLEN   BINARY-LONG UNSIGNED.
+    *> temporary data
+    01 SLOT-INDEX   BINARY-LONG UNSIGNED.
+    01 BUFFER       PIC X(1024).
+    01 BUFFERLEN    BINARY-LONG UNSIGNED.
+    01 INT32        BINARY-LONG.
+LINKAGE SECTION.
+    01 LK-HNDL          PIC X(4).
+    01 LK-ERRNO         PIC 9(3).
+    *> TODO: support containers other than the player inventory
+    01 LK-INVENTORY.
+        02 LK-SLOT OCCURS 46 TIMES.
+            03 LK-SLOT-ID           BINARY-LONG.
+            03 LK-SLOT-COUNT        BINARY-CHAR UNSIGNED.
+            03 LK-SLOT-NBT-LENGTH   BINARY-SHORT UNSIGNED.
+            03 LK-SLOT-NBT-DATA     PIC X(1024).
+
+PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-INVENTORY.
+    MOVE 0 TO PAYLOADLEN
+
+    *> window ID (0 = player inventory)
+    MOVE FUNCTION CHAR(1) TO PAYLOAD(1:1)
+    ADD 1 TO PAYLOADLEN
+
+    *> state ID = 0
+    *> TODO: implement state ID management
+    MOVE 0 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER(1:BUFFERLEN) TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> count = 46 (https://wiki.vg/Inventory#Player_Inventory)
+    MOVE 46 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER(1:BUFFERLEN) TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> slot data
+    PERFORM VARYING SLOT-INDEX FROM 1 BY 1 UNTIL SLOT-INDEX > 46
+        IF LK-SLOT-ID(SLOT-INDEX) < 0 OR LK-SLOT-COUNT(SLOT-INDEX) = 0
+            *> present = false
+            MOVE FUNCTION CHAR(1) TO PAYLOAD(PAYLOADLEN + 1:1)
+            ADD 1 TO PAYLOADLEN
+        ELSE
+            *> present = true
+            MOVE FUNCTION CHAR(2) TO PAYLOAD(PAYLOADLEN + 1:1)
+            ADD 1 TO PAYLOADLEN
+
+            *> item ID
+            MOVE LK-SLOT-ID(SLOT-INDEX) TO INT32
+            CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+            MOVE BUFFER(1:BUFFERLEN) TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+            ADD BUFFERLEN TO PAYLOADLEN
+
+            *> item count
+            MOVE FUNCTION CHAR(LK-SLOT-COUNT(SLOT-INDEX) + 1) TO PAYLOAD(PAYLOADLEN + 1:1)
+            ADD 1 TO PAYLOADLEN
+
+            *> NBT data
+            MOVE LK-SLOT-NBT-LENGTH(SLOT-INDEX) TO INT32
+            CALL "EncodeHexString" USING LK-SLOT-NBT-DATA(SLOT-INDEX)(1:INT32) INT32 BUFFER
+            MOVE LK-SLOT-NBT-DATA(SLOT-INDEX)(1:INT32) TO PAYLOAD(PAYLOADLEN + 1:INT32)
+            ADD INT32 TO PAYLOADLEN
+        END-IF
+    END-PERFORM
+
+    *> carried item (empty)
+    MOVE FUNCTION CHAR(1) TO PAYLOAD(PAYLOADLEN + 1:1)
+    ADD 1 TO PAYLOADLEN
+
+    *> send packet
+    CALL "SendPacket" USING LK-HNDL PACKET-ID PAYLOAD PAYLOADLEN LK-ERRNO
+    GOBACK.
+
+END PROGRAM SendPacket-SetContainerContent.

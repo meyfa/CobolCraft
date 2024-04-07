@@ -12,6 +12,7 @@ The following features are already working:
 - [X] player login
 - [X] sending chunk data to client
 - [X] player movement
+- [X] player inventory (limited to creative mode)
 - [ ] breaking and placing blocks (still missing block placement; breaking works)
 - [ ] chat
 - [ ] multiplayer
