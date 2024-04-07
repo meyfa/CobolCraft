@@ -12,7 +12,7 @@ The following features are already working:
 - [X] player login
 - [X] sending chunk data to client
 - [X] player movement
-- [ ] block placement
+- [ ] breaking and placing blocks (still missing block placement; breaking works)
 - [ ] chat
 - [ ] multiplayer
 - [ ] persisting data across restarts

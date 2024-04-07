@@ -8,6 +8,7 @@ PROCEDURE DIVISION.
     CALL "Test-Decode-Long"
     CALL "Test-Decode-Double"
     CALL "Test-Decode-Float"
+    CALL "Test-Decode-Position"
     GOBACK.
 
     *> --- Test: Decode-VarInt ---
@@ -341,5 +342,41 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Decode-Float.
+
+    *> --- Test: Decode-Position ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-Position.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(10).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 RESULT.
+            02 RESULT-X     BINARY-LONG.
+            02 RESULT-Y     BINARY-LONG.
+            02 RESULT-Z     BINARY-LONG.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-Position".
+    AllZero.
+        DISPLAY "    Case: 0 0 0 - " WITH NO ADVANCING
+        MOVE X"0000000000000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Position" USING BUFFER BUFFERPOS RESULT
+        IF RESULT-X = 0 AND RESULT-Y = 0 AND RESULT-Z = 0 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    WikiVgExample.
+        DISPLAY "    Case: 18357644 831 -20882616 - " WITH NO ADVANCING
+        MOVE X"4607632C15B4833F" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Position" USING BUFFER BUFFERPOS RESULT
+        IF RESULT-X = 18357644 AND RESULT-Y = 831 AND RESULT-Z = -20882616 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
 
 END PROGRAM Test-Decode.

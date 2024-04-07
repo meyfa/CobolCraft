@@ -652,6 +652,36 @@ HandlePlay SECTION.
         WHEN PACKET-ID = 26
             *> TODO
             CONTINUE
+        *> Player action
+        WHEN PACKET-ID = 33
+            *> Status (= the action), block position, face, sequence number.
+            *> For now we only care about status and position.
+            CALL "Decode-VarInt" USING PACKET-BUFFER PACKET-POSITION TEMP-INT32
+            CALL "Decode-Position" USING PACKET-BUFFER PACKET-POSITION TEMP-POSITION
+            EVALUATE TRUE
+                *> started digging
+                WHEN TEMP-INT32 = 0
+                    DIVIDE TEMP-POSITION-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
+                    DIVIDE TEMP-POSITION-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
+                    COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
+                    COMPUTE TEMP-POSITION-X = FUNCTION MOD(TEMP-POSITION-X, 16)
+                    COMPUTE TEMP-POSITION-Z = FUNCTION MOD(TEMP-POSITION-Z, 16)
+                    COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y + 64
+                    COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
+                    *> ensure the position is not outside the world
+                    IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
+                        MOVE 0 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                    END-IF
+                    *> TODO: acknowledge the action
+            END-EVALUATE
+        *> Swing arm
+        WHEN PACKET-ID = 51
+            *> TODO
+            CONTINUE
+        *> Use item
+        WHEN PACKET-ID = 53
+            *> TODO
+            CONTINUE
     END-EVALUATE
 
     EXIT SECTION.
