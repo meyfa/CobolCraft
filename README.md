@@ -10,7 +10,7 @@ The following features are already working:
 - [X] respond to ping (i.e., show as online in the server list)
 - [X] whitelist (single player, edit `server.cob` to enable/set username)
 - [X] player login
-- [X] sending chunk data to client (very basic)
+- [X] sending chunk data to client
 - [X] player movement
 - [ ] block placement
 - [ ] chat
