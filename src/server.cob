@@ -568,20 +568,9 @@ HandleConfiguration SECTION.
             CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
 
             *> send "Set Center Chunk"
-            MOVE 0 TO BYTE-COUNT
-            *> chunk X=0
-            MOVE 0 TO TEMP-INT32
-            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> chunk Z=0
-            MOVE 0 TO TEMP-INT32
-            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> send packet
-            MOVE 82 TO PACKET-ID
-            CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            MOVE 0 TO CHUNK-X
+            MOVE 0 TO CHUNK-Z
+            CALL "SendPacket-SetCenterChunk" USING CLIENT-HNDL(CLIENT-ID) ERRNO CHUNK-X CHUNK-Z
             PERFORM HandleClientError
 
             *> send chunk data ("Chunk Data and Update Light") for all chunks
