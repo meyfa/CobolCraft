@@ -366,8 +366,8 @@ HandleHandshake SECTION.
     EXIT SECTION.
 
 HandleStatus SECTION.
-    EVALUATE TRUE
-        WHEN PACKET-ID = 0
+    EVALUATE PACKET-ID
+        WHEN 0
             *> Status request
             DISPLAY "  Responding to status request"
             *> count the number of current players
@@ -379,7 +379,7 @@ HandleStatus SECTION.
             END-PERFORM
             CALL "SendPacket-Status" USING CLIENT-HNDL(CLIENT-ID) ERRNO MOTD TEMP-INT32
             PERFORM HandleClientError
-        WHEN PACKET-ID = 1
+        WHEN 1
             *> Ping request: respond with the same payload and close the connection
             DISPLAY "  Responding to ping request"
             COMPUTE BYTE-COUNT = 8
@@ -395,9 +395,9 @@ HandleStatus SECTION.
     EXIT SECTION.
 
 HandleLogin SECTION.
-    EVALUATE TRUE
+    EVALUATE PACKET-ID
         *> Login start
-        WHEN PACKET-ID = 0
+        WHEN 0
             *> Prevent multiple concurrent logins
             IF PLAYER-CLIENT > 0 THEN
                 MOVE "Server is full" TO BUFFER
@@ -451,7 +451,7 @@ HandleLogin SECTION.
             PERFORM HandleClientError
 
         *> Login acknowledge
-        WHEN PACKET-ID = 3
+        WHEN 3
             *> Must not happen before login start
             IF USERNAME-LENGTH = 0 THEN
                 DISPLAY "  Unexpected login acknowledge"
@@ -470,9 +470,9 @@ HandleLogin SECTION.
     EXIT SECTION.
 
 HandleConfiguration SECTION.
-    EVALUATE TRUE
+    EVALUATE PACKET-ID
         *> Client information
-        WHEN PACKET-ID = 0
+        WHEN 0
             *> Note: payload is ignored for now
             DISPLAY "  Received client information"
 
@@ -519,7 +519,7 @@ HandleConfiguration SECTION.
             MOVE 1 TO CONFIG-FINISH
 
         *> Acknowledge finish configuration
-        WHEN PACKET-ID = 2
+        WHEN 2
             IF CONFIG-FINISH = 0 THEN
                 DISPLAY "  Unexpected acknowledge finish configuration"
                 MOVE -1 TO CLIENT-STATE(CLIENT-ID)
@@ -711,20 +711,18 @@ HandleConfiguration SECTION.
     EXIT SECTION.
 
 HandlePlay SECTION.
-    *> TODO: implement packets
-
-    EVALUATE TRUE
+    EVALUATE PACKET-ID
         *> KeepAlive response
-        WHEN PACKET-ID = 21
+        WHEN 21
             CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
         *> Set player position
-        WHEN PACKET-ID = 23
+        WHEN 23
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z
             *> TODO: "on ground" flag
         *> Set player position and rotation
-        WHEN PACKET-ID = 24
+        WHEN 24
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z
@@ -732,16 +730,16 @@ HandlePlay SECTION.
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH
             *> TODO: "on ground" flag
         *> Set player rotation
-        WHEN PACKET-ID = 25
+        WHEN 25
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-YAW
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH
             *> TODO: "on ground" flag
         *> Set player on ground
-        WHEN PACKET-ID = 26
+        WHEN 26
             *> TODO
             CONTINUE
         *> Player action
-        WHEN PACKET-ID = 33
+        WHEN 33
             *> Status (= the action), block position, face, sequence number.
             *> For now we only care about status and position.
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
@@ -763,13 +761,13 @@ HandlePlay SECTION.
                     *> TODO: acknowledge the action
             END-EVALUATE
         *> Set held item
-        WHEN PACKET-ID = 44
+        WHEN 44
             CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
             IF TEMP-INT8 >= 0 AND TEMP-INT8 <= 8
                 MOVE TEMP-INT16 TO PLAYER-HOTBAR
             END-IF
         *> Set creative mode slot
-        WHEN PACKET-ID = 47
+        WHEN 47
             *> slot ID
             CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
             *> TODO: spawn item entity when slot ID is -1
@@ -796,11 +794,11 @@ HandlePlay SECTION.
                 END-IF
             END-IF
         *> Swing arm
-        WHEN PACKET-ID = 51
+        WHEN 51
             *> TODO
             CONTINUE
         *> Use item on block
-        WHEN PACKET-ID = 53
+        WHEN 53
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0
