@@ -4,9 +4,117 @@ PROGRAM-ID. Test-Encode.
 
 PROCEDURE DIVISION.
     DISPLAY "Test: encode.cob"
+    CALL "Test-Encode-VarInt"
     CALL "Test-Encode-Double"
     CALL "Test-Encode-Float"
     GOBACK.
+
+    *> --- Test: Encode-VarInt ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-VarInt.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 VALUE-IN     BINARY-LONG.
+        01 BUFFER       PIC X(10).
+        01 BUFFERLEN    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-VarInt".
+    Int0.
+        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        MOVE 0 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"00" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int1.
+        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        MOVE 1 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"01" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int127.
+        DISPLAY "    Case: 127 - " WITH NO ADVANCING
+        MOVE 127 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"7F" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int128.
+        DISPLAY "    Case: 128 - " WITH NO ADVANCING
+        MOVE 128 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"8001" AND BUFFERLEN = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int255.
+        DISPLAY "    Case: 255 - " WITH NO ADVANCING
+        MOVE 255 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"FF01" AND BUFFERLEN = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int25565.
+        DISPLAY "    Case: 25565 - " WITH NO ADVANCING
+        MOVE 25565 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"DDC701" AND BUFFERLEN = 3
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int2097151.
+        DISPLAY "    Case: 2097151 - " WITH NO ADVANCING
+        MOVE 2097151 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"FFFF7F" AND BUFFERLEN = 3
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntMax.
+        DISPLAY "    Case: 2147483647 - " WITH NO ADVANCING
+        MOVE 2147483647 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"FFFFFFFF07" AND BUFFERLEN = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntNegative1.
+        DISPLAY "    Case: -1 - " WITH NO ADVANCING
+        MOVE -1 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"FFFFFFFF0F" AND BUFFERLEN = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntMin.
+        DISPLAY "    Case: -2147483648 - " WITH NO ADVANCING
+        MOVE -2147483648 TO VALUE-IN
+        CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"8080808008" AND BUFFERLEN = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-VarInt.
 
     *> --- Test: Encode-Double ---
     IDENTIFICATION DIVISION.
