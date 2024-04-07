@@ -40,7 +40,21 @@ static int system_time_millis(char *p1)
     return 0;
 }
 
-extern "C" int COBOLCRAFT_UTIL(char *p_code, char *p1)
+static int double_get_bytes(double value, char *out)
+{
+    double *out_double = (double *)out;
+    *out_double = value;
+    // convert to big-endian
+    for (unsigned int i = 0; i < 4; ++i)
+    {
+        char temp = out[i];
+        out[i] = out[7 - i];
+        out[7 - i] = temp;
+    }
+    return 0;
+}
+
+extern "C" int COBOLCRAFT_UTIL(char *p_code, char *p1, char *p2)
 {
     if (!p_code)
     {
@@ -59,6 +73,11 @@ extern "C" int COBOLCRAFT_UTIL(char *p_code, char *p1)
     case 1:
         signal(SIGPIPE, SIG_IGN);
         return 0;
+
+    // Convert IEEE-754 double-precision to byte array.
+    case 2:
+        double value = *((double *)p1);
+        return double_get_bytes(value, p2);
     }
 
     return ERRNO_PARAMS;

@@ -41,6 +41,7 @@ WORKING-STORAGE SECTION.
     01 TEMP-BUFFER      PIC X(64000).
     01 TEMP-BYTE-COUNT  BINARY-LONG UNSIGNED.
     01 TEMP-INT32       BINARY-LONG.
+    01 TEMP-DOUBLE      FLOAT-LONG.
     *> Time measurement
     01 CURRENT-TIME     BINARY-LONG-LONG.
     01 TICK-ENDTIME     BINARY-LONG-LONG.
@@ -530,24 +531,20 @@ HandleConfiguration SECTION.
             *> send position ("Synchronize Player Position")
             MOVE 0 TO BYTE-COUNT
             *> X=0
-            PERFORM 8 TIMES
-                ADD 1 TO BYTE-COUNT
-                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            END-PERFORM
-            *> Y=255 (IEEE 754 double-precision floating-point)
-            MOVE FUNCTION CHAR(64 + 1) TO BUFFER(BYTE-COUNT + 1:1)
-            MOVE FUNCTION CHAR(111 + 1) TO BUFFER(BYTE-COUNT + 2:1)
-            MOVE FUNCTION CHAR(224 + 1) TO BUFFER(BYTE-COUNT + 3:1)
-            ADD 3 TO BYTE-COUNT
-            PERFORM 5 TIMES
-                ADD 1 TO BYTE-COUNT
-                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            END-PERFORM
+            MOVE 0 TO TEMP-DOUBLE
+            CALL "Encode-Double" USING TEMP-DOUBLE TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> Y=208 (IEEE 754 double-precision floating-point)
+            MOVE 208 TO TEMP-DOUBLE
+            CALL "Encode-Double" USING TEMP-DOUBLE TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
             *> Z=0
-            PERFORM 8 TIMES
-                ADD 1 TO BYTE-COUNT
-                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            END-PERFORM
+            MOVE 0 TO TEMP-DOUBLE
+            CALL "Encode-Double" USING TEMP-DOUBLE TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
             *> yaw=pitch=0
             PERFORM UNTIL BYTE-COUNT = 32
                 ADD 1 TO BYTE-COUNT
