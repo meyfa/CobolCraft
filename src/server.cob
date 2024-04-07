@@ -38,11 +38,13 @@ WORKING-STORAGE SECTION.
     01 USERNAME         PIC X(16).
     01 USERNAME-LENGTH  BINARY-LONG.
     01 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
-    01 PLAYER-X         FLOAT-LONG              VALUE 0.
-    01 PLAYER-Y         FLOAT-LONG              VALUE 64.
-    01 PLAYER-Z         FLOAT-LONG              VALUE 0.
-    01 PLAYER-YAW       FLOAT-SHORT             VALUE 0.
-    01 PLAYER-PITCH     FLOAT-SHORT             VALUE 0.
+    01 PLAYER-POSITION.
+        02 PLAYER-X         FLOAT-LONG              VALUE 0.
+        02 PLAYER-Y         FLOAT-LONG              VALUE 64.
+        02 PLAYER-Z         FLOAT-LONG              VALUE 0.
+    01 PLAYER-ROTATION.
+        02 PLAYER-YAW       FLOAT-SHORT             VALUE 0.
+        02 PLAYER-PITCH     FLOAT-SHORT             VALUE 0.
     01 PLAYER-INVENTORY.
         02 PLAYER-INVENTORY-SLOT OCCURS 46 TIMES.
             *> If no item is present, the count is 0 and the ID is -1
@@ -670,36 +672,7 @@ HandleConfiguration SECTION.
             END-PERFORM
 
             *> send position ("Synchronize Player Position")
-            MOVE 0 TO BYTE-COUNT
-            *> X
-            CALL "Encode-Double" USING PLAYER-X TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> Y
-            CALL "Encode-Double" USING PLAYER-Y TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> Z
-            CALL "Encode-Double" USING PLAYER-Z TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> yaw
-            CALL "Encode-Float" USING PLAYER-YAW TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> pitch
-            CALL "Encode-Float" USING PLAYER-PITCH TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> flags=0
-            ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            *> teleport ID=0
-            ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            *> send packet
-            MOVE 62 TO PACKET-ID
-            CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket-SetPlayerPosition" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-POSITION PLAYER-ROTATION
             PERFORM HandleClientError
 
             *> TODO: receive "Confirm Teleportation"
