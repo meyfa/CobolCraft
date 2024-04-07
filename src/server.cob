@@ -35,6 +35,7 @@ WORKING-STORAGE SECTION.
             03 PLAYER-INVENTORY-SLOT-COUNT      BINARY-CHAR UNSIGNED    VALUE 0.
             03 PLAYER-INVENTORY-SLOT-NBT-LENGTH BINARY-SHORT UNSIGNED   VALUE 0.
             03 PLAYER-INVENTORY-SLOT-NBT-DATA   PIC X(1024).
+    01 PLAYER-HOTBAR    BINARY-CHAR UNSIGNED    VALUE 0.
     *> Last keepalive ID sent and received
     01 KEEPALIVE-SENT   BINARY-LONG-LONG        VALUE 0.
     01 KEEPALIVE-RECV   BINARY-LONG-LONG        VALUE 0.
@@ -540,6 +541,12 @@ HandleConfiguration SECTION.
             CALL "SendPacket-SetContainerContent" USING HNDL ERRNO PLAYER-INVENTORY
             PERFORM HandleClientError
 
+            *> send selected hotbar slot
+            MOVE FUNCTION CHAR(PLAYER-HOTBAR + 1) TO BUFFER(1:1)
+            MOVE 1 TO BYTE-COUNT
+            MOVE 81 TO PACKET-ID
+            CALL "SendPacket" USING BY REFERENCE HNDL PACKET-ID BUFFER BYTE-COUNT ERRNO
+
             *> send "Set Center Chunk"
             MOVE 0 TO BYTE-COUNT
             *> chunk X=0
@@ -658,14 +665,12 @@ HandlePlay SECTION.
                     END-IF
                     *> TODO: acknowledge the action
             END-EVALUATE
-        *> Swing arm
-        WHEN PACKET-ID = 51
-            *> TODO
-            CONTINUE
-        *> Use item
-        WHEN PACKET-ID = 53
-            *> TODO
-            CONTINUE
+        *> Set held item
+        WHEN PACKET-ID = 44
+            CALL "Decode-Short" USING PACKET-BUFFER PACKET-POSITION TEMP-INT16
+            IF TEMP-INT8 >= 0 AND TEMP-INT8 <= 8
+                MOVE TEMP-INT16 TO PLAYER-HOTBAR
+            END-IF
         *> Set creative mode slot
         WHEN PACKET-ID = 47
             *> slot ID
@@ -693,6 +698,14 @@ HandlePlay SECTION.
                     END-IF
                 END-IF
             END-IF
+        *> Swing arm
+        WHEN PACKET-ID = 51
+            *> TODO
+            CONTINUE
+        *> Use item
+        WHEN PACKET-ID = 53
+            *> TODO
+            CONTINUE
     END-EVALUATE
 
     EXIT SECTION.
