@@ -23,6 +23,11 @@ WORKING-STORAGE SECTION.
     01 USERNAME         PIC X(16).
     01 USERNAME-LENGTH  BINARY-LONG.
     01 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
+    01 PLAYER-X         FLOAT-LONG              VALUE 0.
+    01 PLAYER-Y         FLOAT-LONG              VALUE 208.
+    01 PLAYER-Z         FLOAT-LONG              VALUE 0.
+    01 PLAYER-YAW       FLOAT-SHORT             VALUE 0.
+    01 PLAYER-PITCH     FLOAT-SHORT             VALUE 0.
     *> Last keepalive ID sent and received
     01 KEEPALIVE-SENT   BINARY-LONG-LONG        VALUE 0.
     01 KEEPALIVE-RECV   BINARY-LONG-LONG        VALUE 0.
@@ -530,26 +535,26 @@ HandleConfiguration SECTION.
 
             *> send position ("Synchronize Player Position")
             MOVE 0 TO BYTE-COUNT
-            *> X=0
-            MOVE 0 TO TEMP-DOUBLE
-            CALL "Encode-Double" USING TEMP-DOUBLE TEMP-BUFFER TEMP-BYTE-COUNT
+            *> X
+            CALL "Encode-Double" USING PLAYER-X TEMP-BUFFER TEMP-BYTE-COUNT
             MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
             ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> Y=208 (IEEE 754 double-precision floating-point)
-            MOVE 208 TO TEMP-DOUBLE
-            CALL "Encode-Double" USING TEMP-DOUBLE TEMP-BUFFER TEMP-BYTE-COUNT
+            *> Y
+            CALL "Encode-Double" USING PLAYER-Y TEMP-BUFFER TEMP-BYTE-COUNT
             MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
             ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> Z=0
-            MOVE 0 TO TEMP-DOUBLE
-            CALL "Encode-Double" USING TEMP-DOUBLE TEMP-BUFFER TEMP-BYTE-COUNT
+            *> Z
+            CALL "Encode-Double" USING PLAYER-Z TEMP-BUFFER TEMP-BYTE-COUNT
             MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
             ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> yaw=pitch=0
-            PERFORM UNTIL BYTE-COUNT = 32
-                ADD 1 TO BYTE-COUNT
-                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            END-PERFORM
+            *> yaw
+            CALL "Encode-Float" USING PLAYER-YAW TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
+            *> pitch
+            CALL "Encode-Float" USING PLAYER-PITCH TEMP-BUFFER TEMP-BYTE-COUNT
+            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
+            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
             *> flags=0
             ADD 1 TO BYTE-COUNT
             MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
@@ -578,15 +583,26 @@ HandlePlay SECTION.
             CALL "Decode-Long" USING PACKET-BUFFER PACKET-POSITION KEEPALIVE-RECV
         *> Set player position
         WHEN PACKET-ID = 23
-            CONTINUE
+            CALL "Decode-Double" USING PACKET-BUFFER PACKET-POSITION PLAYER-X
+            CALL "Decode-Double" USING PACKET-BUFFER PACKET-POSITION PLAYER-Y
+            CALL "Decode-Double" USING PACKET-BUFFER PACKET-POSITION PLAYER-Z
+            *> TODO: "on ground" flag
         *> Set player position and rotation
         WHEN PACKET-ID = 24
-            CONTINUE
+            CALL "Decode-Double" USING PACKET-BUFFER PACKET-POSITION PLAYER-X
+            CALL "Decode-Double" USING PACKET-BUFFER PACKET-POSITION PLAYER-Y
+            CALL "Decode-Double" USING PACKET-BUFFER PACKET-POSITION PLAYER-Z
+            CALL "Decode-Float" USING PACKET-BUFFER PACKET-POSITION PLAYER-YAW
+            CALL "Decode-Float" USING PACKET-BUFFER PACKET-POSITION PLAYER-PITCH
+            *> TODO: "on ground" flag
         *> Set player rotation
         WHEN PACKET-ID = 25
-            CONTINUE
+            CALL "Decode-Float" USING PACKET-BUFFER PACKET-POSITION PLAYER-YAW
+            CALL "Decode-Float" USING PACKET-BUFFER PACKET-POSITION PLAYER-PITCH
+            *> TODO: "on ground" flag
         *> Set player on ground
         WHEN PACKET-ID = 26
+            *> TODO
             CONTINUE
     END-EVALUATE
 

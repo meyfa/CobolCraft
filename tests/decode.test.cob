@@ -6,6 +6,8 @@ PROCEDURE DIVISION.
     DISPLAY "Test: decode.cob"
     CALL "Test-Decode-VarInt"
     CALL "Test-Decode-Long"
+    CALL "Test-Decode-Double"
+    CALL "Test-Decode-Float"
     GOBACK.
 
     *> --- Test: Decode-VarInt ---
@@ -185,5 +187,159 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Decode-Long.
+
+    *> --- Test: Decode-Double ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-Double.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(10).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 RESULT       FLOAT-LONG.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-Double".
+    PositiveZero.
+        DISPLAY "    Case: +0.0 - " WITH NO ADVANCING
+        MOVE X"0000000000000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Double" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 0.0 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeZero.
+        DISPLAY "    Case: -0.0 - " WITH NO ADVANCING
+        MOVE X"8000000000000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Double" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -0.0 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Positive1.
+        DISPLAY "    Case: +1.0 - " WITH NO ADVANCING
+        MOVE X"3FF0000000000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Double" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 1.0 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Negative1.
+        DISPLAY "    Case: -1.0 - " WITH NO ADVANCING
+        MOVE X"BFF0000000000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Double" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -1.0 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    PositiveMax.
+        DISPLAY "    Case: +1.79769E+308 - " WITH NO ADVANCING
+        MOVE X"7FEFFFFFFFFFFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Double" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 1.79769313486231570814527423731704357E+308 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeMax.
+        DISPLAY "    Case: -1.79769E+308 - " WITH NO ADVANCING
+        MOVE X"FFEFFFFFFFFFFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Double" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -1.79769313486231570814527423731704357E+308 AND BUFFERPOS = 9
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Decode-Double.
+
+    *> --- Test: Decode-Float ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-Float.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(10).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 RESULT       FLOAT-SHORT.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-Float".
+    PositiveZero.
+        DISPLAY "    Case: +0.0 - " WITH NO ADVANCING
+        MOVE X"00000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Float" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 0.0 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeZero.
+        DISPLAY "    Case: -0.0 - " WITH NO ADVANCING
+        MOVE X"80000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Float" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -0.0 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Positive1.
+        DISPLAY "    Case: +1.0 - " WITH NO ADVANCING
+        MOVE X"3F800000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Float" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 1.0 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Negative1.
+        DISPLAY "    Case: -1.0 - " WITH NO ADVANCING
+        MOVE X"BF800000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Float" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -1.0 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    PositiveMax.
+        DISPLAY "    Case: +3.40282E+38 - " WITH NO ADVANCING
+        MOVE X"7F7FFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Float" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 3.40282346638528859811704183484516925E+38 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeMax.
+        DISPLAY "    Case: -3.40282E+38 - " WITH NO ADVANCING
+        MOVE X"FF7FFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Float" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -3.40282346638528859811704183484516925E+38 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Decode-Float.
 
 END PROGRAM Test-Decode.
