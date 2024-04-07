@@ -702,10 +702,54 @@ HandlePlay SECTION.
         WHEN PACKET-ID = 51
             *> TODO
             CONTINUE
-        *> Use item
+        *> Use item on block
         WHEN PACKET-ID = 53
-            *> TODO
-            CONTINUE
+            *> hand enum: 0=main hand, 1=off hand
+            CALL "Decode-VarInt" USING PACKET-BUFFER PACKET-POSITION TEMP-INT32
+            IF TEMP-INT32 = 0
+                *> compute the inventory slot
+                COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR
+            ELSE
+                MOVE 45 TO TEMP-INT8
+            END-IF
+            *> block position
+            CALL "Decode-Position" USING PACKET-BUFFER PACKET-POSITION TEMP-POSITION
+            *>  face enum (0-5): -Y, +Y, -Z, +Z, -X, +X
+            CALL "Decode-VarInt" USING PACKET-BUFFER PACKET-POSITION TEMP-INT32
+            *> TODO: cursor position, inside block, sequence
+            *> compute the location of the block to be affected
+            EVALUATE TEMP-INT32
+                WHEN 0
+                    COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y - 1
+                WHEN 1
+                    COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y + 1
+                WHEN 2
+                    COMPUTE TEMP-POSITION-Z = TEMP-POSITION-Z - 1
+                WHEN 3
+                    COMPUTE TEMP-POSITION-Z = TEMP-POSITION-Z + 1
+                WHEN 4
+                    COMPUTE TEMP-POSITION-X = TEMP-POSITION-X - 1
+                WHEN 5
+                    COMPUTE TEMP-POSITION-X = TEMP-POSITION-X + 1
+            END-EVALUATE
+            *> find the chunk and block index
+            DIVIDE TEMP-POSITION-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
+            DIVIDE TEMP-POSITION-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
+            COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
+            COMPUTE TEMP-POSITION-X = FUNCTION MOD(TEMP-POSITION-X, 16)
+            COMPUTE TEMP-POSITION-Z = FUNCTION MOD(TEMP-POSITION-Z, 16)
+            COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y + 64
+            COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
+            *> ensure the position is not outside the world
+            IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
+                *> determine the block to place
+                *> TODO: support more than stone and grass ;)
+                IF PLAYER-INVENTORY-SLOT-ID(TEMP-INT8 + 1) = 1
+                    MOVE 1 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                ELSE IF PLAYER-INVENTORY-SLOT-ID(TEMP-INT8 + 1) = 27
+                    MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                END-IF
+            END-IF
     END-EVALUATE
 
     EXIT SECTION.

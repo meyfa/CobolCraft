@@ -13,7 +13,7 @@ The following features are already working:
 - [X] sending chunk data to client
 - [X] player movement
 - [X] player inventory (limited to creative mode)
-- [ ] breaking and placing blocks (still missing block placement; breaking works)
+- [X] breaking and placing blocks (breaking works; placing supports only stone and grass, for now)
 - [ ] chat
 - [ ] multiplayer
 - [ ] persisting data across restarts
