@@ -11,7 +11,7 @@ The following features are already working:
 - [X] whitelist (single player, edit `server.cob` to enable/set username)
 - [X] player login
 - [X] sending chunk data to client (very basic)
-- [ ] player movement
+- [X] player movement
 - [ ] block placement
 - [ ] chat
 - [ ] multiplayer

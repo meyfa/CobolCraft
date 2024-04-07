@@ -75,6 +75,42 @@ PROCEDURE DIVISION USING BY REFERENCE LK-BUFFER LK-BUFFERPOS LK-VALUE.
 
 END PROGRAM Decode-Long.
 
+*> --- Decode-Double ---
+*> Decode a big-endian double from a buffer into a double-precision floating-point number (FLOAT-LONG).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Decode-Double.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-BUFFER            PIC X(2100000).
+    01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
+    01 LK-VALUE             FLOAT-LONG.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-BUFFER LK-BUFFERPOS LK-VALUE.
+    CALL "Util-DoubleFromBytes" USING LK-BUFFER(LK-BUFFERPOS:8) LK-VALUE
+    ADD 8 TO LK-BUFFERPOS
+    GOBACK.
+
+END PROGRAM Decode-Double.
+
+*> --- Decode-Float ---
+*> Decode a big-endian float from a buffer into a single-precision floating-point number (FLOAT).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Decode-Float.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-BUFFER            PIC X(2100000).
+    01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
+    01 LK-VALUE             FLOAT.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-BUFFER LK-BUFFERPOS LK-VALUE.
+    CALL "Util-FloatFromBytes" USING LK-BUFFER(LK-BUFFERPOS:4) LK-VALUE
+    ADD 4 TO LK-BUFFERPOS
+    GOBACK.
+
+END PROGRAM Decode-Float.
+
 *> --- Decode-String ---
 *> Decode a string from a buffer. The string is prefixed with a VarInt length.
 IDENTIFICATION DIVISION.
