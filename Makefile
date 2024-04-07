@@ -29,7 +29,7 @@ clean:
 run: $(BIN)
 	COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL ./$(BIN)
 
-$(TEST_BIN): $(TEST_SRC) $(SRC)
+$(TEST_BIN): $(TEST_SRC) $(SRC) $(UTIL_LIB)
 	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -o $@ $^
-	./$(TEST_BIN)
+	COB_PRE_LOAD=COBOLCRAFT_UTIL ./$(TEST_BIN)
 	rm -f $(TEST_BIN)
