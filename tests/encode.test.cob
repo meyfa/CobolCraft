@@ -7,6 +7,7 @@ PROCEDURE DIVISION.
     CALL "Test-Encode-VarInt"
     CALL "Test-Encode-Double"
     CALL "Test-Encode-Float"
+    CALL "Test-Encode-Position"
     GOBACK.
 
     *> --- Test: Encode-VarInt ---
@@ -319,5 +320,49 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Encode-Float.
+
+    *> --- Test: Encode-Position ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-Position.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 VALUE-IN.
+            02 VALUE-X  BINARY-LONG.
+            02 VALUE-Y  BINARY-LONG.
+            02 VALUE-Z  BINARY-LONG.
+        01 BUFFER       PIC X(10).
+        01 BUFFERLEN    BINARY-LONG UNSIGNED.
+        01 HEXSTR       PIC X(20).
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-Position".
+    AllZero.
+        DISPLAY "    Case: (0, 0, 0) - " WITH NO ADVANCING
+        MOVE 0 TO VALUE-X
+        MOVE 0 TO VALUE-Y
+        MOVE 0 TO VALUE-Z
+        CALL "Encode-Position" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"0000000000000000" AND BUFFERLEN = 8
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    WikiVgExample.
+        DISPLAY "    Case: 18357644 831 -20882616 - " WITH NO ADVANCING
+        MOVE 18357644 TO VALUE-X
+        MOVE 831 TO VALUE-Y
+        MOVE -20882616 TO VALUE-Z
+        CALL "Encode-Position" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"4607632C15B4833F" AND BUFFERLEN = 8
+            DISPLAY "PASS"
+        ELSE
+            CALL "EncodeHexString" USING BUFFER BUFFERLEN HEXSTR
+            DISPLAY "FAIL, actual: " HEXSTR(1:BUFFERLEN * 2)
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-Position.
 
 END PROGRAM Test-Encode.

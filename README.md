@@ -14,7 +14,7 @@ The following features are already working:
 - [X] player movement
 - [X] player inventory (limited to creative mode)
 - [X] breaking and placing blocks (breaking works; placing supports only stone and grass, for now)
-- [ ] multiplayer (players not visible and actions not synchronized yet)
+- [X] multiplayer (however, players are invisible)
 - [ ] chat
 - [ ] persisting data across restarts
 

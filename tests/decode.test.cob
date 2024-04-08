@@ -379,4 +379,8 @@ PROCEDURE DIVISION.
             DISPLAY "FAIL"
         END-IF.
 
+        GOBACK.
+
+    END PROGRAM Test-Decode-Position.
+
 END PROGRAM Test-Decode.
