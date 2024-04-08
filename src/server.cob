@@ -626,7 +626,7 @@ HandlePlay SECTION.
         *> Set held item
         WHEN 44
             CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
-            IF TEMP-INT8 >= 0 AND TEMP-INT8 <= 8
+            IF TEMP-INT16 >= 0 AND TEMP-INT16 <= 8
                 MOVE TEMP-INT16 TO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             END-IF
         *> Set creative mode slot
@@ -703,14 +703,11 @@ HandlePlay SECTION.
             IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
                 *> determine the block to place
                 *> TODO: support more than stone and grass ;)
-                *> TODO: prevent block placement for unsupported blocks
                 EVALUATE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1)
                     WHEN 1
                         MOVE 1 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                     WHEN 27
                         MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                    WHEN OTHER
-                        EXIT SECTION
                 END-EVALUATE
                 *> acknowledge the action
                 CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
