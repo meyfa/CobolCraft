@@ -49,13 +49,10 @@ WORKING-STORAGE SECTION.
     01 BUFFER           PIC X(64000).
     01 BYTE-COUNT       BINARY-LONG UNSIGNED.
     *> Temporary variables
-    01 TEMP-BUFFER      PIC X(64000).
-    01 TEMP-BYTE-COUNT  BINARY-LONG UNSIGNED.
     01 TEMP-INT8        BINARY-LONG.
     01 TEMP-INT16       BINARY-LONG.
     01 TEMP-INT32       BINARY-LONG.
     01 TEMP-INT64       BINARY-LONG-LONG.
-    01 TEMP-DOUBLE      FLOAT-LONG.
     01 TEMP-POSITION.
         02 TEMP-POSITION-X  BINARY-LONG.
         02 TEMP-POSITION-Y  BINARY-LONG.
@@ -473,20 +470,7 @@ HandleConfiguration SECTION.
             PERFORM HandleClientError
 
             *> Send feature flags
-            MOVE 0 TO BYTE-COUNT
-            *> count=1
-            MOVE 1 TO TEMP-INT32
-            CALL "Encode-VarInt" USING TEMP-INT32 TEMP-BUFFER TEMP-BYTE-COUNT
-            MOVE TEMP-BUFFER TO BUFFER(BYTE-COUNT + 1:TEMP-BYTE-COUNT)
-            ADD TEMP-BYTE-COUNT TO BYTE-COUNT
-            *> feature flag="minecraft:vanilla"
-            ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(17 + 1) TO BUFFER(BYTE-COUNT:1)
-            MOVE "minecraft:vanilla" TO BUFFER(BYTE-COUNT + 1:17)
-            ADD 17 TO BYTE-COUNT
-            *> send packet
-            MOVE 8 TO PACKET-ID
-            CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket-FeatureFlags" USING CLIENT-HNDL(CLIENT-ID) ERRNO
             PERFORM HandleClientError
 
             *> Send finish configuration
