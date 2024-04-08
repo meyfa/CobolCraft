@@ -6,12 +6,16 @@ WORKING-STORAGE SECTION.
     *> Socket variables (server socket handle, error number from last operation)
     01 LISTEN           PIC X(4).
     01 ERRNO            PIC 9(3)                VALUE 0.
-    *> Connected clients. Note: For now, only one can be in the login/configuration/play state.
+    *> Connected clients
+    01 MAX-CLIENTS      BINARY-LONG UNSIGNED    VALUE 10.
     01 CLIENTS OCCURS 10 TIMES.
         03 CLIENT-PRESENT   BINARY-CHAR             VALUE 0.
         03 CLIENT-HNDL      PIC X(4)                VALUE X"00000000".
         *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = configuration, 4 = play, -1 = disconnect)
         03 CLIENT-STATE     BINARY-CHAR             VALUE -1.
+        03 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
+        *> The index of the associated player, or 0 if login has not been started
+        03 CLIENT-PLAYER    BINARY-CHAR             VALUE 0.
         *> Last keepalive ID sent and received
         03 KEEPALIVE-SENT   BINARY-LONG-LONG        VALUE 0.
         03 KEEPALIVE-RECV   BINARY-LONG-LONG        VALUE 0.
@@ -23,26 +27,29 @@ WORKING-STORAGE SECTION.
     *> The client handle of the connection that is currently being processed, and the index in the CLIENTS array
     01 TEMP-HNDL        PIC X(4).
     01 CLIENT-ID        BINARY-LONG UNSIGNED.
-    *> Player data
-    01 PLAYER-CLIENT    BINARY-LONG UNSIGNED    VALUE 0.
-    01 USERNAME         PIC X(16).
-    01 USERNAME-LENGTH  BINARY-LONG.
-    01 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
-    01 PLAYER-POSITION.
-        02 PLAYER-X         FLOAT-LONG              VALUE 0.
-        02 PLAYER-Y         FLOAT-LONG              VALUE 64.
-        02 PLAYER-Z         FLOAT-LONG              VALUE 0.
-    01 PLAYER-ROTATION.
-        02 PLAYER-YAW       FLOAT-SHORT             VALUE 0.
-        02 PLAYER-PITCH     FLOAT-SHORT             VALUE 0.
-    01 PLAYER-INVENTORY.
-        02 PLAYER-INVENTORY-SLOT OCCURS 46 TIMES.
-            *> If no item is present, the count is 0 and the ID is -1
-            03 PLAYER-INVENTORY-SLOT-ID         BINARY-LONG             VALUE 0.
-            03 PLAYER-INVENTORY-SLOT-COUNT      BINARY-CHAR UNSIGNED    VALUE 0.
-            03 PLAYER-INVENTORY-SLOT-NBT-LENGTH BINARY-SHORT UNSIGNED   VALUE 0.
-            03 PLAYER-INVENTORY-SLOT-NBT-DATA   PIC X(1024).
-    01 PLAYER-HOTBAR    BINARY-CHAR UNSIGNED    VALUE 0.
+    *> Player data. Once a new player is connected, their data is stored here. When they disconnect, the client is
+    *> set to 0, but the player data remains to be reclaimed if the same player connects again.
+    *> TODO: add some way of offloading player data to disk
+    01 MAX-PLAYERS      BINARY-LONG UNSIGNED    VALUE 10.
+    01 PLAYERS OCCURS 10 TIMES.
+        02 PLAYER-CLIENT    BINARY-LONG UNSIGNED    VALUE 0.
+        02 USERNAME         PIC X(16).
+        02 USERNAME-LENGTH  BINARY-LONG.
+        02 PLAYER-POSITION.
+            03 PLAYER-X         FLOAT-LONG              VALUE 0.
+            03 PLAYER-Y         FLOAT-LONG              VALUE 64.
+            03 PLAYER-Z         FLOAT-LONG              VALUE 0.
+        02 PLAYER-ROTATION.
+            03 PLAYER-YAW       FLOAT-SHORT             VALUE 0.
+            03 PLAYER-PITCH     FLOAT-SHORT             VALUE 0.
+        02 PLAYER-INVENTORY.
+            03 PLAYER-INVENTORY-SLOT OCCURS 46 TIMES.
+                *> If no item is present, the count is 0 and the ID is -1
+                04 PLAYER-INVENTORY-SLOT-ID         BINARY-LONG             VALUE 0.
+                04 PLAYER-INVENTORY-SLOT-COUNT      BINARY-CHAR UNSIGNED    VALUE 0.
+                04 PLAYER-INVENTORY-SLOT-NBT-LENGTH BINARY-SHORT UNSIGNED   VALUE 0.
+                04 PLAYER-INVENTORY-SLOT-NBT-DATA   PIC X(1024).
+        02 PLAYER-HOTBAR    BINARY-CHAR UNSIGNED    VALUE 0.
     *> Incoming/outgoing packet data
     01 PACKET-ID        BINARY-LONG.
     01 PACKET-POSITION  BINARY-LONG UNSIGNED.
@@ -126,10 +133,6 @@ StartServer.
     .
 
 ServerLoop.
-    MOVE SPACES TO USERNAME
-    MOVE 0 TO USERNAME-LENGTH
-    MOVE 0 TO CONFIG-FINISH
-
     *> Loop forever - each iteration is one game tick (1/20th of a second).
     PERFORM UNTIL EXIT
         CALL "Util-SystemTimeMillis" USING CURRENT-TIME
@@ -139,7 +142,7 @@ ServerLoop.
         PERFORM GameLoop
 
         *> Handle keep-alive and disconnections for connected clients
-        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > 10
+        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
             IF CLIENT-PRESENT(CLIENT-ID) = 1
                 PERFORM KeepAlive
             END-IF
@@ -170,7 +173,7 @@ NetworkRead SECTION.
     PERFORM HandleServerError
 
     *> Find an existing client to which the handle belongs
-    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > 10
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-HNDL(CLIENT-ID) = TEMP-HNDL
             PERFORM ReceivePacket
             EXIT SECTION
@@ -178,7 +181,7 @@ NetworkRead SECTION.
     END-PERFORM
 
     *> If no existing client was found, find a free slot for a new client
-    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > 10
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-PRESENT(CLIENT-ID) = 0
             PERFORM InsertClient
             PERFORM ReceivePacket
@@ -198,6 +201,7 @@ InsertClient SECTION.
     MOVE 1 TO CLIENT-PRESENT(CLIENT-ID)
     MOVE TEMP-HNDL TO CLIENT-HNDL(CLIENT-ID)
     MOVE 0 TO CLIENT-STATE(CLIENT-ID)
+    MOVE 0 TO CLIENT-PLAYER(CLIENT-ID)
 
     MOVE 0 TO KEEPALIVE-SENT(CLIENT-ID)
     MOVE 0 TO KEEPALIVE-RECV(CLIENT-ID)
@@ -216,9 +220,12 @@ RemoveClient SECTION.
     MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
     MOVE X"00000000" TO CLIENT-HNDL(CLIENT-ID)
     MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+    MOVE 0 TO CONFIG-FINISH(CLIENT-ID)
 
-    IF PLAYER-CLIENT = CLIENT-ID
-        MOVE 0 TO PLAYER-CLIENT
+    *> If there is an associated player, remove the association
+    IF CLIENT-PLAYER(CLIENT-ID) > 0
+        MOVE 0 TO PLAYER-CLIENT(CLIENT-PLAYER(CLIENT-ID))
+        MOVE 0 TO CLIENT-PLAYER(CLIENT-ID)
     END-IF
 
     EXIT SECTION.
@@ -361,12 +368,12 @@ HandleStatus SECTION.
             DISPLAY "  Responding to status request"
             *> count the number of current players
             MOVE 0 TO TEMP-INT32
-            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > 10
-                IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) >= 2
+            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
+                IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-PLAYER(TEMP-INT16) > 0
                     ADD 1 TO TEMP-INT32
                 END-IF
             END-PERFORM
-            CALL "SendPacket-Status" USING CLIENT-HNDL(CLIENT-ID) ERRNO MOTD TEMP-INT32
+            CALL "SendPacket-Status" USING CLIENT-HNDL(CLIENT-ID) ERRNO MOTD MAX-PLAYERS TEMP-INT32
             PERFORM HandleClientError
         WHEN 1
             *> Ping request: respond with the same payload and close the connection
@@ -387,25 +394,16 @@ HandleLogin SECTION.
     EVALUATE PACKET-ID
         *> Login start
         WHEN 0
-            *> Prevent multiple concurrent logins
-            IF PLAYER-CLIENT > 0 THEN
-                MOVE "Server is full" TO BUFFER
-                MOVE 14 TO BYTE-COUNT
-                CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
-                PERFORM HandleClientError
-                MOVE -1 TO CLIENT-STATE(CLIENT-ID)
-                EXIT SECTION
-            END-IF
-
             *> Decode username
-            CALL "Decode-String" USING BY REFERENCE PACKET-BUFFER(CLIENT-ID) PACKET-POSITION USERNAME-LENGTH USERNAME
-            DISPLAY "  Login with username: " USERNAME
+            CALL "Decode-String" USING BY REFERENCE PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
+            DISPLAY "  Login with username: " BUFFER(1:BYTE-COUNT)
 
             *> Skip the UUID (16 bytes)
             ADD 16 TO PACKET-POSITION
 
-            IF WHITELIST-ENABLE > 0 AND USERNAME NOT = WHITELIST-PLAYER THEN
-                DISPLAY "  Player not whitelisted: " USERNAME
+            *> Check username against the whitelist
+            IF WHITELIST-ENABLE > 0 AND BUFFER(1:BYTE-COUNT) NOT = WHITELIST-PLAYER THEN
+                DISPLAY "  Player not whitelisted: " BUFFER(1:BYTE-COUNT)
                 MOVE "Not whitelisted!" TO BUFFER
                 MOVE 16 TO BYTE-COUNT
                 CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
@@ -414,7 +412,32 @@ HandleLogin SECTION.
                 EXIT SECTION
             END-IF
 
-            MOVE CLIENT-ID TO PLAYER-CLIENT
+            *> Try to find an existing player with the same username, or find a free slot.
+            *> Since players are added to the array in order, once we see a free slot we know there cannot be an existing
+            *> player after that.
+            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-PLAYERS
+                IF PLAYER-CLIENT(TEMP-INT16) = 0 AND (USERNAME(TEMP-INT16) = BUFFER(1:BYTE-COUNT) OR USERNAME-LENGTH(TEMP-INT16) = 0)
+                    *> associate the player with the client
+                    MOVE CLIENT-ID TO PLAYER-CLIENT(TEMP-INT16)
+                    MOVE TEMP-INT16 TO CLIENT-PLAYER(CLIENT-ID)
+                    *> store the username on the player
+                    MOVE SPACES TO USERNAME(TEMP-INT16)
+                    MOVE BUFFER(1:BYTE-COUNT) TO USERNAME(TEMP-INT16)
+                    MOVE BYTE-COUNT TO USERNAME-LENGTH(TEMP-INT16)
+                    EXIT PERFORM
+                END-IF
+            END-PERFORM
+
+            *> If no player slot was found, the server is full
+            IF CLIENT-PLAYER(CLIENT-ID) = 0
+                DISPLAY "  Cannot accept new player: " BUFFER(1:BYTE-COUNT) " (server is full)"
+                MOVE "Server is full" TO BUFFER
+                MOVE 14 TO BYTE-COUNT
+                CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+                PERFORM HandleClientError
+                MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+                EXIT SECTION
+            END-IF
 
             *> Send login success. This should result in a "login acknowledged" packet by the client.
             *> UUID of the player (value: 00000...01)
@@ -426,10 +449,11 @@ HandleLogin SECTION.
             ADD 1 TO BYTE-COUNT
             MOVE FUNCTION CHAR(2) TO BUFFER(BYTE-COUNT:1)
             *> Username (string prefixed with VarInt length)
+            MOVE USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO TEMP-INT32
             ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(USERNAME-LENGTH + 1) TO BUFFER(BYTE-COUNT:1)
-            MOVE USERNAME(1:USERNAME-LENGTH) TO BUFFER(BYTE-COUNT + 1:USERNAME-LENGTH)
-            ADD USERNAME-LENGTH TO BYTE-COUNT
+            MOVE FUNCTION CHAR(TEMP-INT32 + 1) TO BUFFER(BYTE-COUNT:1)
+            MOVE USERNAME(CLIENT-PLAYER(CLIENT-ID))(1:TEMP-INT32) TO BUFFER(BYTE-COUNT + 1:TEMP-INT32)
+            ADD TEMP-INT32 TO BYTE-COUNT
             *> Number of properties
             ADD 1 TO BYTE-COUNT
             MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
@@ -442,7 +466,7 @@ HandleLogin SECTION.
         *> Login acknowledge
         WHEN 3
             *> Must not happen before login start
-            IF USERNAME-LENGTH = 0 THEN
+            IF CLIENT-PLAYER(CLIENT-ID) = 0 THEN
                 DISPLAY "  Unexpected login acknowledge"
                 MOVE -1 TO CLIENT-STATE(CLIENT-ID)
                 EXIT SECTION
@@ -480,11 +504,11 @@ HandleConfiguration SECTION.
             PERFORM HandleClientError
 
             *> We now expect an acknowledge packet
-            MOVE 1 TO CONFIG-FINISH
+            MOVE 1 TO CONFIG-FINISH(CLIENT-ID)
 
         *> Acknowledge finish configuration
         WHEN 2
-            IF CONFIG-FINISH = 0 THEN
+            IF CONFIG-FINISH(CLIENT-ID) = 0
                 DISPLAY "  Unexpected acknowledge finish configuration"
                 MOVE -1 TO CLIENT-STATE(CLIENT-ID)
                 EXIT SECTION
@@ -517,11 +541,11 @@ HandleConfiguration SECTION.
             PERFORM HandleClientError
 
             *> send inventory
-            CALL "SendPacket-SetContainerContent" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-INVENTORY
+            CALL "SendPacket-SetContainerContent" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
             PERFORM HandleClientError
 
             *> send selected hotbar slot
-            MOVE FUNCTION CHAR(PLAYER-HOTBAR + 1) TO BUFFER(1:1)
+            MOVE FUNCTION CHAR(PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID)) + 1) TO BUFFER(1:1)
             MOVE 1 TO BYTE-COUNT
             MOVE 81 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
@@ -541,7 +565,7 @@ HandleConfiguration SECTION.
             END-PERFORM
 
             *> send position ("Synchronize Player Position")
-            CALL "SendPacket-SetPlayerPosition" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-POSITION PLAYER-ROTATION
+            CALL "SendPacket-SetPlayerPosition" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID))
             PERFORM HandleClientError
 
             *> TODO: receive "Confirm Teleportation"
@@ -559,22 +583,22 @@ HandlePlay SECTION.
             CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
         *> Set player position
         WHEN 23
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z
+            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
         *> Set player position and rotation
         WHEN 24
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-YAW
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH
+            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
         *> Set player rotation
         WHEN 25
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-YAW
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH
+            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
         *> Set player on ground
         WHEN 26
@@ -606,7 +630,7 @@ HandlePlay SECTION.
         WHEN 44
             CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
             IF TEMP-INT8 >= 0 AND TEMP-INT8 <= 8
-                MOVE TEMP-INT16 TO PLAYER-HOTBAR
+                MOVE TEMP-INT16 TO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             END-IF
         *> Set creative mode slot
         WHEN 47
@@ -617,20 +641,20 @@ HandlePlay SECTION.
             CALL "Decode-Byte" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT8
             IF TEMP-INT16 >= 0 AND TEMP-INT16 < 46
                 IF TEMP-INT8 = 0
-                    MOVE -1 TO PLAYER-INVENTORY-SLOT-ID(TEMP-INT16 + 1)
-                    MOVE 0 TO PLAYER-INVENTORY-SLOT-COUNT(TEMP-INT16 + 1)
+                    MOVE -1 TO PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
+                    MOVE 0 TO PLAYER-INVENTORY-SLOT-COUNT(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
                 ELSE
                     CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-                    MOVE TEMP-INT32 TO PLAYER-INVENTORY-SLOT-ID(TEMP-INT16 + 1)
+                    MOVE TEMP-INT32 TO PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
                     CALL "Decode-Byte" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT8
-                    MOVE TEMP-INT8 TO PLAYER-INVENTORY-SLOT-COUNT(TEMP-INT16 + 1)
+                    MOVE TEMP-INT8 TO PLAYER-INVENTORY-SLOT-COUNT(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
                     *> remainder is NBT
                     COMPUTE BYTE-COUNT = PACKET-LENGTH(CLIENT-ID) - PACKET-POSITION + 1
                     IF BYTE-COUNT <= 1024
-                        MOVE BYTE-COUNT TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(TEMP-INT16 + 1)
-                        MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:BYTE-COUNT) TO PLAYER-INVENTORY-SLOT-NBT-DATA(TEMP-INT16 + 1)(1:BYTE-COUNT)
+                        MOVE BYTE-COUNT TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
+                        MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:BYTE-COUNT) TO PLAYER-INVENTORY-SLOT-NBT-DATA(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)(1:BYTE-COUNT)
                     ELSE
-                        MOVE 0 TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(TEMP-INT16 + 1)
+                        MOVE 0 TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
                         DISPLAY "  Item NBT data too long: " BYTE-COUNT
                     END-IF
                 END-IF
@@ -645,7 +669,7 @@ HandlePlay SECTION.
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0
                 *> compute the inventory slot
-                COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR
+                COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             ELSE
                 MOVE 45 TO TEMP-INT8
             END-IF
@@ -681,9 +705,10 @@ HandlePlay SECTION.
             IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
                 *> determine the block to place
                 *> TODO: support more than stone and grass ;)
-                IF PLAYER-INVENTORY-SLOT-ID(TEMP-INT8 + 1) = 1
+                *> TODO: prevent block placement for unsupported blocks
+                IF PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1) = 1
                     MOVE 1 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                ELSE IF PLAYER-INVENTORY-SLOT-ID(TEMP-INT8 + 1) = 27
+                ELSE IF PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1) = 27
                     MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                 END-IF
             END-IF
