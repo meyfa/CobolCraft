@@ -440,27 +440,7 @@ HandleLogin SECTION.
             END-IF
 
             *> Send login success. This should result in a "login acknowledged" packet by the client.
-            *> UUID of the player (value: 00000...01)
-            MOVE 0 TO BYTE-COUNT
-            PERFORM UNTIL BYTE-COUNT = 15
-                ADD 1 TO BYTE-COUNT
-                MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            END-PERFORM
-            ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(2) TO BUFFER(BYTE-COUNT:1)
-            *> Username (string prefixed with VarInt length)
-            MOVE USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO TEMP-INT32
-            ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(TEMP-INT32 + 1) TO BUFFER(BYTE-COUNT:1)
-            MOVE USERNAME(CLIENT-PLAYER(CLIENT-ID))(1:TEMP-INT32) TO BUFFER(BYTE-COUNT + 1:TEMP-INT32)
-            ADD TEMP-INT32 TO BYTE-COUNT
-            *> Number of properties
-            ADD 1 TO BYTE-COUNT
-            MOVE FUNCTION CHAR(1) TO BUFFER(BYTE-COUNT:1)
-            *> End of properties
-            *> send packet
-            MOVE 2 TO PACKET-ID
-            CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket-LoginSuccess" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-PLAYER(CLIENT-ID) USERNAME(CLIENT-PLAYER(CLIENT-ID)) USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))
             PERFORM HandleClientError
 
         *> Login acknowledge
