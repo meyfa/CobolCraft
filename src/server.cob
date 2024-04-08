@@ -587,7 +587,6 @@ HandlePlay SECTION.
         *> Player action
         WHEN 33
             *> Status (= the action), block position, face, sequence number.
-            *> For now we only care about status and position.
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
             EVALUATE TRUE
@@ -604,7 +603,25 @@ HandlePlay SECTION.
                     IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
                         MOVE 0 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                     END-IF
-                    *> TODO: acknowledge the action
+                    *> ignore face
+                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+                    *> acknowledge the action
+                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+                    CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                    *> send the block update to all players
+                    COMPUTE TEMP-POSITION-X = CHUNK-X * 16 + TEMP-POSITION-X
+                    COMPUTE TEMP-POSITION-Z = CHUNK-Z * 16 + TEMP-POSITION-Z
+                    COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y - 64
+                    MOVE WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX) TO TEMP-INT32
+                    *> store the current client ID while we interact with other clients
+                    MOVE CLIENT-ID TO TEMP-INT16
+                    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+                        IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+                            CALL "SendPacket-BlockUpdate" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-POSITION TEMP-INT32
+                            PERFORM HandleClientError
+                        END-IF
+                    END-PERFORM
+                    MOVE TEMP-INT16 TO CLIENT-ID
             END-EVALUATE
         *> Set held item
         WHEN 44
@@ -657,7 +674,8 @@ HandlePlay SECTION.
             CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
             *>  face enum (0-5): -Y, +Y, -Z, +Z, -X, +X
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-            *> TODO: cursor position, inside block, sequence
+            *> TODO: cursor position, inside block
+            ADD 13 TO PACKET-POSITION
             *> compute the location of the block to be affected
             EVALUATE TEMP-INT32
                 WHEN 0
@@ -686,11 +704,31 @@ HandlePlay SECTION.
                 *> determine the block to place
                 *> TODO: support more than stone and grass ;)
                 *> TODO: prevent block placement for unsupported blocks
-                IF PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1) = 1
-                    MOVE 1 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                ELSE IF PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1) = 27
-                    MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                END-IF
+                EVALUATE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1)
+                    WHEN 1
+                        MOVE 1 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                    WHEN 27
+                        MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                    WHEN OTHER
+                        EXIT SECTION
+                END-EVALUATE
+                *> acknowledge the action
+                CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+                CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                *> send the block update to all players
+                COMPUTE TEMP-POSITION-X = CHUNK-X * 16 + TEMP-POSITION-X
+                COMPUTE TEMP-POSITION-Z = CHUNK-Z * 16 + TEMP-POSITION-Z
+                COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y - 64
+                MOVE WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX) TO TEMP-INT32
+                *> store the current client ID while we interact with other clients
+                MOVE CLIENT-ID TO TEMP-INT16
+                PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+                    IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+                        CALL "SendPacket-BlockUpdate" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-POSITION TEMP-INT32
+                        PERFORM HandleClientError
+                    END-IF
+                END-PERFORM
+                MOVE TEMP-INT16 TO CLIENT-ID
             END-IF
     END-EVALUATE
 

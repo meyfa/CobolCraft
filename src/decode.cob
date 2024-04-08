@@ -209,7 +209,8 @@ END PROGRAM Decode-String.
 
 *> --- Decode-Position ---
 *> Decode a block position from a buffer. The position is encoded as a 64-bit integer (BINARY-LONG-LONG).
-*> The first 26 bits are X, the next 12 bits are Y, and the last 26 bits are Z (all of them signed).
+*> The 26 least-significant bits are X, the middle 12 bits are Y, and the 26 most-significant bits are Z.
+*> Each of the bit sections is signed (two's complement).
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Decode-Position.
 
@@ -248,3 +249,5 @@ PROCEDURE DIVISION USING BY REFERENCE LK-BUFFER LK-BUFFERPOS LK-VALUE.
     END-IF
 
     GOBACK.
+
+END PROGRAM Decode-Position.

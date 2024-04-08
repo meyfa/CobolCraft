@@ -102,6 +102,32 @@ PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
 
 END PROGRAM Encode-VarInt.
 
+*> --- Encode-UnsignedLong ---
+*> Encode a 64-bit unsigned integer and store it in a buffer (big-endian).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Encode-UnsignedLong.
+
+DATA DIVISION.
+LOCAL-STORAGE SECTION.
+    01 CURRENT-VALUE        BINARY-LONG-LONG UNSIGNED.
+    01 CURRENT-VALUE-BYTE   BINARY-CHAR UNSIGNED.
+    01 I                    INDEX.
+LINKAGE SECTION.
+    01 LK-VALUE-IN          BINARY-LONG-LONG UNSIGNED.
+    01 LK-VALUE-OUT         PIC X(8).
+    01 LK-OUT-LENGTH        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
+    MOVE LK-VALUE-IN TO CURRENT-VALUE
+    MOVE 8 TO LK-OUT-LENGTH
+    PERFORM VARYING I FROM 1 BY 1 UNTIL I > LK-OUT-LENGTH
+        DIVIDE CURRENT-VALUE BY 256 GIVING CURRENT-VALUE REMAINDER CURRENT-VALUE-BYTE
+        MOVE FUNCTION CHAR(CURRENT-VALUE-BYTE + 1) TO LK-VALUE-OUT(LK-OUT-LENGTH + 1 - I:1)
+    END-PERFORM
+    GOBACK.
+
+END PROGRAM Encode-UnsignedLong.
+
 *> --- Encode-Long ---
 *> Encode a 64-bit integer and store it in a buffer (big-endian).
 IDENTIFICATION DIVISION.
@@ -109,9 +135,7 @@ PROGRAM-ID. Encode-Long.
 
 DATA DIVISION.
 LOCAL-STORAGE SECTION.
-    01 CURRENT-VALUE        BINARY-LONG-LONG UNSIGNED.
-    01 CURRENT-VALUE-BYTE   BINARY-CHAR UNSIGNED.
-    01 I                    INDEX.
+    01 UNSIGNED-VALUE       BINARY-LONG-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-VALUE-IN          BINARY-LONG-LONG.
     01 LK-VALUE-OUT         PIC X(8).
@@ -121,16 +145,12 @@ PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
     *> If the number is negative, we need to take the two's complement.
     *> This is done by computing 2^64 - |x|, where x is the input number.
     IF LK-VALUE-IN < 0
-        COMPUTE CURRENT-VALUE = 18446744073709551616 + LK-VALUE-IN
+        COMPUTE UNSIGNED-VALUE = 18446744073709551616 + LK-VALUE-IN
     ELSE
-        MOVE LK-VALUE-IN TO CURRENT-VALUE
+        MOVE LK-VALUE-IN TO UNSIGNED-VALUE
     END-IF
     *> Perform the conversion to bytes
-    MOVE 8 TO LK-OUT-LENGTH
-    PERFORM VARYING I FROM 1 BY 1 UNTIL I > LK-OUT-LENGTH
-        DIVIDE CURRENT-VALUE BY 256 GIVING CURRENT-VALUE REMAINDER CURRENT-VALUE-BYTE
-        MOVE FUNCTION CHAR(CURRENT-VALUE-BYTE + 1) TO LK-VALUE-OUT(LK-OUT-LENGTH + 1 - I:1)
-    END-PERFORM
+    CALL "Encode-UnsignedLong" USING UNSIGNED-VALUE LK-VALUE-OUT LK-OUT-LENGTH
     GOBACK.
 
 END PROGRAM Encode-Long.
@@ -178,3 +198,49 @@ PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
     GOBACK.
 
 END PROGRAM Encode-Float.
+
+*> --- Encode-Position ---
+*> Encode a block position into a buffer. The position is encoded as a 64-bit integer where the 26 least-significant bits are X,
+*> the next 12 bits are Y, and the last 26 bits are Z (all of them signed).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Encode-Position.
+
+DATA DIVISION.
+LOCAL-STORAGE SECTION.
+    01 UINT-VALUE           BINARY-LONG-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-VALUE-IN.
+        02 LK-X             BINARY-LONG.
+        02 LK-Y             BINARY-LONG.
+        02 LK-Z             BINARY-LONG.
+    01 LK-VALUE-OUT         PIC X(8).
+    01 LK-OUT-LENGTH        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
+    *> Place X into the 26 most-significant bits
+    IF LK-X < 0
+        COMPUTE UINT-VALUE = (67108864 + LK-X) * (2 ** 38)
+    ELSE
+        COMPUTE UINT-VALUE = LK-X * (2 ** 38)
+    END-IF
+
+    *> Place Z into the 26 middle bits
+    IF LK-Z < 0
+        COMPUTE UINT-VALUE = UINT-VALUE + (67108864 + LK-Z) * (2 ** 12)
+    ELSE
+        COMPUTE UINT-VALUE = UINT-VALUE + LK-Z * (2 ** 12)
+    END-IF
+
+    *> Place Y into the 12 least-significant bits
+    IF LK-Y < 0
+        COMPUTE UINT-VALUE = UINT-VALUE + 4096 + LK-Y
+    ELSE
+        COMPUTE UINT-VALUE = UINT-VALUE + LK-Y
+    END-IF
+
+    *> Encode as an unsigned long
+    CALL "Encode-UnsignedLong" USING UINT-VALUE LK-VALUE-OUT LK-OUT-LENGTH
+
+    GOBACK.
+
+END PROGRAM Encode-Position.
