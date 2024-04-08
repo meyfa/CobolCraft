@@ -41,6 +41,14 @@ docker run --rm -p 25565:25565 cobolcraft
 
 To configure the server, edit the variables in `main.cob` (limited options available).
 
+Note: By default, the server is only accessible via localhost (i.e., only on your own system via `localhost:25565`).
+To make it accessible from the outside (your local network, via VPN, port forwarding, on a rented server, ...), you
+can start the Docker container like this:
+
+```sh
+docker run --rm -p 0.0.0.0:25565:25565 cobolcraft
+```
+
 ## Why?
 
 Well, there are quite a lot of rumors and stigma surrounding COBOL.
