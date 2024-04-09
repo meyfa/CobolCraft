@@ -1,0 +1,47 @@
+IDENTIFICATION DIVISION.
+PROGRAM-ID. SendPacket-SystemChat.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 PACKET-ID        BINARY-LONG             VALUE 105.
+    *> temporary data used during encoding
+    01 UINT16           BINARY-SHORT UNSIGNED.
+    01 BUFFER           PIC X(8).
+    01 BUFFERLEN        BINARY-LONG UNSIGNED.
+    *> buffer used to store the packet data
+    01 PAYLOAD          PIC X(64000).
+    01 PAYLOADLEN       BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-HNDL          PIC X(4).
+    01 LK-ERRNO         PIC 9(3).
+    01 LK-MESSAGE       PIC X(64000).
+    01 LK-MESSAGE-LEN   BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-MESSAGE LK-MESSAGE-LEN.
+    MOVE 0 TO PAYLOADLEN
+
+    *> NBT string tag
+    MOVE FUNCTION CHAR(8 + 1) TO PAYLOAD(PAYLOADLEN + 1:1)
+    ADD 1 TO PAYLOADLEN
+
+    *> NBT string length
+    MOVE LK-MESSAGE-LEN TO UINT16
+    CALL "Encode-UnsignedShort" USING UINT16 BUFFER BUFFERLEN
+    MOVE BUFFER TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
+
+    *> string data
+    *> TODO: implement modified UTF-8: https://docs.oracle.com/javase/8/docs/api/java/io/DataInput.html#modified-utf-8
+    MOVE LK-MESSAGE(1:LK-MESSAGE-LEN) TO PAYLOAD(PAYLOADLEN + 1:LK-MESSAGE-LEN)
+    ADD LK-MESSAGE-LEN TO PAYLOADLEN
+
+    *> "overlay" flag
+    MOVE FUNCTION CHAR(1) TO PAYLOAD(PAYLOADLEN + 1:1)
+    ADD 1 TO PAYLOADLEN
+
+    *> Send the packet
+    CALL "SendPacket" USING LK-HNDL PACKET-ID PAYLOAD PAYLOADLEN LK-ERRNO
+
+    GOBACK.
+
+END PROGRAM SendPacket-SystemChat.
