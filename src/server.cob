@@ -161,8 +161,8 @@ ServerLoop.
             END-PERFORM
         END-IF
 
-        *> broadcast player positions to all clients in play state
-        *> TODO: only send this if the player has moved/rotated
+        *> broadcast player positions to all clients in play state, as well as their equipment
+        *> TODO: only send this if the player has moved/rotated, or if the equipment has changed
         *> TODO: use more efficient packet types when possible
         PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
             IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
@@ -173,6 +173,10 @@ ServerLoop.
                         CALL "SendPacket-TeleportEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                         IF ERRNO = 0
                             CALL "SendPacket-SetHeadRotation" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-YAW(TEMP-INT32)
+                        END-IF
+                        IF ERRNO = 0
+                            COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR(TEMP-INT32) + 1
+                            CALL "SendPacket-SetEquipment" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-INVENTORY-SLOT(TEMP-INT32, TEMP-INT8)
                         END-IF
                         PERFORM HandleClientError
                     END-IF
