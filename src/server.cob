@@ -84,6 +84,8 @@ WORKING-STORAGE SECTION.
             03 WORLD-CHUNK-BLOCKS.
                 04 WORLD-BLOCK OCCURS 98304 TIMES.
                     05 WORLD-BLOCK-ID BINARY-CHAR UNSIGNED VALUE 0.
+    *> Age of the world in ticks. This modulo 24000 is the current time of day.
+    01 WORLD-AGE        BINARY-LONG-LONG.
 
 LINKAGE SECTION.
     *> Configuration provided by main program
@@ -148,6 +150,17 @@ ServerLoop.
             END-IF
         END-PERFORM
 
+        *> Send world time every second
+        IF FUNCTION MOD(WORLD-AGE, 20) = 0
+            COMPUTE TEMP-INT64 = FUNCTION MOD(WORLD-AGE, 24000)
+            PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+                IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+                    CALL "SendPacket-UpdateTime" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-AGE TEMP-INT64
+                    PERFORM HandleClientError
+                END-IF
+            END-PERFORM
+        END-IF
+
         *> broadcast player positions to all clients in play state
         *> TODO: only send this if the player has moved/rotated
         *> TODO: use more efficient packet types when possible
@@ -179,7 +192,9 @@ ServerLoop.
     .
 
 GameLoop SECTION.
-    *> For now, nothing to do here.
+    *> Update the world age
+    ADD 1 TO WORLD-AGE
+
     EXIT SECTION.
 
 NetworkRead SECTION.
@@ -581,6 +596,14 @@ HandleConfiguration SECTION.
             *> send "Login (play)" with player index as entity ID
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             CALL "SendPacket-LoginPlay" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
+
+            *> send world time
+            COMPUTE TEMP-INT64 = FUNCTION MOD(WORLD-AGE, 24000)
+            CALL "SendPacket-UpdateTime" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-AGE TEMP-INT64
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
