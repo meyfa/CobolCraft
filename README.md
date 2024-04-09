@@ -6,7 +6,6 @@ A Minecraft server written in COBOL. It supports Minecraft 1.20.4 (the latest ve
 
 The following features are already working:
 
-- [X] basic TCP server
 - [X] respond to ping (i.e., show as online in the server list)
 - [X] whitelist (single player, edit `server.cob` to enable/set username)
 - [X] player login
@@ -14,7 +13,7 @@ The following features are already working:
 - [X] player movement
 - [X] player inventory (limited to creative mode)
 - [X] breaking and placing blocks (breaking works; placing supports only stone and grass, for now)
-- [X] multiplayer (however, players are invisible)
+- [X] multiplayer
 - [ ] chat
 - [ ] persisting data across restarts
 

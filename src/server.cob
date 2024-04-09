@@ -148,6 +148,25 @@ ServerLoop.
             END-IF
         END-PERFORM
 
+        *> broadcast player positions to all clients in play state
+        *> TODO: only send this if the player has moved/rotated
+        *> TODO: use more efficient packet types when possible
+        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+            IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+                *> Note: Since sending the packet can fail, we need to stop the loop if the client is disconnected.
+                PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS OR CLIENT-PRESENT(CLIENT-ID) = 0
+                    IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = 4 AND TEMP-INT16 NOT = CLIENT-ID
+                        MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
+                        CALL "SendPacket-TeleportEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+                        IF ERRNO = 0
+                            CALL "SendPacket-SetHeadRotation" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-YAW(TEMP-INT32)
+                        END-IF
+                        PERFORM HandleClientError
+                    END-IF
+                END-PERFORM
+            END-IF
+        END-PERFORM
+
         *> The remaining time of this tick can be used for accepting connections and receiving packets.
         PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME
             PERFORM NetworkRead
@@ -230,12 +249,15 @@ DisconnectClient SECTION.
         ADD 14 TO BYTE-COUNT
         PERFORM BroadcastMessageExceptCurrent
 
-        *> remove the player from the player list
+        *> remove the player from the player list, and despawn the player entity
         MOVE CLIENT-ID TO TEMP-INT16
         MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
         PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
             IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4 AND CLIENT-ID NOT = TEMP-INT16
                 CALL "SendPacket-RemovePlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                IF ERRNO = 0
+                    CALL "SendPacket-RemoveEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                END-IF
                 PERFORM HandleClientError
             END-IF
         END-PERFORM
@@ -628,11 +650,14 @@ HandleConfiguration SECTION.
                 END-IF
             END-PERFORM
 
-            *> send the player list (including the new player) to the new player
+            *> send the player list (including the new player) to the new player, and spawn player entities
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
                 IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = 4
                     MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
                     CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
+                    IF ERRNO = 0 AND TEMP-INT16 NOT = CLIENT-ID
+                        CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+                    END-IF
                     IF ERRNO NOT = 0
                         PERFORM HandleClientError
                         EXIT SECTION
@@ -656,6 +681,11 @@ HandleConfiguration SECTION.
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4 AND CLIENT-ID NOT = TEMP-INT16
                     CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
                     PERFORM HandleClientError
+                    *> spawn a player entity
+                    IF ERRNO = 0
+                        CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+                        PERFORM HandleClientError
+                    END-IF
                 END-IF
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
