@@ -219,6 +219,29 @@ PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
 
 END PROGRAM Encode-Float.
 
+*> --- Encode-Angle ---
+*> Encode a floating-point angle into a single byte (0-255) in steps of 1/256th of a full circle.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Encode-Angle.
+
+DATA DIVISION.
+LOCAL-STORAGE SECTION.
+    01 ANGLE                FLOAT-SHORT.
+    01 ANGLE-BYTE           BINARY-CHAR UNSIGNED.
+LINKAGE SECTION.
+    01 LK-VALUE-IN          FLOAT-SHORT.
+    01 LK-VALUE-OUT         PIC X(1).
+    01 LK-OUT-LENGTH        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
+    COMPUTE ANGLE = LK-VALUE-IN * 256.0 / 360.0
+    COMPUTE ANGLE-BYTE = FUNCTION MOD(ANGLE, 256)
+    MOVE FUNCTION CHAR(ANGLE-BYTE + 1) TO LK-VALUE-OUT
+    MOVE 1 TO LK-OUT-LENGTH
+    GOBACK.
+
+END PROGRAM Encode-Angle.
+
 *> --- Encode-Position ---
 *> Encode a block position into a buffer. The position is encoded as a 64-bit integer where the 26 least-significant bits are X,
 *> the next 12 bits are Y, and the last 26 bits are Z (all of them signed).

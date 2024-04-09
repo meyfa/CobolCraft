@@ -7,6 +7,7 @@ PROCEDURE DIVISION.
     CALL "Test-Encode-VarInt"
     CALL "Test-Encode-Double"
     CALL "Test-Encode-Float"
+    CALL "Test-Encode-Angle"
     CALL "Test-Encode-Position"
     GOBACK.
 
@@ -320,6 +321,59 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Encode-Float.
+
+    *> --- Test: Encode-Angle ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-Angle.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 VALUE-IN     FLOAT-SHORT.
+        01 BUFFER       PIC X(10).
+        01 BUFFERLEN    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-Angle".
+    ZeroDeg.
+        DISPLAY "    Case: 0.0deg - " WITH NO ADVANCING
+        MOVE 0.0 TO VALUE-IN
+        CALL "Encode-Angle" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"00" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    HalfRotation.
+        DISPLAY "    Case: 180.0deg - " WITH NO ADVANCING
+        MOVE 180.0 TO VALUE-IN
+        CALL "Encode-Angle" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"80" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Over360.
+        DISPLAY "    Case: 560.0deg - " WITH NO ADVANCING
+        MOVE 560.0 TO VALUE-IN
+        CALL "Encode-Angle" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"8E" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeDeg.
+        DISPLAY "    Case: -90.0deg - " WITH NO ADVANCING
+        MOVE -90.0 TO VALUE-IN
+        CALL "Encode-Angle" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"C0" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-Angle.
 
     *> --- Test: Encode-Position ---
     IDENTIFICATION DIVISION.
