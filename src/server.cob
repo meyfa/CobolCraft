@@ -11,7 +11,7 @@ WORKING-STORAGE SECTION.
     01 CLIENTS OCCURS 10 TIMES.
         03 CLIENT-PRESENT   BINARY-CHAR             VALUE 0.
         03 CLIENT-HNDL      PIC X(4)                VALUE X"00000000".
-        *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = configuration, 4 = play, -1 = disconnect)
+        *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = configuration, 4 = play, -1 = disconnected)
         03 CLIENT-STATE     BINARY-CHAR             VALUE -1.
         03 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
         *> The index of the associated player, or 0 if login has not been started
@@ -217,6 +217,17 @@ DisconnectClient SECTION.
     CALL "Socket-Close" USING CLIENT-HNDL(CLIENT-ID) ERRNO
     PERFORM HandleServerError
 
+    *> If the client was playing, send a leave message to all other clients
+    IF CLIENT-STATE(CLIENT-ID) = 4
+        *> send "<username> left the game" to all clients in play state, except the current client
+        MOVE 0 TO BYTE-COUNT
+        MOVE USERNAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
+        ADD USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
+        MOVE " left the game" TO BUFFER(BYTE-COUNT + 1:14)
+        ADD 14 TO BYTE-COUNT
+        PERFORM BroadcastMessageExceptCurrent
+    END-IF
+
     MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
     MOVE X"00000000" TO CLIENT-HNDL(CLIENT-ID)
     MOVE -1 TO CLIENT-STATE(CLIENT-ID)
@@ -228,6 +239,18 @@ DisconnectClient SECTION.
         MOVE 0 TO CLIENT-PLAYER(CLIENT-ID)
     END-IF
 
+    EXIT SECTION.
+
+BroadcastMessageExceptCurrent SECTION.
+    *> send BUFFER(1:BYTE-COUNT) to all clients in play state, except the current client
+    MOVE CLIENT-ID TO TEMP-INT16
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+        IF CLIENT-ID NOT = TEMP-INT16 AND CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+            CALL "SendPacket-SystemChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+            PERFORM HandleClientError
+        END-IF
+    END-PERFORM
+    MOVE TEMP-INT16 TO CLIENT-ID
     EXIT SECTION.
 
 KeepAlive SECTION.
@@ -599,6 +622,15 @@ HandleConfiguration SECTION.
             END-IF
 
             *> TODO: receive "Confirm Teleportation"
+
+            *> send "<username> joined the game" to all clients in play state, except the current client
+            *> TODO: factor this out and reuse for join and leave messages
+            MOVE 0 TO BYTE-COUNT
+            MOVE USERNAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
+            ADD USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
+            MOVE " joined the game" TO BUFFER(BYTE-COUNT + 1:16)
+            ADD 16 TO BYTE-COUNT
+            PERFORM BroadcastMessageExceptCurrent
 
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
