@@ -46,7 +46,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HEX-STRING-IN LK-HEX-STRING-LEN LK-BUFF
     MOVE 0 TO LK-BYTES-WRITTEN
     PERFORM UNTIL INPUT-INDEX > LK-HEX-STRING-LEN
         *> Skip spaces
-        IF LK-HEX-STRING-IN(INPUT-INDEX:1) = " " THEN
+        IF LK-HEX-STRING-IN(INPUT-INDEX:1) = " "
             ADD 1 TO INPUT-INDEX
         ELSE
             *> Convert the current character to the upper part of the byte

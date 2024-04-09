@@ -211,7 +211,7 @@ InsertClient SECTION.
 
     EXIT SECTION.
 
-RemoveClient SECTION.
+DisconnectClient SECTION.
     DISPLAY "Client " CLIENT-ID " disconnected"
 
     CALL "Socket-Close" USING CLIENT-HNDL(CLIENT-ID) ERRNO
@@ -240,7 +240,8 @@ KeepAlive SECTION.
     COMPUTE TEMP-INT64 = CURRENT-TIME - KEEPALIVE-RECV(CLIENT-ID)
     IF TEMP-INT64 >= 15000
         DISPLAY "Client " CLIENT-ID " timed out"
-        MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+        PERFORM DisconnectClient
+        EXIT SECTION
     END-IF
 
     *> Send keepalive packet every second, but only in play state
@@ -249,11 +250,6 @@ KeepAlive SECTION.
         MOVE CURRENT-TIME TO KEEPALIVE-SENT(CLIENT-ID)
         CALL "SendPacket-KeepAlive" USING CLIENT-HNDL(CLIENT-ID) ERRNO KEEPALIVE-SENT(CLIENT-ID)
         PERFORM HandleClientError
-    END-IF
-
-    *> If the client should be disconnected, do so
-    IF CLIENT-STATE(CLIENT-ID) < 0
-        PERFORM RemoveClient
     END-IF
 
     EXIT SECTION.
@@ -265,14 +261,14 @@ ReceivePacket SECTION.
     END-IF
 
     *> If the packet length is not yet known, try to read more bytes one by one until the VarInt is valid
-    IF PACKET-LENGTH(CLIENT-ID) < 0 THEN
+    IF PACKET-LENGTH(CLIENT-ID) < 0
         MOVE 1 TO BYTE-COUNT
         MOVE 1 TO TIMEOUT-MS
         CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
         PERFORM HandleClientError
 
-        *> Check if anything was read. If not, just try again later.
-        IF BYTE-COUNT = 0 THEN
+        *> If nothing was read, we can try again later (unless there was an error).
+        IF BYTE-COUNT = 0 OR ERRNO NOT = 0
             EXIT SECTION
         END-IF
 
@@ -281,15 +277,15 @@ ReceivePacket SECTION.
 
         *> This is the last VarInt byte if the most significant bit is not set.
         *> Note: ORD(...) returns the ASCII code of the character + 1, meaning we need to check for <= 128.
-        IF FUNCTION ORD(BUFFER(1:1)) <= 128 THEN
+        IF FUNCTION ORD(BUFFER(1:1)) <= 128
             MOVE 1 TO PACKET-POSITION
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
         END-IF
 
         *> Validate packet length - note that it must be at least 1 due to the packet ID
-        IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151 THEN
+        IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
             DISPLAY "Invalid packet length: " PACKET-LENGTH(CLIENT-ID)
-            MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+            PERFORM DisconnectClient
             EXIT SECTION
         END-IF
 
@@ -300,18 +296,21 @@ ReceivePacket SECTION.
     END-IF
 
     *> Read more bytes if necessary
-    IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID) THEN
+    IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID)
         COMPUTE BYTE-COUNT = PACKET-LENGTH(CLIENT-ID) - PACKET-BUFFERLEN(CLIENT-ID)
         COMPUTE BYTE-COUNT = FUNCTION MIN(BYTE-COUNT, 64000)
         MOVE 1 TO TIMEOUT-MS
         CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
-        PERFORM HandleClientError
+        IF ERRNO NOT = 0
+            PERFORM HandleClientError
+            EXIT SECTION
+        END-IF
         MOVE BUFFER(1:BYTE-COUNT) TO PACKET-BUFFER(CLIENT-ID)(PACKET-BUFFERLEN(CLIENT-ID) + 1:BYTE-COUNT)
         ADD BYTE-COUNT TO PACKET-BUFFERLEN(CLIENT-ID)
     END-IF
 
     *> Check if we can start processing the packet now.
-    IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID) THEN
+    IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID)
         EXIT SECTION
     END-IF
 
@@ -334,7 +333,8 @@ ReceivePacket SECTION.
             PERFORM HandlePlay
         WHEN OTHER
             DISPLAY "  Invalid state: " CLIENT-STATE(CLIENT-ID)
-            MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+            PERFORM DisconnectClient
+            EXIT SECTION
     END-EVALUATE
 
     *> Reset length for the next packet
@@ -344,20 +344,21 @@ ReceivePacket SECTION.
     EXIT SECTION.
 
 HandleHandshake SECTION.
-    IF PACKET-ID NOT = 0 THEN
+    IF PACKET-ID NOT = 0
         DISPLAY "  Unexpected packet ID: " PACKET-ID
-        MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+        PERFORM DisconnectClient
         EXIT SECTION
     END-IF
 
     *> The final byte of the payload encodes the target state.
     COMPUTE CLIENT-STATE(CLIENT-ID) = FUNCTION ORD(PACKET-BUFFER(CLIENT-ID)(PACKET-LENGTH(CLIENT-ID):1)) - 1
-    IF CLIENT-STATE(CLIENT-ID) NOT = 1 AND CLIENT-STATE(CLIENT-ID) NOT = 2 THEN
+    IF CLIENT-STATE(CLIENT-ID) NOT = 1 AND CLIENT-STATE(CLIENT-ID) NOT = 2
         DISPLAY "  Invalid target state: " CLIENT-STATE(CLIENT-ID)
-        MOVE -1 TO CLIENT-STATE(CLIENT-ID)
-    ELSE
-        DISPLAY "  Target state: " CLIENT-STATE(CLIENT-ID)
+        PERFORM DisconnectClient
+        EXIT SECTION
     END-IF
+
+    DISPLAY "  Target state: " CLIENT-STATE(CLIENT-ID)
 
     EXIT SECTION.
 
@@ -374,7 +375,10 @@ HandleStatus SECTION.
                 END-IF
             END-PERFORM
             CALL "SendPacket-Status" USING CLIENT-HNDL(CLIENT-ID) ERRNO MOTD MAX-PLAYERS TEMP-INT32
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
         WHEN 1
             *> Ping request: respond with the same payload and close the connection
             DISPLAY "  Responding to ping request"
@@ -382,8 +386,11 @@ HandleStatus SECTION.
             MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
             MOVE 1 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleClientError
-            MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
+            PERFORM DisconnectClient
         WHEN OTHER
             DISPLAY "  Unexpected packet ID: " PACKET-ID
     END-EVALUATE.
@@ -402,13 +409,16 @@ HandleLogin SECTION.
             ADD 16 TO PACKET-POSITION
 
             *> Check username against the whitelist
-            IF WHITELIST-ENABLE > 0 AND BUFFER(1:BYTE-COUNT) NOT = WHITELIST-PLAYER THEN
+            IF WHITELIST-ENABLE > 0 AND BUFFER(1:BYTE-COUNT) NOT = WHITELIST-PLAYER
                 DISPLAY "  Player not whitelisted: " BUFFER(1:BYTE-COUNT)
                 MOVE "Not whitelisted!" TO BUFFER
                 MOVE 16 TO BYTE-COUNT
                 CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
-                PERFORM HandleClientError
-                MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+                IF ERRNO NOT = 0
+                    PERFORM HandleClientError
+                    EXIT SECTION
+                END-IF
+                PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
 
@@ -434,8 +444,11 @@ HandleLogin SECTION.
                 MOVE "Server is full" TO BUFFER
                 MOVE 14 TO BYTE-COUNT
                 CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
-                PERFORM HandleClientError
-                MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+                IF ERRNO NOT = 0
+                    PERFORM HandleClientError
+                    EXIT SECTION
+                END-IF
+                PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
 
@@ -446,9 +459,9 @@ HandleLogin SECTION.
         *> Login acknowledge
         WHEN 3
             *> Must not happen before login start
-            IF CLIENT-PLAYER(CLIENT-ID) = 0 THEN
+            IF CLIENT-PLAYER(CLIENT-ID) = 0
                 DISPLAY "  Unexpected login acknowledge"
-                MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+                PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
 
@@ -471,17 +484,26 @@ HandleConfiguration SECTION.
 
             *> Send registry data
             CALL "SendPacket-Registry" USING CLIENT-HNDL(CLIENT-ID) ERRNO
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> Send feature flags
             CALL "SendPacket-FeatureFlags" USING CLIENT-HNDL(CLIENT-ID) ERRNO
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> Send finish configuration
             MOVE 2 TO PACKET-ID
             MOVE 0 TO BYTE-COUNT
             CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> We now expect an acknowledge packet
             MOVE 1 TO CONFIG-FINISH(CLIENT-ID)
@@ -490,7 +512,7 @@ HandleConfiguration SECTION.
         WHEN 2
             IF CONFIG-FINISH(CLIENT-ID) = 0
                 DISPLAY "  Unexpected acknowledge finish configuration"
-                MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+                PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
 
@@ -500,53 +522,81 @@ HandleConfiguration SECTION.
 
             *> send "Login (play)"
             CALL "SendPacket-LoginPlay" USING CLIENT-HNDL(CLIENT-ID) ERRNO
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> send game event "start waiting for level chunks"
             MOVE X"06200d00000000" TO BUFFER
             MOVE 7 TO BYTE-COUNT
             CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> set ticking state
             MOVE X"066e41a0000000" TO BUFFER
             MOVE 7 TO BYTE-COUNT
             CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> tick
             MOVE X"026f00" TO BUFFER
             MOVE 3 TO BYTE-COUNT
             CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> send inventory
             CALL "SendPacket-SetContainerContent" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> send selected hotbar slot
             MOVE FUNCTION CHAR(PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID)) + 1) TO BUFFER(1:1)
             MOVE 1 TO BYTE-COUNT
             MOVE 81 TO PACKET-ID
             CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> send "Set Center Chunk"
             MOVE 0 TO CHUNK-X
             MOVE 0 TO CHUNK-Z
             CALL "SendPacket-SetCenterChunk" USING CLIENT-HNDL(CLIENT-ID) ERRNO CHUNK-X CHUNK-Z
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> send chunk data ("Chunk Data and Update Light") for all chunks
             *> TODO: only send chunks around the player
             COMPUTE TEMP-INT32 = WORLD-CHUNKS-COUNT-X * WORLD-CHUNKS-COUNT-Z
             PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > TEMP-INT32
                 CALL "SendPacket-ChunkData" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-CHUNK(CHUNK-INDEX)
-                PERFORM HandleClientError
+                IF ERRNO NOT = 0
+                    PERFORM HandleClientError
+                    EXIT SECTION
+                END-IF
             END-PERFORM
 
             *> send position ("Synchronize Player Position")
             CALL "SendPacket-SetPlayerPosition" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID))
-            PERFORM HandleClientError
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
 
             *> TODO: receive "Confirm Teleportation"
 
@@ -599,15 +649,20 @@ HandlePlay SECTION.
                     COMPUTE TEMP-POSITION-Z = FUNCTION MOD(TEMP-POSITION-Z, 16)
                     COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y + 64
                     COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
-                    *> ensure the position is not outside the world
-                    IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
-                        MOVE 0 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                    END-IF
                     *> ignore face
                     CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-                    *> acknowledge the action
-                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-                    CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                    *> ensure the position is not outside the world
+                    IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
+                        *> acknowledge the action
+                        CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+                        CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                        IF ERRNO NOT = 0
+                            PERFORM HandleClientError
+                            EXIT SECTION
+                        END-IF
+                        *> update the block
+                        MOVE 0 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                    END-IF
                     *> send the block update to all players
                     COMPUTE TEMP-POSITION-X = CHUNK-X * 16 + TEMP-POSITION-X
                     COMPUTE TEMP-POSITION-Z = CHUNK-Z * 16 + TEMP-POSITION-Z
@@ -701,6 +756,13 @@ HandlePlay SECTION.
             COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
             *> ensure the position is not outside the world
             IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
+                *> acknowledge the action
+                CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+                CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                IF ERRNO NOT = 0
+                    PERFORM HandleClientError
+                    EXIT SECTION
+                END-IF
                 *> determine the block to place
                 *> TODO: support more than stone and grass ;)
                 EVALUATE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1)
@@ -709,9 +771,6 @@ HandlePlay SECTION.
                     WHEN 27
                         MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                 END-EVALUATE
-                *> acknowledge the action
-                CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-                CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
                 *> send the block update to all players
                 COMPUTE TEMP-POSITION-X = CHUNK-X * 16 + TEMP-POSITION-X
                 COMPUTE TEMP-POSITION-Z = CHUNK-Z * 16 + TEMP-POSITION-Z
@@ -732,7 +791,7 @@ HandlePlay SECTION.
     EXIT SECTION.
 
 HandleServerError SECTION.
-    IF ERRNO NOT = 0 THEN
+    IF ERRNO NOT = 0
         DISPLAY "Server socket error: " ERRNO
         STOP RUN
     END-IF.
@@ -740,9 +799,9 @@ HandleServerError SECTION.
     EXIT SECTION.
 
 HandleClientError SECTION.
-    IF ERRNO NOT = 0 THEN
+    IF ERRNO NOT = 0
         DISPLAY "Client " CLIENT-ID " socket error: " ERRNO
-        MOVE -1 TO CLIENT-STATE(CLIENT-ID)
+        PERFORM DisconnectClient
     END-IF.
 
     EXIT SECTION.
