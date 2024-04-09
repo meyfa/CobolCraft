@@ -214,10 +214,13 @@ InsertClient SECTION.
 DisconnectClient SECTION.
     DISPLAY "Client " CLIENT-ID " disconnected"
 
+    *> Reset this early to avoid infinite loops in case of errors when sending packets to other clients
+    MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
+
     CALL "Socket-Close" USING CLIENT-HNDL(CLIENT-ID) ERRNO
     PERFORM HandleServerError
 
-    *> If the client was playing, send a leave message to all other clients
+    *> If the client was playing, send a leave message to all other clients, and remove the player from their world
     IF CLIENT-STATE(CLIENT-ID) = 4
         *> send "<username> left the game" to all clients in play state, except the current client
         MOVE 0 TO BYTE-COUNT
@@ -226,9 +229,19 @@ DisconnectClient SECTION.
         MOVE " left the game" TO BUFFER(BYTE-COUNT + 1:14)
         ADD 14 TO BYTE-COUNT
         PERFORM BroadcastMessageExceptCurrent
+
+        *> remove the player from the player list
+        MOVE CLIENT-ID TO TEMP-INT16
+        MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
+        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+            IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4 AND CLIENT-ID NOT = TEMP-INT16
+                CALL "SendPacket-RemovePlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                PERFORM HandleClientError
+            END-IF
+        END-PERFORM
+        MOVE TEMP-INT16 TO CLIENT-ID
     END-IF
 
-    MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
     MOVE X"00000000" TO CLIENT-HNDL(CLIENT-ID)
     MOVE -1 TO CLIENT-STATE(CLIENT-ID)
     MOVE 0 TO CONFIG-FINISH(CLIENT-ID)
@@ -543,8 +556,9 @@ HandleConfiguration SECTION.
             DISPLAY "  Acknowledged finish configuration"
             ADD 1 TO CLIENT-STATE(CLIENT-ID)
 
-            *> send "Login (play)"
-            CALL "SendPacket-LoginPlay" USING CLIENT-HNDL(CLIENT-ID) ERRNO
+            *> send "Login (play)" with player index as entity ID
+            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
+            CALL "SendPacket-LoginPlay" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -614,6 +628,18 @@ HandleConfiguration SECTION.
                 END-IF
             END-PERFORM
 
+            *> send the player list (including the new player) to the new player
+            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
+                IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = 4
+                    MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
+                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
+                    IF ERRNO NOT = 0
+                        PERFORM HandleClientError
+                        EXIT SECTION
+                    END-IF
+                END-IF
+            END-PERFORM
+
             *> send position ("Synchronize Player Position")
             CALL "SendPacket-SetPlayerPosition" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID))
             IF ERRNO NOT = 0
@@ -622,6 +648,17 @@ HandleConfiguration SECTION.
             END-IF
 
             *> TODO: receive "Confirm Teleportation"
+
+            *> send the new player to all other players
+            MOVE CLIENT-ID TO TEMP-INT16
+            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
+            PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+                IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4 AND CLIENT-ID NOT = TEMP-INT16
+                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
+                    PERFORM HandleClientError
+                END-IF
+            END-PERFORM
+            MOVE TEMP-INT16 TO CLIENT-ID
 
             *> send "<username> joined the game" to all clients in play state, except the current client
             *> TODO: factor this out and reuse for join and leave messages
