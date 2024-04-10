@@ -24,7 +24,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-ENTITY-ID LK-USERNAME 
     *> TODO: initialize chat, game mode, ping, display name(, skin?)
 
     *> actions mask=(add player + update listed)
-    MOVE FUNCTION CHAR((1 + 8) + 1) TO PAYLOAD(PAYLOADLEN + 1:1)
+    MOVE X"09" TO PAYLOAD(PAYLOADLEN + 1:1)
     ADD 1 TO PAYLOADLEN
 
     *> number of players
@@ -62,7 +62,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-ENTITY-ID LK-USERNAME 
     *> --- action: update listed ---
 
     *> listed=true
-    MOVE FUNCTION CHAR(2) TO PAYLOAD(PAYLOADLEN + 1:1)
+    MOVE X"01" TO PAYLOAD(PAYLOADLEN + 1:1)
     ADD 1 TO PAYLOADLEN
 
     *> send packet

@@ -161,7 +161,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-CHUNK.
 
         *> block states
         *> - bits per entry: 15 = direct palette
-        MOVE FUNCTION CHAR(15 + 1) TO LK-BUFFER(LK-BUFFERLEN + 1:1)
+        MOVE X"0F" TO LK-BUFFER(LK-BUFFERLEN + 1:1)
         ADD 1 TO LK-BUFFERLEN
         *> - palette: empty, since we have a direct palette
         *> - data array length: (4096 / 4 = 1024)
@@ -183,7 +183,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-CHUNK.
 
         *> biomes
         *> - bits per entry: 0 = single-valued
-        MOVE FUNCTION CHAR(1) TO LK-BUFFER(LK-BUFFERLEN + 1:1)
+        MOVE X"00" TO LK-BUFFER(LK-BUFFERLEN + 1:1)
         ADD 1 TO LK-BUFFERLEN
         *> - palette: id of the biome
         MOVE 0 TO INT32
