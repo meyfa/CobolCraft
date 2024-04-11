@@ -18,7 +18,9 @@ JSON_DATA = data/generated/reports/registries.json data/generated/reports/blocks
 TEST_SRC = test.cob tests/*.cob
 TEST_BIN = test
 
-all: $(BIN) $(JSON_DATA)
+all: $(BIN) data
+
+data: $(JSON_DATA)
 
 $(SOCKET_LIB):
 	cd CBL_GC_SOCKET && ./build.sh
