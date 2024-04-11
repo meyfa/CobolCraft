@@ -7,15 +7,16 @@ RUN apt-get update && \
     apt-get install -y gcc g++ make gnucobol curl default-jre-headless && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy source files
+# Perform data extraction first to allow Docker to cache this layer
 COPY Makefile .
+RUN make data
+
+# Copy source files and build
 COPY main.cob .
 COPY src ./src
 COPY cpp ./cpp
 COPY CBL_GC_SOCKET ./CBL_GC_SOCKET
 COPY blobs ./blobs
-
-# Build
 RUN make
 
 # --- Runtime stage ---
