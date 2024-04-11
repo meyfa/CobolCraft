@@ -18,6 +18,7 @@ FILE SECTION.
 
 WORKING-STORAGE SECTION.
     *> Constants
+    01 C-MINECRAFT-ITEM             PIC X(50) VALUE "minecraft:item".
     01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
     01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
     *> A large buffer to hold JSON data before parsing.
@@ -84,6 +85,7 @@ WORKING-STORAGE SECTION.
         02 TEMP-POSITION-X  BINARY-LONG.
         02 TEMP-POSITION-Y  BINARY-LONG.
         02 TEMP-POSITION-Z  BINARY-LONG.
+    01 TEMP-REGISTRY    PIC X(100)              VALUE SPACES.
     *> Time measurement
     01 CURRENT-TIME     BINARY-LONG-LONG.
     01 TICK-ENDTIME     BINARY-LONG-LONG.
@@ -103,7 +105,7 @@ WORKING-STORAGE SECTION.
             *> block IDs (16x384x16) - X increases fastest, then Z, then Y
             03 WORLD-CHUNK-BLOCKS.
                 04 WORLD-BLOCK OCCURS 98304 TIMES.
-                    05 WORLD-BLOCK-ID BINARY-CHAR UNSIGNED VALUE 0.
+                    05 WORLD-BLOCK-ID BINARY-LONG UNSIGNED VALUE 0.
     *> Age of the world in ticks. This modulo 24000 is the current time of day.
     01 WORLD-AGE        BINARY-LONG-LONG.
 
@@ -967,16 +969,15 @@ HandlePlay SECTION.
                     PERFORM HandleClientError
                     EXIT SECTION
                 END-IF
-                *> determine the block to place
-                *> TODO: support more than stone and grass ;)
-                EVALUATE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1)
-                    WHEN 1
-                        CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-STONE TEMP-INT32
-                        MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                    WHEN 27
-                        CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-GRASS_BLOCK TEMP-INT32
-                        MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                END-EVALUATE
+                *> Determine the block to place by converting the item ID to a registry string, then looking for an
+                *> identically named block in the blocks list.
+                *> For example: item 27 -> "minecraft:grass_block" -> block state 9.
+                MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1) TO TEMP-INT32
+                CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-REGISTRY
+                CALL "Blocks-Get-DefaultStateId" USING TEMP-REGISTRY TEMP-INT32
+                IF TEMP-INT32 > 0
+                    MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                END-IF
                 *> send the block update to all players
                 COMPUTE TEMP-POSITION-X = CHUNK-X * 16 + TEMP-POSITION-X
                 COMPUTE TEMP-POSITION-Z = CHUNK-Z * 16 + TEMP-POSITION-Z
