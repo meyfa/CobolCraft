@@ -6,15 +6,22 @@ INPUT-OUTPUT SECTION.
 FILE-CONTROL.
     SELECT FD-REGISTRIES-FILE ASSIGN TO "data/generated/reports/registries.json"
         ORGANIZATION IS LINE SEQUENTIAL.
+    SELECT FD-BLOCKS-FILE ASSIGN TO "data/generated/reports/blocks.json"
+        ORGANIZATION IS LINE SEQUENTIAL.
 
 DATA DIVISION.
 FILE SECTION.
     FD FD-REGISTRIES-FILE.
         01 REGISTRIES-LINE PIC X(1024).
+    FD FD-BLOCKS-FILE.
+        01 BLOCKS-LINE PIC X(1024).
 
 WORKING-STORAGE SECTION.
+    *> Constants
+    01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
+    01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
     *> A large buffer to hold JSON data before parsing.
-    01 DATA-BUFFER      PIC X(1000000).
+    01 DATA-BUFFER      PIC X(10000000).
     01 DATA-BUFFER-LEN  BINARY-LONG UNSIGNED    VALUE 0.
     *> Socket variables (server socket handle, error number from last operation)
     01 LISTEN           PIC X(4).
@@ -138,6 +145,35 @@ LoadRegistries.
     END-IF
     .
 
+LoadBlocks.
+    DISPLAY "Loading blocks..."
+    *> read the entire blocks.json file into memory
+    MOVE 0 TO DATA-BUFFER-LEN
+    OPEN INPUT FD-BLOCKS-FILE
+    MOVE 1024 TO BYTE-COUNT
+    PERFORM UNTIL BYTE-COUNT = 0
+        READ FD-BLOCKS-FILE
+            AT END
+                MOVE 0 TO BYTE-COUNT
+            NOT AT END
+                IF DATA-BUFFER-LEN > 0
+                    MOVE " " TO DATA-BUFFER(DATA-BUFFER-LEN + 1:1)
+                    ADD 1 TO DATA-BUFFER-LEN
+                END-IF
+                MOVE FUNCTION STORED-CHAR-LENGTH(BLOCKS-LINE) TO TEMP-INT32
+                MOVE BLOCKS-LINE(1:TEMP-INT32) TO DATA-BUFFER(DATA-BUFFER-LEN + 1:TEMP-INT32)
+                ADD TEMP-INT32 TO DATA-BUFFER-LEN
+        END-READ
+    END-PERFORM
+    CLOSE FD-BLOCKS-FILE
+    *> parse the JSON data
+    CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN TEMP-INT8
+    IF TEMP-INT8 NOT = 0
+        DISPLAY "Failed to parse blocks"
+        STOP RUN
+    END-IF
+    .
+
 GenerateWorld.
     DISPLAY "Generating world..."
     PERFORM VARYING CHUNK-Z FROM -3 BY 1 UNTIL CHUNK-Z > 3
@@ -147,23 +183,23 @@ GenerateWorld.
             MOVE CHUNK-Z TO WORLD-CHUNK-Z(CHUNK-INDEX)
 
             *> turn all blocks with Y < 63 (i.e., the bottom 128 blocks) into stone
+            CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-STONE TEMP-INT32
             PERFORM VARYING TEMP-POSITION-Y FROM 0 BY 1 UNTIL TEMP-POSITION-Y >= 128
                 PERFORM VARYING TEMP-POSITION-Z FROM 0 BY 1 UNTIL TEMP-POSITION-Z >= 16
                     PERFORM VARYING TEMP-POSITION-X FROM 0 BY 1 UNTIL TEMP-POSITION-X >= 16
                         COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
-                        MOVE 1 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                        MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                     END-PERFORM
                 END-PERFORM
             END-PERFORM
 
             *> turn all blocks with Y = 63 (i.e., the top 16 blocks) into grass
-            *> Note: grass has ID 9 with the 1.20.4 registry and no data packs/mods, but this may change
-            *> TODO: find a more permanent solution to get a specific block ID
+            CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-GRASS_BLOCK TEMP-INT32
             MOVE 127 TO TEMP-POSITION-Y
             PERFORM VARYING TEMP-POSITION-Z FROM 0 BY 1 UNTIL TEMP-POSITION-Z >= 16
                 PERFORM VARYING TEMP-POSITION-X FROM 0 BY 1 UNTIL TEMP-POSITION-X >= 16
                     COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
-                    MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                    MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                 END-PERFORM
             END-PERFORM
         END-PERFORM
@@ -935,9 +971,11 @@ HandlePlay SECTION.
                 *> TODO: support more than stone and grass ;)
                 EVALUATE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1)
                     WHEN 1
-                        MOVE 1 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                        CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-STONE TEMP-INT32
+                        MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                     WHEN 27
-                        MOVE 9 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                        CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-GRASS_BLOCK TEMP-INT32
+                        MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                 END-EVALUATE
                 *> send the block update to all players
                 COMPUTE TEMP-POSITION-X = CHUNK-X * 16 + TEMP-POSITION-X

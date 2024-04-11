@@ -6,6 +6,8 @@ PROCEDURE DIVISION.
     DISPLAY "Test: json-parse.cob"
     CALL "Test-JsonParse-ObjectStart"
     CALL "Test-JsonParse-ObjectEnd"
+    CALL "Test-JsonParse-ArrayStart"
+    CALL "Test-JsonParse-ArrayEnd"
     CALL "Test-JsonParse-Comma"
     CALL "Test-JsonParse-String"
     CALL "Test-JsonParse-ObjectKey"
@@ -92,6 +94,84 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-JsonParse-ObjectEnd.
+
+    *> --- Test: JsonParse-ArrayStart ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-JsonParse-ArrayStart.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 STR          PIC X(100).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 FLAG         BINARY-CHAR UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: JsonParse-ArrayStart".
+    Simple.
+        DISPLAY "    Case: '    [' - " WITH NO ADVANCING
+        MOVE "    [" TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-ArrayStart" USING STR OFFSET FLAG
+        IF OFFSET = 6 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Missing.
+        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        MOVE "   " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 0 TO FLAG
+        CALL "JsonParse-ArrayStart" USING STR OFFSET FLAG
+        IF FLAG = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-JsonParse-ArrayStart.
+
+    *> --- Test: JsonParse-ArrayEnd ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-JsonParse-ArrayEnd.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 STR          PIC X(100).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 FLAG         BINARY-CHAR UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: JsonParse-ArrayEnd".
+    Simple.
+        DISPLAY "    Case: '    ]' - " WITH NO ADVANCING
+        MOVE "    ]" TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-ArrayEnd" USING STR OFFSET FLAG
+        IF OFFSET = 6 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Missing.
+        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        MOVE "   " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 0 TO FLAG
+        CALL "JsonParse-ArrayEnd" USING STR OFFSET FLAG
+        IF FLAG = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-JsonParse-ArrayEnd.
 
     *> --- JsonParse-Comma ---
     IDENTIFICATION DIVISION.
@@ -518,6 +598,39 @@ PROCEDURE DIVISION.
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
         IF OFFSET = 71 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    SimpleArray.
+        DISPLAY "    Case: '    [  ]  ' - " WITH NO ADVANCING
+        MOVE "    [  ]  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
+        IF OFFSET = 9 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NestedArray.
+        DISPLAY "    Case: '    [ 1,2, [3,   4], 5  ]  ' - " WITH NO ADVANCING
+        MOVE "    [ 1,2, [3,   4], 5  ]  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
+        IF OFFSET = 26 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    ObjectAndArray.
+        DISPLAY "    Case: '    {""foo"":[{}, {""bar"":42}]}  ' - " WITH NO ADVANCING
+        MOVE "    {""foo"":[{}, {""bar"":42}]}  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
+        IF OFFSET = 29 AND FLAG = 0
             DISPLAY "PASS"
         ELSE
             DISPLAY "FAIL"
