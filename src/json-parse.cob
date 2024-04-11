@@ -66,6 +66,50 @@ PROCEDURE DIVISION USING BY REFERENCE LK-INPUT LK-OFFSET LK-FLAG.
 
 END PROGRAM JsonParse-ObjectEnd.
 
+*> --- JsonParse-ArrayStart ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. JsonParse-ArrayStart.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-INPUT         PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+    01 LK-FLAG          BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-INPUT LK-OFFSET LK-FLAG.
+    MOVE 0 TO LK-FLAG
+    CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
+    IF LK-OFFSET > (LENGTH OF LK-INPUT) OR LK-INPUT(LK-OFFSET:1) NOT = "["
+        MOVE 1 TO LK-FLAG
+        GOBACK
+    END-IF
+    ADD 1 TO LK-OFFSET
+    GOBACK.
+
+END PROGRAM JsonParse-ArrayStart.
+
+*> --- JsonParse-ArrayEnd ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. JsonParse-ArrayEnd.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-INPUT         PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+    01 LK-FLAG          BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING BY REFERENCE LK-INPUT LK-OFFSET LK-FLAG.
+    MOVE 0 TO LK-FLAG
+    CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
+    IF LK-OFFSET > (LENGTH OF LK-INPUT) OR LK-INPUT(LK-OFFSET:1) NOT = "]"
+        MOVE 1 TO LK-FLAG
+        GOBACK
+    END-IF
+    ADD 1 TO LK-OFFSET
+    GOBACK.
+
+END PROGRAM JsonParse-ArrayEnd.
+
 *> --- JsonParse-Comma ---
 IDENTIFICATION DIVISION.
 PROGRAM-ID. JsonParse-Comma.
@@ -394,7 +438,35 @@ PROCEDURE DIVISION USING BY REFERENCE LK-INPUT LK-OFFSET LK-FLAG.
             CALL "JsonParse-Integer" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-INT
 
         *> TODO: implement floating point numbers
-        *> TODO: implement arrays
+
+        WHEN "[" *> array
+            CALL "JsonParse-ArrayStart" USING LK-INPUT LK-OFFSET LK-FLAG
+            IF LK-FLAG = 1
+                GOBACK
+            END-IF
+
+            *> Consume the closing bracket, if possible
+            CALL "JsonParse-ArrayEnd" USING LK-INPUT LK-OFFSET LK-FLAG
+            IF LK-FLAG = 0
+                GOBACK
+            END-IF
+            MOVE 0 TO LK-FLAG
+
+            *> Error consuming closing bracket - parse array content
+            PERFORM UNTIL LK-FLAG = 1
+                CALL "JsonParse-SkipValue" USING LK-INPUT LK-OFFSET LK-FLAG
+                IF LK-FLAG = 1
+                    GOBACK
+                END-IF
+                *> If there is a comma, consume it and continue the loop; otherwise, exit
+                CALL "JsonParse-Comma" USING LK-INPUT LK-OFFSET EXIT-LOOP
+                IF EXIT-LOOP = 1
+                    EXIT PERFORM
+                END-IF
+            END-PERFORM
+
+            *> Consume the closing bracket
+            CALL "JsonParse-ArrayEnd" USING LK-INPUT LK-OFFSET LK-FLAG
 
         WHEN "{" *> object
             CALL "JsonParse-ObjectStart" USING LK-INPUT LK-OFFSET LK-FLAG
