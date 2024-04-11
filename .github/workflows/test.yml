@@ -21,4 +21,7 @@ jobs:
         run: "sudo apt-get install -y gnucobol"
 
       - name: Run tests
+        # By specifying "bash" explicitly, GitHub uses the "-eo pipefail" option.
+        # See: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+        shell: bash
         run: "make test | tee test.log; (grep -q FAIL test.log && exit 1 || exit 0)"

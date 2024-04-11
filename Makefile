@@ -15,7 +15,7 @@ BIN = cobolcraft
 JSON_DATA = data/generated/reports/registries.json data/generated/reports/blocks.json
 
 # Test sources and binary
-TEST_SRC = test.cob tests/*.cob
+TEST_SRC = test.cob $(wildcard tests/*.cob)
 TEST_BIN = test
 
 all: $(BIN) data
@@ -47,7 +47,7 @@ clean:
 run: $(BIN) $(JSON_DATA)
 	COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL ./$(BIN)
 
-$(TEST_BIN): $(TEST_SRC) $(SRC) $(UTIL_LIB)
-	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -o $@ $^
+$(TEST_BIN): $(TEST_SRC) $(SRC) $(CPY) $(UTIL_LIB)
+	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -I $(CPY_DIR) -o $@ $(TEST_SRC) $(SRC)
 	COB_PRE_LOAD=COBOLCRAFT_UTIL ./$(TEST_BIN)
 	rm -f $(TEST_BIN)
