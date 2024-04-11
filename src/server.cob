@@ -1,8 +1,21 @@
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Server.
 
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION.
+FILE-CONTROL.
+    SELECT FD-REGISTRIES-FILE ASSIGN TO "data/generated/reports/registries.json"
+        ORGANIZATION IS LINE SEQUENTIAL.
+
 DATA DIVISION.
+FILE SECTION.
+    FD FD-REGISTRIES-FILE.
+        01 REGISTRIES-LINE PIC X(1024).
+
 WORKING-STORAGE SECTION.
+    *> A large buffer to hold JSON data before parsing.
+    01 DATA-BUFFER      PIC X(1000000).
+    01 DATA-BUFFER-LEN  BINARY-LONG UNSIGNED    VALUE 0.
     *> Socket variables (server socket handle, error number from last operation)
     01 LISTEN           PIC X(4).
     01 ERRNO            PIC 9(3)                VALUE 0.
@@ -56,8 +69,8 @@ WORKING-STORAGE SECTION.
     01 BUFFER           PIC X(64000).
     01 BYTE-COUNT       BINARY-LONG UNSIGNED.
     *> Temporary variables
-    01 TEMP-INT8        BINARY-LONG.
-    01 TEMP-INT16       BINARY-LONG.
+    01 TEMP-INT8        BINARY-CHAR.
+    01 TEMP-INT16       BINARY-SHORT.
     01 TEMP-INT32       BINARY-LONG.
     01 TEMP-INT64       BINARY-LONG-LONG.
     01 TEMP-POSITION.
@@ -96,6 +109,35 @@ LINKAGE SECTION.
         02 MOTD                 PIC X(64).
 
 PROCEDURE DIVISION USING SERVER-CONFIG.
+LoadRegistries.
+    DISPLAY "Loading registries..."
+    *> read the entire registries.json file into memory
+    MOVE 0 TO DATA-BUFFER-LEN
+    OPEN INPUT FD-REGISTRIES-FILE
+    MOVE 1024 TO BYTE-COUNT
+    PERFORM UNTIL BYTE-COUNT = 0
+        READ FD-REGISTRIES-FILE
+            AT END
+                MOVE 0 TO BYTE-COUNT
+            NOT AT END
+                IF DATA-BUFFER-LEN > 0
+                    MOVE " " TO DATA-BUFFER(DATA-BUFFER-LEN + 1:1)
+                    ADD 1 TO DATA-BUFFER-LEN
+                END-IF
+                MOVE FUNCTION STORED-CHAR-LENGTH(REGISTRIES-LINE) TO TEMP-INT32
+                MOVE REGISTRIES-LINE(1:TEMP-INT32) TO DATA-BUFFER(DATA-BUFFER-LEN + 1:TEMP-INT32)
+                ADD TEMP-INT32 TO DATA-BUFFER-LEN
+        END-READ
+    END-PERFORM
+    CLOSE FD-REGISTRIES-FILE
+    *> parse the JSON data
+    CALL "Registries-Parse" USING DATA-BUFFER DATA-BUFFER-LEN TEMP-INT8
+    IF TEMP-INT8 NOT = 0
+        DISPLAY "Failed to parse registries"
+        STOP RUN
+    END-IF
+    .
+
 GenerateWorld.
     DISPLAY "Generating world..."
     PERFORM VARYING CHUNK-Z FROM -3 BY 1 UNTIL CHUNK-Z > 3

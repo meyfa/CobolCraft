@@ -28,6 +28,8 @@ To deploy on Linux, make sure all prerequisites are installed:
 * `cobc` (e.g. from the `gnucobol` APT package on Debian)
 * `make`
 * `g++`
+* `curl` (needed to download the official server .jar)
+* a recent version of Java (needed to extract data from the server .jar)
 
 Then execute `make` to build, followed by `make run` to start a server on port 25565.
 
@@ -58,7 +60,7 @@ Writing a Minecraft server was perhaps not the best idea for a first COBOL proje
 no functionality regarding low-level data manipulation (bits and bytes) which the Minecraft protocol needs lots of.
 But remember: I didn't know this starting out, and quitting before having a working prototype was not on the table!
 A lot of this functionality had to be implemented completely from scratch.
-For large, complex data, I opted for recording packets from a "real" server via Wireshark (see `blobs` directory) and
+For large, complex data, I opted for recording packets from a "real" server via Wireshark (see `blobs/` directory) and
 playing them back to clients.
 
 If you too have never written COBOL before but are interested in CobolCraft, I recommend reading the GnuCOBOL
@@ -67,6 +69,40 @@ https://gnucobol.sourceforge.io/HTML/gnucobpg.html
 
 To learn more about the Minecraft protocol, you can refer to https://wiki.vg/Protocol.
 In some cases, it may be helpful to look at real server traffic to better understand the flow of information.
+
+## Program Overview
+
+This section provides a high-level overview of CobolCraft from a software design viewpoint.
+
+### Source Components
+
+The program entrypoint is `main.cob`.
+The remaining COBOL sources are located in the `src/` directory, including `src/server.cob`, which contains the bulk
+of CobolCraft.
+
+Some functions had to be implemented in C++, such as process signal handling, retrieving accurate timestamps, or
+conversion of IEEE-754 floating-point numbers.
+These sources are located in the `cpp/` directory and get compiled into a shared library (`.so` on Linux).
+
+TCP sockets are managed by the CBL_GC_SOCKET socket library located in the `CBL_GC_SOCKET/` directory.
+
+### Packet Blobs
+
+CobolCraft makes use of network data captured from an instance of the official server application.
+This data is located in the `blobs/` directory and is decoded at run-time.
+
+### Data Extraction
+
+The official Minecraft (Java Edition) server and client applications contain large amounts of data such as:
+
+* block and item types
+* entity types
+* biomes
+
+Fortunately, the freely available server .jar offers a command-line interface for extracting this data as JSON.
+The CobolCraft `Makefile` has a target that downloads the .jar and extracts the JSON data from it.
+The JSON files are evaluated at runtime using a custom-built generic JSON parser, such that CobolCraft can
+inter-operate successfully with the Minecraft client without distributing potentially copyrighted material.
 
 ## Legal Notices
 
@@ -79,3 +115,4 @@ Note that line 939 of `CBL_GC_SOCKET/cob_socket.cpp` has been modified (compared
 library) to fix improper `snprintf` usage.
 
 "Minecraft" is a trademark of Mojang Synergies AB.
+CobolCraft is neither affiliated with nor endorsed by Mojang.
