@@ -11,11 +11,16 @@ WORKING-STORAGE SECTION.
     01 INT32            BINARY-LONG.
     01 BUFFER           PIC X(8).
     01 BUFFERLEN        BINARY-LONG UNSIGNED.
+    *> registry data (cached on first use)
+    01 PLAYER-TYPE      BINARY-LONG             VALUE -1.
+    *> constants
+    01 C-ENTITY_TYPE    PIC X(64)               VALUE "minecraft:entity_type".
+    01 C-PLAYER         PIC X(64)               VALUE "minecraft:player".
 LINKAGE SECTION.
     01 LK-HNDL          PIC X(4).
     01 LK-ERRNO         PIC 9(3).
     01 LK-ENTITY-ID     BINARY-LONG.
-    *> TODO: support other entity types than players
+    *> TODO: support entity types other than player
     *> 01 LK-TYPE          BINARY-LONG.
     01 LK-POSITION.
         02 LK-X         FLOAT-LONG.
@@ -26,6 +31,11 @@ LINKAGE SECTION.
         02 LK-PITCH     FLOAT-SHORT.
 
 PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-ENTITY-ID LK-POSITION LK-ROTATION.
+    *> obtain and cache ID of player entity type
+    IF PLAYER-TYPE < 0
+        CALL "Registries-Get-EntryId" USING C-ENTITY_TYPE C-PLAYER PLAYER-TYPE
+    END-IF
+
     MOVE 0 TO PAYLOADLEN
 
     *> entity ID
@@ -42,9 +52,7 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-ENTITY-ID LK-POSITION 
     ADD BUFFERLEN TO PAYLOADLEN
 
     *> entity type
-    *> TODO: get this from the registry (124=player in 1.20.4)
-    MOVE 124 TO INT32
-    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    CALL "Encode-VarInt" USING PLAYER-TYPE BUFFER BUFFERLEN
     MOVE BUFFER(1:BUFFERLEN) TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
     ADD BUFFERLEN TO PAYLOADLEN
 
