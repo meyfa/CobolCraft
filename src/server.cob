@@ -40,6 +40,10 @@ WORKING-STORAGE SECTION.
         *> Last keepalive ID sent and received
         03 KEEPALIVE-SENT   BINARY-LONG-LONG        VALUE 0.
         03 KEEPALIVE-RECV   BINARY-LONG-LONG        VALUE 0.
+        *> Last teleport ID sent and received. Until the client acknowledges the teleport, any movement packets it sends
+        *> are ignored.
+        03 TELEPORT-SENT    BINARY-LONG-LONG        VALUE 0.
+        03 TELEPORT-RECV    BINARY-LONG-LONG        VALUE 0.
         *> Packet reading: expected packet length (-1 if not yet known), packet buffer, amount of received bytes
         *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
         03 PACKET-LENGTH    BINARY-LONG.
@@ -323,6 +327,9 @@ InsertClient SECTION.
 
     MOVE 0 TO KEEPALIVE-SENT(CLIENT-ID)
     MOVE 0 TO KEEPALIVE-RECV(CLIENT-ID)
+
+    MOVE 0 TO TELEPORT-SENT(CLIENT-ID)
+    MOVE 0 TO TELEPORT-RECV(CLIENT-ID)
 
     MOVE -1 TO PACKET-LENGTH(CLIENT-ID)
     MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
@@ -772,14 +779,13 @@ HandleConfiguration SECTION.
                 END-IF
             END-PERFORM
 
-            *> send position ("Synchronize Player Position")
-            CALL "SendPacket-SetPlayerPosition" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID))
+            *> Send position ("Synchronize Player Position"). The client must confirm the teleportation.
+            ADD 1 TO TELEPORT-SENT(CLIENT-ID)
+            CALL "SendPacket-SetPlayerPosition" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID)) TELEPORT-SENT(CLIENT-ID)
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
             END-IF
-
-            *> TODO: receive "Confirm Teleportation"
 
             *> send the new player to all other players
             MOVE CLIENT-ID TO TEMP-INT16
@@ -814,17 +820,30 @@ HandleConfiguration SECTION.
 
 HandlePlay SECTION.
     EVALUATE PACKET-ID
+        *> Confirm teleportation
+        WHEN 0
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            IF TEMP-INT32 > TELEPORT-RECV(CLIENT-ID) AND TEMP-INT32 <= TELEPORT-SENT(CLIENT-ID)
+                MOVE TEMP-INT32 TO TELEPORT-RECV(CLIENT-ID)
+            END-IF
         *> KeepAlive response
         WHEN 21
             CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
         *> Set player position
         WHEN 23
+            *> Ignore movement packets until the client acknowledges the last sent teleport packet
+            IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
+                EXIT SECTION
+            END-IF
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
         *> Set player position and rotation
         WHEN 24
+            IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
+                EXIT SECTION
+            END-IF
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
@@ -833,13 +852,18 @@ HandlePlay SECTION.
             *> TODO: "on ground" flag
         *> Set player rotation
         WHEN 25
+            IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
+                EXIT SECTION
+            END-IF
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
         *> Set player on ground
         WHEN 26
-            *> TODO
-            CONTINUE
+            IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
+                EXIT SECTION
+            END-IF
+            *> TODO: "on ground" flag
         *> Player action
         WHEN 33
             *> Status (= the action), block position, face, sequence number.
