@@ -943,8 +943,23 @@ HandlePlay SECTION.
             END-IF
         *> Swing arm
         WHEN 51
-            *> TODO
-            CONTINUE
+            *> hand enum: 0=main hand, 1=off hand
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            IF TEMP-INT32 = 1
+                MOVE 3 TO TEMP-INT8
+            ELSE
+                MOVE 0 TO TEMP-INT8
+            END-IF
+            *> send an animation packet to each of the other players
+            MOVE CLIENT-ID TO TEMP-INT16
+            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
+            PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+                IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4 AND CLIENT-ID NOT = TEMP-INT16
+                    CALL "SendPacket-EntityAnimation" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 TEMP-INT8
+                    PERFORM HandleClientError
+                END-IF
+            END-PERFORM
+            MOVE TEMP-INT16 TO CLIENT-ID
         *> Use item on block
         WHEN 53
             *> hand enum: 0=main hand, 1=off hand
