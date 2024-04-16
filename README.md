@@ -14,7 +14,7 @@ The following features are already working:
 - [X] player inventory (limited to creative mode)
 - [X] breaking and placing blocks
 - [X] multiplayer
-- [ ] chat
+- [X] chat
 - [ ] persisting data across restarts
 
 ## How-to

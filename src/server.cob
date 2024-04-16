@@ -826,6 +826,26 @@ HandlePlay SECTION.
             IF TEMP-INT32 > TELEPORT-RECV(CLIENT-ID) AND TEMP-INT32 <= TELEPORT-SENT(CLIENT-ID)
                 MOVE TEMP-INT32 TO TELEPORT-RECV(CLIENT-ID)
             END-IF
+        *> Chat message
+        WHEN 5
+            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
+            *> Message may not be longer than 256 characters
+            IF BYTE-COUNT > 256
+                PERFORM DisconnectClient
+                EXIT SECTION
+            END-IF
+            *> display the message in the server console
+            DISPLAY "<" USERNAME(CLIENT-PLAYER(CLIENT-ID))(1:USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))) "> " BUFFER(1:BYTE-COUNT)
+            *> send the message to all clients in play state
+            MOVE CLIENT-ID TO TEMP-INT16
+            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
+            PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+                IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+                    CALL "SendPacket-PlayerChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 USERNAME(TEMP-INT32) BUFFER BYTE-COUNT
+                    PERFORM HandleClientError
+                END-IF
+            END-PERFORM
+            MOVE TEMP-INT16 TO CLIENT-ID
         *> KeepAlive response
         WHEN 21
             CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
