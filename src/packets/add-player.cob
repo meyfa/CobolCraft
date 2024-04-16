@@ -21,10 +21,10 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-ENTITY-ID LK-USERNAME LK-USERNAME-LEN.
     MOVE 0 TO PAYLOADLEN
 
-    *> TODO: initialize chat, game mode, ping, display name(, skin?)
+    *> TODO: game mode, ping, display name(, skin?)
 
-    *> actions mask=(add player + update listed)
-    MOVE X"09" TO PAYLOAD(PAYLOADLEN + 1:1)
+    *> actions mask=(add player + initialize chat + update listed)
+    MOVE X"0B" TO PAYLOAD(PAYLOADLEN + 1:1)
     ADD 1 TO PAYLOADLEN
 
     *> number of players
@@ -58,6 +58,12 @@ PROCEDURE DIVISION USING BY REFERENCE LK-HNDL LK-ERRNO LK-ENTITY-ID LK-USERNAME 
     ADD BUFFERLEN TO PAYLOADLEN
 
     *> properties (omitted)
+
+    *> --- action: initialize chat ---
+
+    *> has signature data: false - hence no other fields in this section
+    MOVE X"00" TO PAYLOAD(PAYLOADLEN + 1:1)
+    ADD 1 TO PAYLOADLEN
 
     *> --- action: update listed ---
 
