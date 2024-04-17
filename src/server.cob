@@ -1034,7 +1034,8 @@ HandlePlay SECTION.
                 MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1) TO TEMP-INT32
                 CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-REGISTRY
                 CALL "Blocks-Get-DefaultStateId" USING TEMP-REGISTRY TEMP-INT32
-                IF TEMP-INT32 > 0
+                *> Ensure the block was previously air
+                IF TEMP-INT32 > 0 AND WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX) = 0
                     MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
                 END-IF
                 *> send the block update to all players
