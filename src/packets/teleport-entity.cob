@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-TeleportEntity.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE 109.
+    01 PACKET-ID        BINARY-LONG             VALUE H'6D'.
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(1024).
     01 PAYLOADLEN       BINARY-LONG UNSIGNED.

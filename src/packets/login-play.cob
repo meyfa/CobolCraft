@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-LoginPlay.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE 41.
+    01 PACKET-ID        BINARY-LONG             VALUE H'29'.
     *> temporary data used during encoding
     01 INT32            BINARY-LONG.
     01 BUFFER           PIC X(64).

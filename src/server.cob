@@ -511,7 +511,7 @@ ReceivePacket SECTION.
     EXIT SECTION.
 
 HandleHandshake SECTION.
-    IF PACKET-ID NOT = 0
+    IF PACKET-ID NOT = H'00'
         DISPLAY "  Unexpected packet ID: " PACKET-ID
         PERFORM DisconnectClient
         EXIT SECTION
@@ -531,7 +531,7 @@ HandleHandshake SECTION.
 
 HandleStatus SECTION.
     EVALUATE PACKET-ID
-        WHEN 0
+        WHEN H'00'
             *> Status request
             DISPLAY "  Responding to status request"
             *> count the number of current players
@@ -546,12 +546,12 @@ HandleStatus SECTION.
                 PERFORM HandleClientError
                 EXIT SECTION
             END-IF
-        WHEN 1
+        WHEN H'01'
             *> Ping request: respond with the same payload and close the connection
             DISPLAY "  Responding to ping request"
             COMPUTE BYTE-COUNT = 8
             MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
-            MOVE 1 TO PACKET-ID
+            MOVE H'01' TO PACKET-ID
             CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
@@ -567,7 +567,7 @@ HandleStatus SECTION.
 HandleLogin SECTION.
     EVALUATE PACKET-ID
         *> Login start
-        WHEN 0
+        WHEN H'00'
             *> Decode username and UUID
             CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
             MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:16) TO TEMP-UUID
@@ -646,7 +646,7 @@ HandleLogin SECTION.
             PERFORM HandleClientError
 
         *> Login acknowledge
-        WHEN 3
+        WHEN H'03'
             *> Must not happen before login start
             IF CLIENT-PLAYER(CLIENT-ID) = 0
                 DISPLAY "  Unexpected login acknowledge"
@@ -667,7 +667,7 @@ HandleLogin SECTION.
 HandleConfiguration SECTION.
     EVALUATE PACKET-ID
         *> Client information
-        WHEN 0
+        WHEN H'00'
             *> Note: payload is ignored for now
             DISPLAY "  Received client information"
 
@@ -686,7 +686,7 @@ HandleConfiguration SECTION.
             END-IF
 
             *> Send finish configuration
-            MOVE 2 TO PACKET-ID
+            MOVE H'02' TO PACKET-ID
             MOVE 0 TO BYTE-COUNT
             CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
             IF ERRNO NOT = 0
@@ -698,7 +698,7 @@ HandleConfiguration SECTION.
             MOVE 1 TO CONFIG-FINISH(CLIENT-ID)
 
         *> Acknowledge finish configuration
-        WHEN 2
+        WHEN H'02'
             IF CONFIG-FINISH(CLIENT-ID) = 0
                 DISPLAY "  Unexpected acknowledge finish configuration"
                 PERFORM DisconnectClient
@@ -762,7 +762,7 @@ HandleConfiguration SECTION.
             *> send selected hotbar slot
             MOVE FUNCTION CHAR(PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID)) + 1) TO BUFFER(1:1)
             MOVE 1 TO BYTE-COUNT
-            MOVE 81 TO PACKET-ID
+            MOVE H'51' TO PACKET-ID
             CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
@@ -846,13 +846,13 @@ HandleConfiguration SECTION.
 HandlePlay SECTION.
     EVALUATE PACKET-ID
         *> Confirm teleportation
-        WHEN 0
+        WHEN H'00'
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 > TELEPORT-RECV(CLIENT-ID) AND TEMP-INT32 <= TELEPORT-SENT(CLIENT-ID)
                 MOVE TEMP-INT32 TO TELEPORT-RECV(CLIENT-ID)
             END-IF
         *> Chat message
-        WHEN 5
+        WHEN H'05'
             CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
             *> Message may not be longer than 256 characters
             IF BYTE-COUNT > 256
@@ -872,10 +872,10 @@ HandlePlay SECTION.
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
         *> KeepAlive response
-        WHEN 21
+        WHEN H'15'
             CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
         *> Set player position
-        WHEN 23
+        WHEN H'17'
             *> Ignore movement packets until the client acknowledges the last sent teleport packet
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
@@ -885,7 +885,7 @@ HandlePlay SECTION.
             CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
         *> Set player position and rotation
-        WHEN 24
+        WHEN H'18'
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
@@ -896,7 +896,7 @@ HandlePlay SECTION.
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
         *> Set player rotation
-        WHEN 25
+        WHEN H'19'
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
@@ -904,13 +904,13 @@ HandlePlay SECTION.
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
         *> Set player on ground
-        WHEN 26
+        WHEN H'1A'
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
             *> TODO: "on ground" flag
         *> Player action
-        WHEN 33
+        WHEN H'21'
             *> Status (= the action), block position, face, sequence number.
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
@@ -954,13 +954,13 @@ HandlePlay SECTION.
                     MOVE TEMP-INT16 TO CLIENT-ID
             END-EVALUATE
         *> Set held item
-        WHEN 44
+        WHEN H'2C'
             CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
             IF TEMP-INT16 >= 0 AND TEMP-INT16 <= 8
                 MOVE TEMP-INT16 TO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             END-IF
         *> Set creative mode slot
-        WHEN 47
+        WHEN H'2F'
             *> slot ID
             CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
             *> TODO: spawn item entity when slot ID is -1
@@ -987,7 +987,7 @@ HandlePlay SECTION.
                 END-IF
             END-IF
         *> Swing arm
-        WHEN 51
+        WHEN H'33'
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 1
@@ -1006,7 +1006,7 @@ HandlePlay SECTION.
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
         *> Use item on block
-        WHEN 53
+        WHEN H'35'
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0

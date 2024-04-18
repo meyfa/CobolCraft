@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-SetCenterChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE 82.
+    01 PACKET-ID        BINARY-LONG             VALUE H'52'.
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(16).
     01 PAYLOADLEN       BINARY-LONG UNSIGNED.

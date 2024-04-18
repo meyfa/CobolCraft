@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-LoginDisconnect.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID    BINARY-LONG             VALUE 0.
+    01 PACKET-ID    BINARY-LONG             VALUE H'00'.
     *> buffer used to store the JSON string
     01 JSONBUFFER   PIC X(64000).
     01 JSONPOS      BINARY-LONG UNSIGNED.
