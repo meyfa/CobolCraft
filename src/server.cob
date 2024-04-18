@@ -86,6 +86,7 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT16       BINARY-SHORT.
     01 TEMP-INT32       BINARY-LONG.
     01 TEMP-INT64       BINARY-LONG-LONG.
+    01 TEMP-FLOAT       FLOAT-SHORT.
     01 TEMP-UUID        PIC X(16).
     01 TEMP-UUID-STR    PIC X(36).
     01 TEMP-POSITION.
@@ -549,10 +550,8 @@ HandleStatus SECTION.
         WHEN H'01'
             *> Ping request: respond with the same payload and close the connection
             DISPLAY "  Responding to ping request"
-            COMPUTE BYTE-COUNT = 8
-            MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
-            MOVE H'01' TO PACKET-ID
-            CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT64
+            CALL "SendPacket-PingResponse" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT64
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -686,9 +685,7 @@ HandleConfiguration SECTION.
             END-IF
 
             *> Send finish configuration
-            MOVE H'02' TO PACKET-ID
-            MOVE 0 TO BYTE-COUNT
-            CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket-FinishConfiguration" USING CLIENT-HNDL(CLIENT-ID) ERRNO
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -726,31 +723,17 @@ HandleConfiguration SECTION.
             END-IF
 
             *> send game event "start waiting for level chunks"
-            MOVE X"06200d00000000" TO BUFFER
-            MOVE 7 TO BYTE-COUNT
-            CALL "Socket-Write" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
+            MOVE 13 TO TEMP-INT8
+            MOVE 0 TO TEMP-FLOAT
+            CALL "SendPacket-GameEvent" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT8 TEMP-FLOAT
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
             END-IF
 
-            *> set ticking state
-            MOVE X"066e41a0000000" TO BUFFER
-            MOVE 7 TO BYTE-COUNT
-            CALL "Socket-Write" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
-
-            *> tick
-            MOVE X"026f00" TO BUFFER
-            MOVE 3 TO BYTE-COUNT
-            CALL "Socket-Write" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            *> Note: The official server sends a lot of additional packets in this phase, but they seem to be optional.
+            *> For example: set ticking state (rate=20, frozen=false); step tick (steps=0 [sic.])
+            *> We will skip these for now.
 
             *> send inventory
             CALL "SendPacket-SetContainerContent" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
@@ -760,10 +743,7 @@ HandleConfiguration SECTION.
             END-IF
 
             *> send selected hotbar slot
-            MOVE FUNCTION CHAR(PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID)) + 1) TO BUFFER(1:1)
-            MOVE 1 TO BYTE-COUNT
-            MOVE H'51' TO PACKET-ID
-            CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket-SetHeldItem" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
