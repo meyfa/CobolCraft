@@ -1,0 +1,18 @@
+IDENTIFICATION DIVISION.
+PROGRAM-ID. SendPacket-FinishConfiguration.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 PACKET-ID        BINARY-LONG             VALUE H'02'.
+    *> buffer used to store the packet data
+    01 PAYLOAD          PIC X(1).
+    01 PAYLOADLEN       BINARY-LONG UNSIGNED    VALUE 0.
+LINKAGE SECTION.
+    01 LK-HNDL          PIC X(4).
+    01 LK-ERRNO         PIC 9(3).
+
+PROCEDURE DIVISION USING LK-HNDL LK-ERRNO.
+    CALL "SendPacket" USING LK-HNDL PACKET-ID PAYLOAD PAYLOADLEN LK-ERRNO
+    GOBACK.
+
+END PROGRAM SendPacket-FinishConfiguration.
