@@ -58,6 +58,7 @@ WORKING-STORAGE SECTION.
     01 MAX-PLAYERS      BINARY-LONG UNSIGNED    VALUE 10.
     01 PLAYERS OCCURS 10 TIMES.
         02 PLAYER-CLIENT    BINARY-LONG UNSIGNED    VALUE 0.
+        02 PLAYER-UUID      PIC X(16).
         02 USERNAME         PIC X(16).
         02 USERNAME-LENGTH  BINARY-LONG.
         02 PLAYER-POSITION.
@@ -85,6 +86,8 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT16       BINARY-SHORT.
     01 TEMP-INT32       BINARY-LONG.
     01 TEMP-INT64       BINARY-LONG-LONG.
+    01 TEMP-UUID        PIC X(16).
+    01 TEMP-UUID-STR    PIC X(36).
     01 TEMP-POSITION.
         02 TEMP-POSITION-X  BINARY-LONG.
         02 TEMP-POSITION-Y  BINARY-LONG.
@@ -360,7 +363,7 @@ DisconnectClient SECTION.
         MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
         PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
             IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4 AND CLIENT-ID NOT = TEMP-INT16
-                CALL "SendPacket-RemovePlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+                CALL "SendPacket-RemovePlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32)
                 IF ERRNO = 0
                     CALL "SendPacket-RemoveEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
                 END-IF
@@ -565,12 +568,21 @@ HandleLogin SECTION.
     EVALUATE PACKET-ID
         *> Login start
         WHEN 0
-            *> Decode username
+            *> Decode username and UUID
             CALL "Decode-String" USING BY REFERENCE PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
-            DISPLAY "  Login with username: " BUFFER(1:BYTE-COUNT)
-
-            *> Skip the UUID (16 bytes)
+            MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:16) TO TEMP-UUID
             ADD 16 TO PACKET-POSITION
+
+            CALL "UUID-ToString" USING TEMP-UUID TEMP-UUID-STR
+            DISPLAY "  Login with username: " BUFFER(1:BYTE-COUNT) " (UUID: " TEMP-UUID-STR ")"
+
+            *> For testing, we want to allow the same UUID to connect multiple times with different usernames.
+            *> Since this is an offline server, we can simply generate our own UUID to achieve this.
+            *> For lack of a better implementation, we will simply use the bytes of the username as the UUID.
+            MOVE X"00000000000000000000000000000000" TO TEMP-UUID
+            MOVE BUFFER(1:BYTE-COUNT) TO TEMP-UUID(1:BYTE-COUNT)
+            CALL "UUID-ToString" USING TEMP-UUID TEMP-UUID-STR
+            DISPLAY "  Generated UUID: " TEMP-UUID-STR
 
             *> Check username against the whitelist
             IF WHITELIST-ENABLE > 0 AND BUFFER(1:BYTE-COUNT) NOT = WHITELIST-PLAYER
@@ -586,18 +598,31 @@ HandleLogin SECTION.
                 EXIT SECTION
             END-IF
 
-            *> Try to find an existing player with the same username, or find a free slot.
-            *> Since players are added to the array in order, once we see a free slot we know there cannot be an existing
-            *> player after that.
+            *> Try to find an existing player for the UUID, or find a free slot to add a new player.
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-PLAYERS
-                IF PLAYER-CLIENT(TEMP-INT16) = 0 AND (USERNAME(TEMP-INT16) = BUFFER(1:BYTE-COUNT) OR USERNAME-LENGTH(TEMP-INT16) = 0)
+                *> Disallow the same UUID to connect multiple times.
+                IF PLAYER-CLIENT(TEMP-INT16) > 0 AND PLAYER-UUID(TEMP-INT16) = TEMP-UUID
+                    DISPLAY "  Cannot accept new player: " BUFFER(1:BYTE-COUNT) " (already connected)"
+                    MOVE "Already connected" TO BUFFER
+                    MOVE 17 TO BYTE-COUNT
+                    CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+                    IF ERRNO NOT = 0
+                        PERFORM HandleClientError
+                        EXIT SECTION
+                    END-IF
+                    PERFORM DisconnectClient
+                    EXIT SECTION
+                END-IF
+                *> Once we find an unused slot with either the same UUID or no player, we can stop searching.
+                IF PLAYER-CLIENT(TEMP-INT16) = 0 AND (PLAYER-UUID(TEMP-INT16) = TEMP-UUID OR USERNAME-LENGTH(TEMP-INT16) = 0)
                     *> associate the player with the client
                     MOVE CLIENT-ID TO PLAYER-CLIENT(TEMP-INT16)
                     MOVE TEMP-INT16 TO CLIENT-PLAYER(CLIENT-ID)
-                    *> store the username on the player
+                    *> store the username and UUID on the player
                     MOVE SPACES TO USERNAME(TEMP-INT16)
                     MOVE BUFFER(1:BYTE-COUNT) TO USERNAME(TEMP-INT16)
                     MOVE BYTE-COUNT TO USERNAME-LENGTH(TEMP-INT16)
+                    MOVE TEMP-UUID TO PLAYER-UUID(TEMP-INT16)
                     EXIT PERFORM
                 END-IF
             END-PERFORM
@@ -768,9 +793,9 @@ HandleConfiguration SECTION.
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
                 IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = 4
                     MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
-                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
+                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
                     IF ERRNO = 0 AND TEMP-INT16 NOT = CLIENT-ID
-                        CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+                        CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                     END-IF
                     IF ERRNO NOT = 0
                         PERFORM HandleClientError
@@ -792,11 +817,11 @@ HandleConfiguration SECTION.
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4 AND CLIENT-ID NOT = TEMP-INT16
-                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
+                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
                     PERFORM HandleClientError
                     *> spawn a player entity
                     IF ERRNO = 0
-                        CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+                        CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                         PERFORM HandleClientError
                     END-IF
                 END-IF
