@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-LoginSuccess.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE 2.
+    01 PACKET-ID        BINARY-LONG             VALUE H'02'.
     *> temporary data used during encoding
     01 BUFFER           PIC X(64).
     01 BUFFERLEN        BINARY-LONG UNSIGNED.

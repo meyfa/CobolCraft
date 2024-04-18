@@ -4,7 +4,7 @@ PROGRAM-ID. SendPacket-ChunkData.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE 37.
+    01 PACKET-ID        BINARY-LONG             VALUE H'25'.
     *> constants
     01 ALL-0-BITS       PIC X(8)                VALUE X"0000000000000000".
     01 EMPTY-COMP       PIC X(2)                VALUE X"0a00".
