@@ -552,7 +552,7 @@ HandleStatus SECTION.
             COMPUTE BYTE-COUNT = 8
             MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
             MOVE 1 TO PACKET-ID
-            CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -569,7 +569,7 @@ HandleLogin SECTION.
         *> Login start
         WHEN 0
             *> Decode username and UUID
-            CALL "Decode-String" USING BY REFERENCE PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
+            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
             MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:16) TO TEMP-UUID
             ADD 16 TO PACKET-POSITION
 
@@ -589,7 +589,7 @@ HandleLogin SECTION.
                 DISPLAY "  Player not whitelisted: " BUFFER(1:BYTE-COUNT)
                 MOVE "Not whitelisted!" TO BUFFER
                 MOVE 16 TO BYTE-COUNT
-                CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+                CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
                     EXIT SECTION
@@ -605,7 +605,7 @@ HandleLogin SECTION.
                     DISPLAY "  Cannot accept new player: " BUFFER(1:BYTE-COUNT) " (already connected)"
                     MOVE "Already connected" TO BUFFER
                     MOVE 17 TO BYTE-COUNT
-                    CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+                    CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
                     IF ERRNO NOT = 0
                         PERFORM HandleClientError
                         EXIT SECTION
@@ -632,7 +632,7 @@ HandleLogin SECTION.
                 DISPLAY "  Cannot accept new player: " BUFFER(1:BYTE-COUNT) " (server is full)"
                 MOVE "Server is full" TO BUFFER
                 MOVE 14 TO BYTE-COUNT
-                CALL "SendPacket-LoginDisconnect" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+                CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
                     EXIT SECTION
@@ -688,7 +688,7 @@ HandleConfiguration SECTION.
             *> Send finish configuration
             MOVE 2 TO PACKET-ID
             MOVE 0 TO BYTE-COUNT
-            CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -728,7 +728,7 @@ HandleConfiguration SECTION.
             *> send game event "start waiting for level chunks"
             MOVE X"06200d00000000" TO BUFFER
             MOVE 7 TO BYTE-COUNT
-            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
+            CALL "Socket-Write" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -737,7 +737,7 @@ HandleConfiguration SECTION.
             *> set ticking state
             MOVE X"066e41a0000000" TO BUFFER
             MOVE 7 TO BYTE-COUNT
-            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
+            CALL "Socket-Write" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -746,7 +746,7 @@ HandleConfiguration SECTION.
             *> tick
             MOVE X"026f00" TO BUFFER
             MOVE 3 TO BYTE-COUNT
-            CALL "Socket-Write" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
+            CALL "Socket-Write" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -763,7 +763,7 @@ HandleConfiguration SECTION.
             MOVE FUNCTION CHAR(PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID)) + 1) TO BUFFER(1:1)
             MOVE 1 TO BYTE-COUNT
             MOVE 81 TO PACKET-ID
-            CALL "SendPacket" USING BY REFERENCE CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
+            CALL "SendPacket" USING CLIENT-HNDL(CLIENT-ID) PACKET-ID BUFFER BYTE-COUNT ERRNO
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
