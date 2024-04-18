@@ -642,7 +642,7 @@ HandleLogin SECTION.
             END-IF
 
             *> Send login success. This should result in a "login acknowledged" packet by the client.
-            CALL "SendPacket-LoginSuccess" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-PLAYER(CLIENT-ID) USERNAME(CLIENT-PLAYER(CLIENT-ID)) USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))
+            CALL "SendPacket-LoginSuccess" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) USERNAME(CLIENT-PLAYER(CLIENT-ID)) USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))
             PERFORM HandleClientError
 
         *> Login acknowledge
@@ -866,7 +866,7 @@ HandlePlay SECTION.
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
-                    CALL "SendPacket-PlayerChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 USERNAME(TEMP-INT32) BUFFER BYTE-COUNT
+                    CALL "SendPacket-PlayerChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) USERNAME(TEMP-INT32) BUFFER BYTE-COUNT
                     PERFORM HandleClientError
                 END-IF
             END-PERFORM
