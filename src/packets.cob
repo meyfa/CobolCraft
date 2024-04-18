@@ -5,14 +5,14 @@ PROGRAM-ID. SendPacket.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 BUFFER                   PIC X(64000).
+    01 BUFFER                   PIC X(8).
     01 PACKET-LENGTH            BINARY-LONG UNSIGNED.
 LOCAL-STORAGE SECTION.
-    01 NUM-BYTES                BINARY-LONG.
+    01 NUM-BYTES                BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-HNDL                  PIC X(4).
     01 LK-PACKET-ID             BINARY-LONG.
-    01 LK-PAYLOAD               PIC X(64000).
+    01 LK-PAYLOAD               PIC X ANY LENGTH.
     01 LK-PAYLOAD-LENGTH        BINARY-LONG UNSIGNED.
     01 LK-ERRNO                 PIC 9(3).
 
