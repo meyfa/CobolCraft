@@ -124,3 +124,42 @@ PROCEDURE DIVISION USING LK-BUFFER LK-VALUE.
     GOBACK.
 
 END PROGRAM Util-FloatFromBytes.
+
+*> --- Util-SetConsoleNonBlocking ---
+*> Set the console input to non-blocking mode.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Util-SetConsoleNonBlocking.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 ERRNO            PIC 9(3).
+
+PROCEDURE DIVISION.
+    CALL "COBOLCRAFT_UTIL" USING "06" GIVING ERRNO
+    IF ERRNO NOT = 0
+        DISPLAY "Failed to set console to non-blocking mode."
+    END-IF
+    GOBACK.
+
+END PROGRAM Util-SetConsoleNonBlocking.
+
+*> --- Util-ReadConsole ---
+*> Read console input in a non-blocking manner. Returns the number of bytes read. Enter is indicated by a newline char.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Util-ReadConsole.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 ERRNO            PIC 9(3).
+LINKAGE SECTION.
+    01 LK-BUFFER        PIC X ANY LENGTH.
+    01 LK-SIZE          BINARY-LONG.
+
+PROCEDURE DIVISION USING LK-BUFFER LK-SIZE.
+    CALL "COBOLCRAFT_UTIL" USING "07" LK-BUFFER LK-SIZE GIVING ERRNO
+    IF ERRNO NOT = 0
+        MOVE 0 TO LK-SIZE
+    END-IF
+    GOBACK.
+
+END PROGRAM Util-ReadConsole.
