@@ -637,31 +637,28 @@ HandleLogin SECTION.
             END-IF
 
             *> Try to find an existing player for the UUID, or find a free slot to add a new player.
-            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-PLAYERS
-                *> Disallow the same UUID to connect multiple times.
-                IF PLAYER-CLIENT(TEMP-INT16) > 0 AND PLAYER-UUID(TEMP-INT16) = TEMP-UUID
-                    *> TODO: Behave like the official server and disconnect the existing client instead, with
-                    *> the reason: "You logged in from another location".
-                    MOVE "Already connected" TO BUFFER
-                    MOVE 17 TO BYTE-COUNT
-                    DISPLAY "Disconnecting " TEMP-USERNAME(1:TEMP-USERNAME-LEN) ": " BUFFER(1:BYTE-COUNT)
-                    CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
-                    IF ERRNO NOT = 0
-                        PERFORM HandleClientError
-                        EXIT SECTION
-                    END-IF
+            PERFORM VARYING TEMP-INT8 FROM 1 BY 1 UNTIL TEMP-INT8 > MAX-PLAYERS
+                *> If the player is already connected, disconnect the existing client to replace it
+                IF PLAYER-CLIENT(TEMP-INT8) > 0 AND PLAYER-UUID(TEMP-INT8) = TEMP-UUID
+                    *> TODO: fix fragile save/restore of temporary variables
+                    MOVE CLIENT-ID TO TEMP-INT64
+                    MOVE PLAYER-CLIENT(TEMP-INT8) TO CLIENT-ID
+                    MOVE "You logged in from another location" TO BUFFER
+                    MOVE 35 TO BYTE-COUNT
+                    DISPLAY "Disconnecting " USERNAME(TEMP-INT8)(1:USERNAME-LENGTH(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
+                    *> TODO: Send the message to the existing client
                     PERFORM DisconnectClient
-                    EXIT SECTION
+                    MOVE TEMP-INT64 TO CLIENT-ID
                 END-IF
                 *> Once we find an unused slot with either the same UUID or no player, we can stop searching.
-                IF PLAYER-CLIENT(TEMP-INT16) = 0 AND (PLAYER-UUID(TEMP-INT16) = TEMP-UUID OR USERNAME-LENGTH(TEMP-INT16) = 0)
+                IF PLAYER-CLIENT(TEMP-INT8) = 0 AND (PLAYER-UUID(TEMP-INT8) = TEMP-UUID OR USERNAME-LENGTH(TEMP-INT8) = 0)
                     *> associate the player with the client
-                    MOVE CLIENT-ID TO PLAYER-CLIENT(TEMP-INT16)
-                    MOVE TEMP-INT16 TO CLIENT-PLAYER(CLIENT-ID)
+                    MOVE CLIENT-ID TO PLAYER-CLIENT(TEMP-INT8)
+                    MOVE TEMP-INT8 TO CLIENT-PLAYER(CLIENT-ID)
                     *> store the username and UUID on the player
-                    MOVE TEMP-USERNAME(1:TEMP-USERNAME-LEN) TO USERNAME(TEMP-INT16)
-                    MOVE TEMP-USERNAME-LEN TO USERNAME-LENGTH(TEMP-INT16)
-                    MOVE TEMP-UUID TO PLAYER-UUID(TEMP-INT16)
+                    MOVE TEMP-USERNAME(1:TEMP-USERNAME-LEN) TO USERNAME(TEMP-INT8)
+                    MOVE TEMP-USERNAME-LEN TO USERNAME-LENGTH(TEMP-INT8)
+                    MOVE TEMP-UUID TO PLAYER-UUID(TEMP-INT8)
                     EXIT PERFORM
                 END-IF
             END-PERFORM
