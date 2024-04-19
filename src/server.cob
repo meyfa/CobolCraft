@@ -24,6 +24,8 @@ WORKING-STORAGE SECTION.
     *> A large buffer to hold JSON data before parsing.
     01 DATA-BUFFER          PIC X(10000000).
     01 DATA-BUFFER-LEN      BINARY-LONG UNSIGNED    VALUE 0.
+    *> Console input
+    01 CONSOLE-INPUT        PIC X(255).
     *> Socket variables (server socket handle, error number from last operation)
     01 LISTEN               PIC X(4).
     01 ERRNO                PIC 9(3)                VALUE 0.
@@ -221,10 +223,12 @@ StartServer.
     CALL "Util-IgnoreSIGPIPE"
     CALL "Socket-Listen" USING PORT LISTEN ERRNO
     PERFORM HandleServerError
-    DISPLAY "Done! Accepting connections"
+    DISPLAY "Done! For help, type ""help"""
     .
 
 ServerLoop.
+    CALL "Util-SetConsoleNonBlocking"
+
     *> Loop forever - each iteration is one game tick (1/20th of a second).
     PERFORM UNTIL EXIT
         CALL "Util-SystemTimeMillis" USING CURRENT-TIME
@@ -274,6 +278,9 @@ ServerLoop.
             END-IF
         END-PERFORM
 
+        *> Read console command
+        PERFORM ConsoleInput
+
         *> The remaining time of this tick can be used for accepting connections and receiving packets.
         PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME
             PERFORM NetworkRead
@@ -285,9 +292,53 @@ ServerLoop.
     END-PERFORM
     .
 
+StopServer.
+    DISPLAY "Stopping server"
+    CALL "Socket-Close" USING LISTEN ERRNO
+    PERFORM HandleServerError
+
+    STOP RUN.
+
 GameLoop SECTION.
     *> Update the world age
     ADD 1 TO WORLD-AGE
+
+    EXIT SECTION.
+
+ConsoleInput SECTION.
+    *> Read from the console (configured as non-blocking). Note that this will only return full lines.
+    MOVE LENGTH OF CONSOLE-INPUT TO BYTE-COUNT
+    CALL "Util-ReadConsole" USING CONSOLE-INPUT BYTE-COUNT
+    IF BYTE-COUNT = 0
+        EXIT SECTION
+    END-IF
+
+    *> Ignore leading forward slash
+    IF CONSOLE-INPUT(1:1) = "/"
+        COMPUTE BYTE-COUNT = BYTE-COUNT - 1
+        MOVE CONSOLE-INPUT(2:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
+        MOVE BUFFER(1:BYTE-COUNT) TO CONSOLE-INPUT
+    END-IF
+
+    *> Ignore trailing whitespace
+    PERFORM VARYING TEMP-INT32 FROM BYTE-COUNT BY -1 UNTIL TEMP-INT32 = 0
+        IF CONSOLE-INPUT(TEMP-INT32:1) NOT = " " AND CONSOLE-INPUT(TEMP-INT32:1) NOT = X"0A"
+            EXIT PERFORM
+        END-IF
+    END-PERFORM
+    MOVE TEMP-INT32 TO BYTE-COUNT
+
+    *> Handle the command
+    EVALUATE CONSOLE-INPUT(1:BYTE-COUNT)
+        WHEN "help"
+            DISPLAY "Available commands:"
+            DISPLAY "  /help - show this help"
+            DISPLAY "  /stop - stop the server"
+        WHEN "stop"
+            PERFORM StopServer
+        WHEN OTHER
+            DISPLAY "Unknown command: " CONSOLE-INPUT(1:BYTE-COUNT)
+    END-EVALUATE
 
     EXIT SECTION.
 

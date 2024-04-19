@@ -15,6 +15,7 @@ The following features are already working:
 - [X] breaking and placing blocks
 - [X] multiplayer
 - [X] chat
+- [X] server console commands
 - [ ] persisting data across restarts
 
 ## How-to
@@ -37,7 +38,7 @@ Or, using Docker:
 
 ```sh
 docker build -t cobolcraft .
-docker run --rm -p 25565:25565 cobolcraft
+docker run --rm -p 25565:25565 -it cobolcraft
 ```
 
 To configure the server, edit the variables in `main.cob` (limited options available).
@@ -47,7 +48,7 @@ To make it accessible from the outside (your local network, via VPN, port forwar
 can start the Docker container like this:
 
 ```sh
-docker run --rm -p 0.0.0.0:25565:25565 cobolcraft
+docker run --rm -p 0.0.0.0:25565:25565 -it cobolcraft
 ```
 
 ## Why?
