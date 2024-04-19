@@ -22,52 +22,52 @@ WORKING-STORAGE SECTION.
     01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
     01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
     *> A large buffer to hold JSON data before parsing.
-    01 DATA-BUFFER      PIC X(10000000).
-    01 DATA-BUFFER-LEN  BINARY-LONG UNSIGNED    VALUE 0.
+    01 DATA-BUFFER          PIC X(10000000).
+    01 DATA-BUFFER-LEN      BINARY-LONG UNSIGNED    VALUE 0.
     *> Socket variables (server socket handle, error number from last operation)
-    01 LISTEN           PIC X(4).
-    01 ERRNO            PIC 9(3)                VALUE 0.
+    01 LISTEN               PIC X(4).
+    01 ERRNO                PIC 9(3)                VALUE 0.
     *> Connected clients
-    01 MAX-CLIENTS      BINARY-LONG UNSIGNED    VALUE 10.
+    01 MAX-CLIENTS          BINARY-LONG UNSIGNED    VALUE 10.
     01 CLIENTS OCCURS 10 TIMES.
-        03 CLIENT-PRESENT   BINARY-CHAR             VALUE 0.
-        03 CLIENT-HNDL      PIC X(4)                VALUE X"00000000".
+        03 CLIENT-PRESENT       BINARY-CHAR             VALUE 0.
+        03 CLIENT-HNDL          PIC X(4)                VALUE X"00000000".
         *> State of the player (0 = handshake, 1 = status, 2 = login, 3 = configuration, 4 = play, -1 = disconnected)
-        03 CLIENT-STATE     BINARY-CHAR             VALUE -1.
-        03 CONFIG-FINISH    BINARY-CHAR             VALUE 0.
+        03 CLIENT-STATE         BINARY-CHAR             VALUE -1.
+        03 CONFIG-FINISH        BINARY-CHAR             VALUE 0.
         *> The index of the associated player, or 0 if login has not been started
-        03 CLIENT-PLAYER    BINARY-CHAR             VALUE 0.
+        03 CLIENT-PLAYER        BINARY-CHAR             VALUE 0.
         *> Last keepalive ID sent and received
-        03 KEEPALIVE-SENT   BINARY-LONG-LONG        VALUE 0.
-        03 KEEPALIVE-RECV   BINARY-LONG-LONG        VALUE 0.
+        03 KEEPALIVE-SENT       BINARY-LONG-LONG        VALUE 0.
+        03 KEEPALIVE-RECV       BINARY-LONG-LONG        VALUE 0.
         *> Last teleport ID sent and received. Until the client acknowledges the teleport, any movement packets it sends
         *> are ignored.
-        03 TELEPORT-SENT    BINARY-LONG-LONG        VALUE 0.
-        03 TELEPORT-RECV    BINARY-LONG-LONG        VALUE 0.
+        03 TELEPORT-SENT        BINARY-LONG-LONG        VALUE 0.
+        03 TELEPORT-RECV        BINARY-LONG-LONG        VALUE 0.
         *> Packet reading: expected packet length (-1 if not yet known), packet buffer, amount of received bytes
         *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
-        03 PACKET-LENGTH    BINARY-LONG.
-        03 PACKET-BUFFER    PIC X(2100000).
-        03 PACKET-BUFFERLEN BINARY-LONG.
+        03 PACKET-LENGTH        BINARY-LONG.
+        03 PACKET-BUFFER        PIC X(2100000).
+        03 PACKET-BUFFERLEN     BINARY-LONG.
     *> The client handle of the connection that is currently being processed, and the index in the CLIENTS array
-    01 TEMP-HNDL        PIC X(4).
-    01 CLIENT-ID        BINARY-LONG UNSIGNED.
+    01 TEMP-HNDL            PIC X(4).
+    01 CLIENT-ID            BINARY-LONG UNSIGNED.
     *> Player data. Once a new player is connected, their data is stored here. When they disconnect, the client is
     *> set to 0, but the player data remains to be reclaimed if the same player connects again.
     *> TODO: add some way of offloading player data to disk
-    01 MAX-PLAYERS      BINARY-LONG UNSIGNED    VALUE 10.
+    01 MAX-PLAYERS          BINARY-LONG UNSIGNED    VALUE 10.
     01 PLAYERS OCCURS 10 TIMES.
-        02 PLAYER-CLIENT    BINARY-LONG UNSIGNED    VALUE 0.
-        02 PLAYER-UUID      PIC X(16).
-        02 USERNAME         PIC X(16).
-        02 USERNAME-LENGTH  BINARY-LONG.
+        02 PLAYER-CLIENT        BINARY-LONG UNSIGNED    VALUE 0.
+        02 PLAYER-UUID          PIC X(16).
+        02 USERNAME             PIC X(16).
+        02 USERNAME-LENGTH      BINARY-LONG.
         02 PLAYER-POSITION.
-            03 PLAYER-X         FLOAT-LONG              VALUE 0.
-            03 PLAYER-Y         FLOAT-LONG              VALUE 64.
-            03 PLAYER-Z         FLOAT-LONG              VALUE 0.
+            03 PLAYER-X             FLOAT-LONG              VALUE 0.
+            03 PLAYER-Y             FLOAT-LONG              VALUE 64.
+            03 PLAYER-Z             FLOAT-LONG              VALUE 0.
         02 PLAYER-ROTATION.
-            03 PLAYER-YAW       FLOAT-SHORT             VALUE 0.
-            03 PLAYER-PITCH     FLOAT-SHORT             VALUE 0.
+            03 PLAYER-YAW           FLOAT-SHORT             VALUE 0.
+            03 PLAYER-PITCH         FLOAT-SHORT             VALUE 0.
         02 PLAYER-INVENTORY.
             03 PLAYER-INVENTORY-SLOT OCCURS 46 TIMES.
                 *> If no item is present, the count is 0 and the ID is -1
@@ -77,32 +77,33 @@ WORKING-STORAGE SECTION.
                 04 PLAYER-INVENTORY-SLOT-NBT-DATA   PIC X(1024).
         02 PLAYER-HOTBAR    BINARY-CHAR UNSIGNED    VALUE 0.
     *> Incoming/outgoing packet data
-    01 PACKET-ID        BINARY-LONG.
-    01 PACKET-POSITION  BINARY-LONG UNSIGNED.
-    01 BUFFER           PIC X(64000).
-    01 BYTE-COUNT       BINARY-LONG UNSIGNED.
+    01 PACKET-ID            BINARY-LONG.
+    01 PACKET-POSITION      BINARY-LONG UNSIGNED.
+    01 BUFFER               PIC X(64000).
+    01 BYTE-COUNT           BINARY-LONG UNSIGNED.
     *> Temporary variables
-    01 TEMP-INT8        BINARY-CHAR.
-    01 TEMP-INT16       BINARY-SHORT.
-    01 TEMP-INT32       BINARY-LONG.
-    01 TEMP-INT64       BINARY-LONG-LONG.
-    01 TEMP-FLOAT       FLOAT-SHORT.
-    01 TEMP-UUID        PIC X(16).
-    01 TEMP-UUID-STR    PIC X(36).
+    01 TEMP-INT8            BINARY-CHAR.
+    01 TEMP-INT16           BINARY-SHORT.
+    01 TEMP-INT32           BINARY-LONG.
+    01 TEMP-INT64           BINARY-LONG-LONG.
+    01 TEMP-FLOAT           FLOAT-SHORT.
+    01 TEMP-UUID            PIC X(16).
     01 TEMP-POSITION.
-        02 TEMP-POSITION-X  BINARY-LONG.
-        02 TEMP-POSITION-Y  BINARY-LONG.
-        02 TEMP-POSITION-Z  BINARY-LONG.
-    01 TEMP-REGISTRY    PIC X(100)              VALUE SPACES.
+        02 TEMP-POSITION-X      BINARY-LONG.
+        02 TEMP-POSITION-Y      BINARY-LONG.
+        02 TEMP-POSITION-Z      BINARY-LONG.
+    01 TEMP-USERNAME        PIC X(16).
+    01 TEMP-USERNAME-LEN    BINARY-LONG.
+    01 TEMP-REGISTRY        PIC X(100)              VALUE SPACES.
     *> Time measurement
-    01 CURRENT-TIME     BINARY-LONG-LONG.
-    01 TICK-ENDTIME     BINARY-LONG-LONG.
-    01 TIMEOUT-MS       BINARY-SHORT UNSIGNED.
+    01 CURRENT-TIME         BINARY-LONG-LONG.
+    01 TICK-ENDTIME         BINARY-LONG-LONG.
+    01 TIMEOUT-MS           BINARY-SHORT UNSIGNED.
     *> Variables for working with chunks
-    01 CHUNK-X          BINARY-LONG.
-    01 CHUNK-Z          BINARY-LONG.
-    01 CHUNK-INDEX      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX      BINARY-LONG UNSIGNED.
+    01 CHUNK-X              BINARY-LONG.
+    01 CHUNK-Z              BINARY-LONG.
+    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
     *> World storage (7x7 chunks, each 16x384x16 blocks)
     01 WORLD-CHUNKS.
         02 WORLD-CHUNKS-COUNT-X BINARY-LONG VALUE 7.
@@ -115,7 +116,7 @@ WORKING-STORAGE SECTION.
                 04 WORLD-BLOCK OCCURS 98304 TIMES.
                     05 WORLD-BLOCK-ID BINARY-LONG UNSIGNED VALUE 0.
     *> Age of the world in ticks. This modulo 24000 is the current time of day.
-    01 WORLD-AGE        BINARY-LONG-LONG.
+    01 WORLD-AGE            BINARY-LONG-LONG.
 
 LINKAGE SECTION.
     *> Configuration provided by main program
@@ -127,7 +128,7 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING SERVER-CONFIG.
 LoadRegistries.
-    DISPLAY "Loading registries..."
+    DISPLAY "Loading registries"
     *> read the entire registries.json file into memory
     MOVE 0 TO DATA-BUFFER-LEN
     OPEN INPUT FD-REGISTRIES-FILE
@@ -156,7 +157,7 @@ LoadRegistries.
     .
 
 LoadBlocks.
-    DISPLAY "Loading blocks..."
+    DISPLAY "Loading blocks"
     *> read the entire blocks.json file into memory
     MOVE 0 TO DATA-BUFFER-LEN
     OPEN INPUT FD-BLOCKS-FILE
@@ -185,7 +186,7 @@ LoadBlocks.
     .
 
 GenerateWorld.
-    DISPLAY "Generating world..."
+    DISPLAY "Generating world"
     PERFORM VARYING CHUNK-Z FROM -3 BY 1 UNTIL CHUNK-Z > 3
         PERFORM VARYING CHUNK-X FROM -3 BY 1 UNTIL CHUNK-X > 3
             COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
@@ -216,10 +217,11 @@ GenerateWorld.
     END-PERFORM.
 
 StartServer.
-    DISPLAY "Starting server..."
+    DISPLAY "Starting server"
     CALL "Util-IgnoreSIGPIPE"
     CALL "Socket-Listen" USING PORT LISTEN ERRNO
     PERFORM HandleServerError
+    DISPLAY "Done! Accepting connections"
     .
 
 ServerLoop.
@@ -316,14 +318,12 @@ NetworkRead SECTION.
     END-PERFORM
 
     *> If no free slot was found, close the connection
-    DISPLAY "No free slot for new client"
+    DISPLAY "Cannot accept new connection: no free slots"
     CALL "Socket-Close" USING TEMP-HNDL ERRNO
 
     EXIT SECTION.
 
 InsertClient SECTION.
-    DISPLAY "New client connected: " CLIENT-ID
-
     MOVE 1 TO CLIENT-PRESENT(CLIENT-ID)
     MOVE TEMP-HNDL TO CLIENT-HNDL(CLIENT-ID)
     MOVE 0 TO CLIENT-STATE(CLIENT-ID)
@@ -341,8 +341,6 @@ InsertClient SECTION.
     EXIT SECTION.
 
 DisconnectClient SECTION.
-    DISPLAY "Client " CLIENT-ID " disconnected"
-
     *> Reset this early to avoid infinite loops in case of errors when sending packets to other clients
     MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
 
@@ -357,6 +355,7 @@ DisconnectClient SECTION.
         ADD USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
         MOVE " left the game" TO BUFFER(BYTE-COUNT + 1:14)
         ADD 14 TO BYTE-COUNT
+        DISPLAY BUFFER(1:BYTE-COUNT)
         PERFORM BroadcastMessageExceptCurrent
 
         *> remove the player from the player list, and despawn the player entity
@@ -407,7 +406,7 @@ KeepAlive SECTION.
     *> If the client has not responded to keepalive within 15 seconds, disconnect
     COMPUTE TEMP-INT64 = CURRENT-TIME - KEEPALIVE-RECV(CLIENT-ID)
     IF TEMP-INT64 >= 15000
-        DISPLAY "Client " CLIENT-ID " timed out"
+        DISPLAY "[client=" CLIENT-ID "] Timeout"
         PERFORM DisconnectClient
         EXIT SECTION
     END-IF
@@ -452,7 +451,7 @@ ReceivePacket SECTION.
 
         *> Validate packet length - note that it must be at least 1 due to the packet ID
         IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
-            DISPLAY "Invalid packet length: " PACKET-LENGTH(CLIENT-ID)
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length: " PACKET-LENGTH(CLIENT-ID)
             PERFORM DisconnectClient
             EXIT SECTION
         END-IF
@@ -486,8 +485,6 @@ ReceivePacket SECTION.
     MOVE 1 TO PACKET-POSITION
     CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PACKET-ID
 
-    DISPLAY "[client=" CLIENT-ID " state=" CLIENT-STATE(CLIENT-ID) "] Received packet: " PACKET-ID
-
     EVALUATE CLIENT-STATE(CLIENT-ID)
         WHEN 0
             PERFORM HandleHandshake
@@ -500,7 +497,7 @@ ReceivePacket SECTION.
         WHEN 4
             PERFORM HandlePlay
         WHEN OTHER
-            DISPLAY "  Invalid state: " CLIENT-STATE(CLIENT-ID)
+            DISPLAY "Invalid client state: " CLIENT-STATE(CLIENT-ID)
             PERFORM DisconnectClient
             EXIT SECTION
     END-EVALUATE
@@ -513,7 +510,7 @@ ReceivePacket SECTION.
 
 HandleHandshake SECTION.
     IF PACKET-ID NOT = H'00'
-        DISPLAY "  Unexpected packet ID: " PACKET-ID
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
         PERFORM DisconnectClient
         EXIT SECTION
     END-IF
@@ -521,12 +518,10 @@ HandleHandshake SECTION.
     *> The final byte of the payload encodes the target state.
     COMPUTE CLIENT-STATE(CLIENT-ID) = FUNCTION ORD(PACKET-BUFFER(CLIENT-ID)(PACKET-LENGTH(CLIENT-ID):1)) - 1
     IF CLIENT-STATE(CLIENT-ID) NOT = 1 AND CLIENT-STATE(CLIENT-ID) NOT = 2
-        DISPLAY "  Invalid target state: " CLIENT-STATE(CLIENT-ID)
+        DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client requested invalid target state: " CLIENT-STATE(CLIENT-ID)
         PERFORM DisconnectClient
         EXIT SECTION
     END-IF
-
-    DISPLAY "  Target state: " CLIENT-STATE(CLIENT-ID)
 
     EXIT SECTION.
 
@@ -534,7 +529,6 @@ HandleStatus SECTION.
     EVALUATE PACKET-ID
         WHEN H'00'
             *> Status request
-            DISPLAY "  Responding to status request"
             *> count the number of current players
             MOVE 0 TO TEMP-INT32
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
@@ -549,7 +543,6 @@ HandleStatus SECTION.
             END-IF
         WHEN H'01'
             *> Ping request: respond with the same payload and close the connection
-            DISPLAY "  Responding to ping request"
             CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT64
             CALL "SendPacket-PingResponse" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT64
             IF ERRNO NOT = 0
@@ -558,7 +551,7 @@ HandleStatus SECTION.
             END-IF
             PERFORM DisconnectClient
         WHEN OTHER
-            DISPLAY "  Unexpected packet ID: " PACKET-ID
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
     END-EVALUATE.
 
     EXIT SECTION.
@@ -568,26 +561,21 @@ HandleLogin SECTION.
         *> Login start
         WHEN H'00'
             *> Decode username and UUID
-            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
+            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-USERNAME-LEN TEMP-USERNAME
             MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:16) TO TEMP-UUID
             ADD 16 TO PACKET-POSITION
-
-            CALL "UUID-ToString" USING TEMP-UUID TEMP-UUID-STR
-            DISPLAY "  Login with username: " BUFFER(1:BYTE-COUNT) " (UUID: " TEMP-UUID-STR ")"
 
             *> For testing, we want to allow the same UUID to connect multiple times with different usernames.
             *> Since this is an offline server, we can simply generate our own UUID to achieve this.
             *> For lack of a better implementation, we will simply use the bytes of the username as the UUID.
             MOVE X"00000000000000000000000000000000" TO TEMP-UUID
-            MOVE BUFFER(1:BYTE-COUNT) TO TEMP-UUID(1:BYTE-COUNT)
-            CALL "UUID-ToString" USING TEMP-UUID TEMP-UUID-STR
-            DISPLAY "  Generated UUID: " TEMP-UUID-STR
+            MOVE TEMP-USERNAME(1:TEMP-USERNAME-LEN) TO TEMP-UUID(1:TEMP-USERNAME-LEN)
 
             *> Check username against the whitelist
-            IF WHITELIST-ENABLE > 0 AND BUFFER(1:BYTE-COUNT) NOT = WHITELIST-PLAYER
-                DISPLAY "  Player not whitelisted: " BUFFER(1:BYTE-COUNT)
-                MOVE "Not whitelisted!" TO BUFFER
-                MOVE 16 TO BYTE-COUNT
+            IF WHITELIST-ENABLE > 0 AND TEMP-USERNAME(1:TEMP-USERNAME-LEN) NOT = WHITELIST-PLAYER
+                MOVE "You are not white-listed on this server!" TO BUFFER
+                MOVE 40 TO BYTE-COUNT
+                DISPLAY "Disconnecting " TEMP-USERNAME(1:TEMP-USERNAME-LEN) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
@@ -601,9 +589,11 @@ HandleLogin SECTION.
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-PLAYERS
                 *> Disallow the same UUID to connect multiple times.
                 IF PLAYER-CLIENT(TEMP-INT16) > 0 AND PLAYER-UUID(TEMP-INT16) = TEMP-UUID
-                    DISPLAY "  Cannot accept new player: " BUFFER(1:BYTE-COUNT) " (already connected)"
+                    *> TODO: Behave like the official server and disconnect the existing client instead, with
+                    *> the reason: "You logged in from another location".
                     MOVE "Already connected" TO BUFFER
                     MOVE 17 TO BYTE-COUNT
+                    DISPLAY "Disconnecting " TEMP-USERNAME(1:TEMP-USERNAME-LEN) ": " BUFFER(1:BYTE-COUNT)
                     CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
                     IF ERRNO NOT = 0
                         PERFORM HandleClientError
@@ -618,9 +608,8 @@ HandleLogin SECTION.
                     MOVE CLIENT-ID TO PLAYER-CLIENT(TEMP-INT16)
                     MOVE TEMP-INT16 TO CLIENT-PLAYER(CLIENT-ID)
                     *> store the username and UUID on the player
-                    MOVE SPACES TO USERNAME(TEMP-INT16)
-                    MOVE BUFFER(1:BYTE-COUNT) TO USERNAME(TEMP-INT16)
-                    MOVE BYTE-COUNT TO USERNAME-LENGTH(TEMP-INT16)
+                    MOVE TEMP-USERNAME(1:TEMP-USERNAME-LEN) TO USERNAME(TEMP-INT16)
+                    MOVE TEMP-USERNAME-LEN TO USERNAME-LENGTH(TEMP-INT16)
                     MOVE TEMP-UUID TO PLAYER-UUID(TEMP-INT16)
                     EXIT PERFORM
                 END-IF
@@ -628,9 +617,9 @@ HandleLogin SECTION.
 
             *> If no player slot was found, the server is full
             IF CLIENT-PLAYER(CLIENT-ID) = 0
-                DISPLAY "  Cannot accept new player: " BUFFER(1:BYTE-COUNT) " (server is full)"
-                MOVE "Server is full" TO BUFFER
-                MOVE 14 TO BYTE-COUNT
+                MOVE "The server is full" TO BUFFER
+                MOVE 18 TO BYTE-COUNT
+                DISPLAY "Disconnecting " TEMP-USERNAME(1:TEMP-USERNAME-LEN) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
@@ -648,18 +637,17 @@ HandleLogin SECTION.
         WHEN H'03'
             *> Must not happen before login start
             IF CLIENT-PLAYER(CLIENT-ID) = 0
-                DISPLAY "  Unexpected login acknowledge"
+                DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected login acknowledge"
                 PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
 
             *> Can move to configuration state
-            DISPLAY "  Acknowledged login"
             ADD 1 TO CLIENT-STATE(CLIENT-ID)
 
         WHEN OTHER
-            DISPLAY "  Unexpected packet ID: " PACKET-ID
-    END-EVALUATE.
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
+    END-EVALUATE
 
     EXIT SECTION.
 
@@ -667,8 +655,7 @@ HandleConfiguration SECTION.
     EVALUATE PACKET-ID
         *> Client information
         WHEN H'00'
-            *> Note: payload is ignored for now
-            DISPLAY "  Received client information"
+            *> Note: payload of this packet is ignored for now
 
             *> Send registry data
             CALL "SendPacket-Registry" USING CLIENT-HNDL(CLIENT-ID) ERRNO
@@ -694,16 +681,20 @@ HandleConfiguration SECTION.
             *> We now expect an acknowledge packet
             MOVE 1 TO CONFIG-FINISH(CLIENT-ID)
 
+        *> Serverbound plugin message
+        WHEN H'01'
+            *> Not implemented
+            CONTINUE
+
         *> Acknowledge finish configuration
         WHEN H'02'
             IF CONFIG-FINISH(CLIENT-ID) = 0
-                DISPLAY "  Unexpected acknowledge finish configuration"
+                DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected acknowledge finish configuration"
                 PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
 
             *> Can move to play state
-            DISPLAY "  Acknowledged finish configuration"
             ADD 1 TO CLIENT-STATE(CLIENT-ID)
 
             *> send "Login (play)" with player index as entity ID
@@ -809,16 +800,16 @@ HandleConfiguration SECTION.
             MOVE TEMP-INT16 TO CLIENT-ID
 
             *> send "<username> joined the game" to all clients in play state, except the current client
-            *> TODO: factor this out and reuse for join and leave messages
             MOVE 0 TO BYTE-COUNT
             MOVE USERNAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
             ADD USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
             MOVE " joined the game" TO BUFFER(BYTE-COUNT + 1:16)
             ADD 16 TO BYTE-COUNT
+            DISPLAY BUFFER(1:BYTE-COUNT)
             PERFORM BroadcastMessageExceptCurrent
 
         WHEN OTHER
-            DISPLAY "  Unexpected packet ID: " PACKET-ID
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
     END-EVALUATE.
 
     EXIT SECTION.
@@ -962,7 +953,7 @@ HandlePlay SECTION.
                         MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:BYTE-COUNT) TO PLAYER-INVENTORY-SLOT-NBT-DATA(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)(1:BYTE-COUNT)
                     ELSE
                         MOVE 0 TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
-                        DISPLAY "  Item NBT data too long: " BYTE-COUNT
+                        DISPLAY "Item NBT data too long: " BYTE-COUNT
                     END-IF
                 END-IF
             END-IF
@@ -1072,7 +1063,7 @@ HandleServerError SECTION.
 
 HandleClientError SECTION.
     IF ERRNO NOT = 0
-        DISPLAY "Client " CLIENT-ID " socket error: " ERRNO
+        DISPLAY "[client=" CLIENT-ID ", state=" CLIENT-STATE(CLIENT-ID) "] Socket error: " ERRNO
         PERFORM DisconnectClient
     END-IF.
 
