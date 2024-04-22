@@ -21,6 +21,7 @@ WORKING-STORAGE SECTION.
     01 C-MINECRAFT-ITEM             PIC X(50) VALUE "minecraft:item".
     01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
     01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
+    01 C-COLOR-WHITE                PIC X(16) VALUE "white".
     01 C-COLOR-YELLOW               PIC X(16) VALUE "yellow".
     *> A large buffer to hold JSON data before parsing.
     01 DATA-BUFFER          PIC X(10000000).
@@ -329,16 +330,30 @@ ConsoleInput SECTION.
     END-PERFORM
     MOVE TEMP-INT32 TO BYTE-COUNT
 
+    *> Look for the first space character (i.e., end of the command)
+    PERFORM VARYING TEMP-INT32 FROM 1 BY 1 UNTIL TEMP-INT32 > BYTE-COUNT
+       IF CONSOLE-INPUT(TEMP-INT32:1) = " "
+           EXIT PERFORM
+       END-IF
+    END-PERFORM
+    SUBTRACT 1 FROM TEMP-INT32
+
     *> Handle the command
-    EVALUATE CONSOLE-INPUT(1:BYTE-COUNT)
+    EVALUATE CONSOLE-INPUT(1:TEMP-INT32)
         WHEN "help"
             DISPLAY "Available commands:"
             DISPLAY "  /help - show this help"
+            DISPLAY "  /say <message> - broadcast a message"
             DISPLAY "  /stop - stop the server"
+        WHEN "say"
+            MOVE "[Server] " TO BUFFER
+            MOVE CONSOLE-INPUT(TEMP-INT32 + 2:BYTE-COUNT - TEMP-INT32 - 1) TO BUFFER(10:BYTE-COUNT - TEMP-INT32 - 1)
+            COMPUTE BYTE-COUNT = BYTE-COUNT - TEMP-INT32 - 1 + 9
+            PERFORM BroadcastMessage
         WHEN "stop"
             PERFORM StopServer
         WHEN OTHER
-            DISPLAY "Unknown command: " CONSOLE-INPUT(1:BYTE-COUNT)
+            DISPLAY "Unknown command: " CONSOLE-INPUT(1:TEMP-INT32)
     END-EVALUATE
 
     EXIT SECTION.
@@ -407,7 +422,6 @@ DisconnectClient SECTION.
         ADD USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
         MOVE " left the game" TO BUFFER(BYTE-COUNT + 1:14)
         ADD 14 TO BYTE-COUNT
-        DISPLAY BUFFER(1:BYTE-COUNT)
         PERFORM BroadcastMessageExceptCurrent
 
         *> remove the player from the player list, and despawn the player entity
@@ -437,11 +451,26 @@ DisconnectClient SECTION.
 
     EXIT SECTION.
 
+BroadcastMessage SECTION.
+    *> send BUFFER(1:BYTE-COUNT) to all clients in play state
+    DISPLAY BUFFER(1:BYTE-COUNT)
+    MOVE CLIENT-ID TO TEMP-INT16
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+        IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+            CALL "SendPacket-SystemChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT C-COLOR-WHITE
+            PERFORM HandleClientError
+        END-IF
+    END-PERFORM
+    MOVE TEMP-INT16 TO CLIENT-ID
+    EXIT SECTION.
+
 BroadcastMessageExceptCurrent SECTION.
     *> send BUFFER(1:BYTE-COUNT) to all clients in play state, except the current client
+    DISPLAY BUFFER(1:BYTE-COUNT)
     MOVE CLIENT-ID TO TEMP-INT16
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-ID NOT = TEMP-INT16 AND CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+            *> TODO: invent a way to pass the color to this routine
             CALL "SendPacket-SystemChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT C-COLOR-YELLOW
             PERFORM HandleClientError
         END-IF
@@ -854,7 +883,6 @@ HandleConfiguration SECTION.
             ADD USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
             MOVE " joined the game" TO BUFFER(BYTE-COUNT + 1:16)
             ADD 16 TO BYTE-COUNT
-            DISPLAY BUFFER(1:BYTE-COUNT)
             PERFORM BroadcastMessageExceptCurrent
 
         WHEN OTHER
