@@ -19,8 +19,6 @@ FILE SECTION.
 WORKING-STORAGE SECTION.
     *> Constants
     01 C-MINECRAFT-ITEM             PIC X(50) VALUE "minecraft:item".
-    01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
-    01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
     01 C-COLOR-WHITE                PIC X(16) VALUE "white".
     01 C-COLOR-YELLOW               PIC X(16) VALUE "yellow".
     *> A large buffer to hold JSON data before parsing.
@@ -90,6 +88,7 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT16           BINARY-SHORT.
     01 TEMP-INT32           BINARY-LONG.
     01 TEMP-INT64           BINARY-LONG-LONG.
+    01 TEMP-INT64-2         BINARY-LONG-LONG.
     01 TEMP-FLOAT           FLOAT-SHORT.
     01 TEMP-UUID            PIC X(16).
     01 TEMP-POSITION.
@@ -106,21 +105,8 @@ WORKING-STORAGE SECTION.
     *> Variables for working with chunks
     01 CHUNK-X              BINARY-LONG.
     01 CHUNK-Z              BINARY-LONG.
-    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
-    *> World storage (7x7 chunks, each 16x384x16 blocks)
-    01 WORLD-CHUNKS.
-        02 WORLD-CHUNKS-COUNT-X BINARY-LONG VALUE 7.
-        02 WORLD-CHUNKS-COUNT-Z BINARY-LONG VALUE 7.
-        02 WORLD-CHUNK OCCURS 49 TIMES.
-            03 WORLD-CHUNK-X BINARY-LONG.
-            03 WORLD-CHUNK-Z BINARY-LONG.
-            *> block IDs (16x384x16) - X increases fastest, then Z, then Y
-            03 WORLD-CHUNK-BLOCKS.
-                04 WORLD-BLOCK OCCURS 98304 TIMES.
-                    05 WORLD-BLOCK-ID BINARY-LONG UNSIGNED VALUE 0.
-    *> Age of the world in ticks. This modulo 24000 is the current time of day.
-    01 WORLD-AGE            BINARY-LONG-LONG.
+    *> TODO: remove need to access world data directly in this file
+    COPY DD-WORLD.
 
 LINKAGE SECTION.
     *> Configuration provided by main program
@@ -191,34 +177,8 @@ LoadBlocks.
 
 GenerateWorld.
     DISPLAY "Generating world"
-    PERFORM VARYING CHUNK-Z FROM -3 BY 1 UNTIL CHUNK-Z > 3
-        PERFORM VARYING CHUNK-X FROM -3 BY 1 UNTIL CHUNK-X > 3
-            COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
-            MOVE CHUNK-X TO WORLD-CHUNK-X(CHUNK-INDEX)
-            MOVE CHUNK-Z TO WORLD-CHUNK-Z(CHUNK-INDEX)
-
-            *> turn all blocks with Y < 63 (i.e., the bottom 128 blocks) into stone
-            CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-STONE TEMP-INT32
-            PERFORM VARYING TEMP-POSITION-Y FROM 0 BY 1 UNTIL TEMP-POSITION-Y >= 128
-                PERFORM VARYING TEMP-POSITION-Z FROM 0 BY 1 UNTIL TEMP-POSITION-Z >= 16
-                    PERFORM VARYING TEMP-POSITION-X FROM 0 BY 1 UNTIL TEMP-POSITION-X >= 16
-                        COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
-                        MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                    END-PERFORM
-                END-PERFORM
-            END-PERFORM
-
-            *> turn all blocks with Y = 63 (i.e., the top 16 blocks) into grass
-            CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-GRASS_BLOCK TEMP-INT32
-            MOVE 127 TO TEMP-POSITION-Y
-            PERFORM VARYING TEMP-POSITION-Z FROM 0 BY 1 UNTIL TEMP-POSITION-Z >= 16
-                PERFORM VARYING TEMP-POSITION-X FROM 0 BY 1 UNTIL TEMP-POSITION-X >= 16
-                    COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
-                    MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
-                END-PERFORM
-            END-PERFORM
-        END-PERFORM
-    END-PERFORM.
+    CALL "World-Generate"
+    .
 
 StartServer.
     DISPLAY "Starting server"
@@ -247,11 +207,12 @@ ServerLoop.
         END-PERFORM
 
         *> Send world time every second
-        IF FUNCTION MOD(WORLD-AGE, 20) = 0
-            COMPUTE TEMP-INT64 = FUNCTION MOD(WORLD-AGE, 24000)
+        CALL "World-GetAge" USING TEMP-INT64
+        IF FUNCTION MOD(TEMP-INT64, 20) = 0
+            CALL "World-GetTime" USING TEMP-INT64-2
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
-                    CALL "SendPacket-UpdateTime" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-AGE TEMP-INT64
+                    CALL "SendPacket-UpdateTime" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT64 TEMP-INT64-2
                     PERFORM HandleClientError
                 END-IF
             END-PERFORM
@@ -303,7 +264,7 @@ StopServer.
 
 GameLoop SECTION.
     *> Update the world age
-    ADD 1 TO WORLD-AGE
+    CALL "World-UpdateAge"
 
     EXIT SECTION.
 
@@ -784,8 +745,9 @@ HandleConfiguration SECTION.
             END-IF
 
             *> send world time
-            COMPUTE TEMP-INT64 = FUNCTION MOD(WORLD-AGE, 24000)
-            CALL "SendPacket-UpdateTime" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-AGE TEMP-INT64
+            CALL "World-GetAge" USING TEMP-INT64
+            CALL "World-GetTime" USING TEMP-INT64-2
+            CALL "SendPacket-UpdateTime" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT64 TEMP-INT64-2
             IF ERRNO NOT = 0
                 PERFORM HandleClientError
                 EXIT SECTION
@@ -830,8 +792,8 @@ HandleConfiguration SECTION.
             *> send chunk data ("Chunk Data and Update Light") for all chunks
             *> TODO: only send chunks around the player
             COMPUTE TEMP-INT32 = WORLD-CHUNKS-COUNT-X * WORLD-CHUNKS-COUNT-Z
-            PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > TEMP-INT32
-                CALL "SendPacket-ChunkData" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-CHUNK(CHUNK-INDEX)
+            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > TEMP-INT32
+                CALL "SendPacket-ChunkData" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-CHUNK(TEMP-INT16)
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
                     EXIT SECTION
@@ -967,14 +929,10 @@ HandlePlay SECTION.
                 WHEN TEMP-INT32 = 0
                     DIVIDE TEMP-POSITION-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
                     DIVIDE TEMP-POSITION-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
-                    COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
-                    COMPUTE TEMP-POSITION-X = FUNCTION MOD(TEMP-POSITION-X, 16)
-                    COMPUTE TEMP-POSITION-Z = FUNCTION MOD(TEMP-POSITION-Z, 16)
-                    COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y + 64
-                    COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
                     *> ignore face
                     CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
                     *> ensure the position is not outside the world
+                    *> TODO: make this dynamic based on world dimensions
                     IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
                         *> acknowledge the action
                         CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
@@ -984,22 +942,18 @@ HandlePlay SECTION.
                             EXIT SECTION
                         END-IF
                         *> update the block
-                        MOVE 0 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                        MOVE 0 TO TEMP-INT32
+                        CALL "World-SetBlock" USING TEMP-POSITION TEMP-INT32
+                        *> send the block update to all players
+                        MOVE CLIENT-ID TO TEMP-INT16
+                        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+                            IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+                                CALL "SendPacket-BlockUpdate" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-POSITION TEMP-INT32
+                                PERFORM HandleClientError
+                            END-IF
+                        END-PERFORM
+                        MOVE TEMP-INT16 TO CLIENT-ID
                     END-IF
-                    *> send the block update to all players
-                    COMPUTE TEMP-POSITION-X = CHUNK-X * 16 + TEMP-POSITION-X
-                    COMPUTE TEMP-POSITION-Z = CHUNK-Z * 16 + TEMP-POSITION-Z
-                    COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y - 64
-                    MOVE WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX) TO TEMP-INT32
-                    *> store the current client ID while we interact with other clients
-                    MOVE CLIENT-ID TO TEMP-INT16
-                    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-                        IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
-                            CALL "SendPacket-BlockUpdate" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-POSITION TEMP-INT32
-                            PERFORM HandleClientError
-                        END-IF
-                    END-PERFORM
-                    MOVE TEMP-INT16 TO CLIENT-ID
             END-EVALUATE
         *> Set held item
         WHEN H'2C'
@@ -1087,12 +1041,8 @@ HandlePlay SECTION.
             *> find the chunk and block index
             DIVIDE TEMP-POSITION-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
             DIVIDE TEMP-POSITION-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
-            COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
-            COMPUTE TEMP-POSITION-X = FUNCTION MOD(TEMP-POSITION-X, 16)
-            COMPUTE TEMP-POSITION-Z = FUNCTION MOD(TEMP-POSITION-Z, 16)
-            COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y + 64
-            COMPUTE BLOCK-INDEX = (TEMP-POSITION-Y * 16 + TEMP-POSITION-Z) * 16 + TEMP-POSITION-X + 1
             *> ensure the position is not outside the world
+            *> TODO: make this dynamic based on the world dimensions
             IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
                 *> acknowledge the action
                 CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
@@ -1107,16 +1057,14 @@ HandlePlay SECTION.
                 MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1) TO TEMP-INT32
                 CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-REGISTRY
                 CALL "Blocks-Get-DefaultStateId" USING TEMP-REGISTRY TEMP-INT32
+                MOVE TEMP-INT32 TO TEMP-INT16
                 *> Ensure the block was previously air
-                IF TEMP-INT32 > 0 AND WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX) = 0
-                    MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
+                IF TEMP-INT16 > 0 AND TEMP-INT32 = 0
+                    MOVE TEMP-INT16 TO TEMP-INT32
+                    CALL "World-SetBlock" USING TEMP-POSITION TEMP-INT32
                 END-IF
                 *> send the block update to all players
-                COMPUTE TEMP-POSITION-X = CHUNK-X * 16 + TEMP-POSITION-X
-                COMPUTE TEMP-POSITION-Z = CHUNK-Z * 16 + TEMP-POSITION-Z
-                COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y - 64
-                MOVE WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX) TO TEMP-INT32
-                *> store the current client ID while we interact with other clients
                 MOVE CLIENT-ID TO TEMP-INT16
                 PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                     IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4

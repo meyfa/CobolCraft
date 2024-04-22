@@ -1,0 +1,176 @@
+*> --- World-Generate ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-Generate.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> Constants
+    01 C-MINECRAFT-AIR              PIC X(50) VALUE "minecraft:air".
+    01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
+    01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
+    *> World data
+    COPY DD-WORLD.
+LOCAL-STORAGE SECTION.
+    01 CHUNK-X              BINARY-LONG.
+    01 CHUNK-Z              BINARY-LONG.
+    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
+    01 TEMP-INT32           BINARY-LONG.
+    01 TEMP-X               BINARY-LONG.
+    01 TEMP-Y               BINARY-LONG.
+    01 TEMP-Z               BINARY-LONG.
+
+PROCEDURE DIVISION.
+    MOVE 7 TO WORLD-CHUNKS-COUNT-X
+    MOVE 7 TO WORLD-CHUNKS-COUNT-Z
+
+    *> generate a flat world
+    PERFORM VARYING CHUNK-Z FROM -3 BY 1 UNTIL CHUNK-Z > 3
+        PERFORM VARYING CHUNK-X FROM -3 BY 1 UNTIL CHUNK-X > 3
+            COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
+            MOVE CHUNK-X TO WORLD-CHUNK-X(CHUNK-INDEX)
+            MOVE CHUNK-Z TO WORLD-CHUNK-Z(CHUNK-INDEX)
+
+            *> turn all blocks with Y < 63 (i.e., the bottom 128 blocks) into stone
+            CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-STONE TEMP-INT32
+            PERFORM VARYING TEMP-Y FROM 0 BY 1 UNTIL TEMP-Y >= 128
+                PERFORM VARYING TEMP-Z FROM 0 BY 1 UNTIL TEMP-Z >= 16
+                    PERFORM VARYING TEMP-X FROM 0 BY 1 UNTIL TEMP-X >= 16
+                        COMPUTE BLOCK-INDEX = (TEMP-Y * 16 + TEMP-Z) * 16 + TEMP-X + 1
+                        MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                    END-PERFORM
+                END-PERFORM
+            END-PERFORM
+
+            *> turn all blocks with Y = 63 (i.e., the top 16 blocks) into grass
+            CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-GRASS_BLOCK TEMP-INT32
+            MOVE 127 TO TEMP-Y
+            PERFORM VARYING TEMP-Z FROM 0 BY 1 UNTIL TEMP-Z >= 16
+                PERFORM VARYING TEMP-X FROM 0 BY 1 UNTIL TEMP-X >= 16
+                    COMPUTE BLOCK-INDEX = (TEMP-Y * 16 + TEMP-Z) * 16 + TEMP-X + 1
+                    MOVE TEMP-INT32 TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+                END-PERFORM
+            END-PERFORM
+
+            *> the rest is air
+            COMPUTE TEMP-INT32 = (128 * 16 + 0) * 16 + 0 + 1
+            PERFORM VARYING BLOCK-INDEX FROM TEMP-INT32 BY 1 UNTIL BLOCK-INDEX > LENGTH OF WORLD-BLOCK-ID(CHUNK-INDEX)
+                MOVE ZERO TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+            END-PERFORM
+        END-PERFORM
+    END-PERFORM
+
+    *> set the world age to 0
+    MOVE 0 TO WORLD-AGE
+
+    GOBACK.
+
+END PROGRAM World-Generate.
+
+*> --- World-GetBlock ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-GetBlock.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-WORLD.
+LOCAL-STORAGE SECTION.
+    01 CHUNK-X              BINARY-LONG.
+    01 CHUNK-Z              BINARY-LONG.
+    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-POSITION.
+        02 LK-X                 BINARY-LONG.
+        02 LK-Y                 BINARY-LONG.
+        02 LK-Z                 BINARY-LONG.
+    01 LK-BLOCK-ID          BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-POSITION LK-BLOCK-ID.
+    *> find the chunk and block index
+    DIVIDE LK-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
+    DIVIDE LK-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
+    *> TODO: make this computation dynamic based on world dimensions
+    COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
+    COMPUTE BLOCK-INDEX = ((LK-Y + 64) * 16 + (FUNCTION MOD(LK-Z, 16))) * 16 + (FUNCTION MOD(LK-X, 16)) + 1
+    MOVE WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX) TO LK-BLOCK-ID
+    GOBACK.
+
+END PROGRAM World-GetBlock.
+
+*> --- World-SetBlock ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-SetBlock.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-WORLD.
+LOCAL-STORAGE SECTION.
+    01 CHUNK-X              BINARY-LONG.
+    01 CHUNK-Z              BINARY-LONG.
+    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-POSITION.
+        02 LK-X                 BINARY-LONG.
+        02 LK-Y                 BINARY-LONG.
+        02 LK-Z                 BINARY-LONG.
+    01 LK-BLOCK-ID          BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-POSITION LK-BLOCK-ID.
+    *> find the chunk and block index
+    DIVIDE LK-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
+    DIVIDE LK-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
+    *> TODO: make this computation dynamic based on world dimensions
+    COMPUTE CHUNK-INDEX = (CHUNK-Z + 3) * 7 + CHUNK-X + 3 + 1
+    COMPUTE BLOCK-INDEX = ((LK-Y + 64) * 16 + (FUNCTION MOD(LK-Z, 16))) * 16 + (FUNCTION MOD(LK-X, 16)) + 1
+    MOVE LK-BLOCK-ID TO WORLD-BLOCK-ID(CHUNK-INDEX, BLOCK-INDEX)
+    GOBACK.
+
+END PROGRAM World-SetBlock.
+
+*> --- World-GetAge ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-GetAge.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-WORLD.
+LINKAGE SECTION.
+    01 LK-AGE               BINARY-LONG-LONG.
+
+PROCEDURE DIVISION USING LK-AGE.
+    MOVE WORLD-AGE TO LK-AGE
+    GOBACK.
+
+END PROGRAM World-GetAge.
+
+*> --- World-GetTime ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-GetTime.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-WORLD.
+LINKAGE SECTION.
+    01 LK-TIME              BINARY-LONG-LONG.
+
+PROCEDURE DIVISION USING LK-TIME.
+    MOVE FUNCTION MOD(WORLD-AGE, 24000) TO LK-TIME
+    GOBACK.
+
+END PROGRAM World-GetTime.
+
+*> --- World-UpdateAge ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-UpdateAge.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-WORLD.
+
+PROCEDURE DIVISION.
+    ADD 1 TO WORLD-AGE
+    GOBACK.
+
+END PROGRAM World-UpdateAge.
