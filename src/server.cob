@@ -21,6 +21,7 @@ WORKING-STORAGE SECTION.
     01 C-MINECRAFT-ITEM             PIC X(50) VALUE "minecraft:item".
     01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
     01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
+    01 C-COLOR-YELLOW               PIC X(16) VALUE "yellow".
     *> A large buffer to hold JSON data before parsing.
     01 DATA-BUFFER          PIC X(10000000).
     01 DATA-BUFFER-LEN      BINARY-LONG UNSIGNED    VALUE 0.
@@ -441,7 +442,7 @@ BroadcastMessageExceptCurrent SECTION.
     MOVE CLIENT-ID TO TEMP-INT16
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-ID NOT = TEMP-INT16 AND CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
-            CALL "SendPacket-SystemChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+            CALL "SendPacket-SystemChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT C-COLOR-YELLOW
             PERFORM HandleClientError
         END-IF
     END-PERFORM
