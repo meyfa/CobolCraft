@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-PlayerChat.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'37'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'39'.
     *> temporary data used during encoding
     01 UINT16           BINARY-SHORT UNSIGNED.
     01 INT32            BINARY-LONG.

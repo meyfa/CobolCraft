@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-LoginPlay.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'29'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'2B'.
     *> temporary data used during encoding
     01 INT32            BINARY-LONG.
     01 BUFFER           PIC X(64).
@@ -70,11 +70,12 @@ PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-ENTITY-ID.
     ADD 1 TO PAYLOADLEN
     MOVE X"00" TO PAYLOAD(PAYLOADLEN:1)
 
-    *> dimension type="minecraft:overworld"
-    ADD 1 TO PAYLOADLEN
-    MOVE FUNCTION CHAR(19 + 1) TO PAYLOAD(PAYLOADLEN:1)
-    MOVE "minecraft:overworld" TO PAYLOAD(PAYLOADLEN + 1:19)
-    ADD 19 TO PAYLOADLEN
+    *> dimension type (ID in the minecraft:dimension_type registry)
+    *> TODO: get this from the registry
+    MOVE 0 TO INT32
+    CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+    MOVE BUFFER(1:BUFFERLEN) TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
+    ADD BUFFERLEN TO PAYLOADLEN
 
     *> dimension name="minecraft:overworld"
     ADD 1 TO PAYLOADLEN
@@ -107,6 +108,10 @@ PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-ENTITY-ID.
     MOVE X"00" TO PAYLOAD(PAYLOADLEN:1)
 
     *> portal cooldown=0
+    ADD 1 TO PAYLOADLEN
+    MOVE X"00" TO PAYLOAD(PAYLOADLEN:1)
+
+    *> enforces secure chat=false
     ADD 1 TO PAYLOADLEN
     MOVE X"00" TO PAYLOAD(PAYLOADLEN:1)
 
