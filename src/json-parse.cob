@@ -489,8 +489,6 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG.
         WHEN "0" THRU "9" *> float or integer
             CALL "JsonParse-Float" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-FLOAT
 
-        *> TODO: implement floating point numbers
-
         WHEN "[" *> array
             CALL "JsonParse-ArrayStart" USING LK-INPUT LK-OFFSET LK-FLAG
             IF LK-FLAG = 1

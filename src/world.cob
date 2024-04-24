@@ -67,6 +67,30 @@ PROCEDURE DIVISION.
 
 END PROGRAM World-Generate.
 
+*> --- World-CheckBounds ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-CheckBounds.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-WORLD.
+LINKAGE SECTION.
+    01 LK-POSITION.
+        02 LK-X                 BINARY-LONG.
+        02 LK-Y                 BINARY-LONG.
+        02 LK-Z                 BINARY-LONG.
+    01 LK-RESULT            BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-POSITION LK-RESULT.
+    IF LK-Y < -64 OR LK-Y > 319 THEN
+        MOVE 1 TO LK-RESULT
+    ELSE
+        MOVE 0 TO LK-RESULT
+    END-IF
+    GOBACK.
+
+END PROGRAM World-CheckBounds.
+
 *> --- World-GetBlock ---
 IDENTIFICATION DIVISION.
 PROGRAM-ID. World-GetBlock.
