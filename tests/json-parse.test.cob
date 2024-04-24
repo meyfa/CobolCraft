@@ -14,6 +14,7 @@ PROCEDURE DIVISION.
     CALL "Test-JsonParse-Null"
     CALL "Test-JsonParse-Boolean"
     CALL "Test-JsonParse-Integer"
+    CALL "Test-JsonParse-Float"
     CALL "Test-JsonParse-SkipValue"
     GOBACK.
 
@@ -535,6 +536,90 @@ PROCEDURE DIVISION.
 
     END PROGRAM Test-JsonParse-Integer.
 
+    *> --- Test: JsonParse-Float ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-JsonParse-Float.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 STR          PIC X(100).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 FLAG         BINARY-CHAR UNSIGNED.
+        01 RESULT       FLOAT-LONG.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: JsonParse-Float".
+    FloatZero.
+        DISPLAY "    Case: '  0.0  ' - " WITH NO ADVANCING
+        MOVE "  0.0  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 6 AND FLAG = 0 AND RESULT = 0.0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    PositiveInt.
+        DISPLAY "    Case: '  123  ' - " WITH NO ADVANCING
+        MOVE "  123  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 6 AND FLAG = 0 AND RESULT = 123
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeInt.
+        DISPLAY "    Case: '  -123  ' - " WITH NO ADVANCING
+        MOVE "  -123  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 7 AND FLAG = 0 AND RESULT = -123
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    PositiveFloat.
+        DISPLAY "    Case: '  123.456  ' - " WITH NO ADVANCING
+        MOVE "  123.456  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 123.456
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeFloat.
+        DISPLAY "    Case: '  -123.456  ' - " WITH NO ADVANCING
+        MOVE "  -123.456  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 11 AND FLAG = 0 AND RESULT = -123.456
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Missing.
+        DISPLAY "    Case: '  ' - " WITH NO ADVANCING
+        MOVE "  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 0 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF FLAG = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-JsonParse-Float.
+
     *> --- Test: JsonParse-SkipValue ---
     IDENTIFICATION DIVISION.
     PROGRAM-ID. Test-JsonParse-SkipValue.
@@ -565,6 +650,28 @@ PROCEDURE DIVISION.
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
         IF OFFSET = 9 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    PositiveFloat.
+        DISPLAY "    Case: '    123.456  ' - " WITH NO ADVANCING
+        MOVE "    123.456  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
+        IF OFFSET = 12 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeFloat.
+        DISPLAY "    Case: '    -123.456  ' - " WITH NO ADVANCING
+        MOVE "    -123.456  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
+        IF OFFSET = 13 AND FLAG = 0
             DISPLAY "PASS"
         ELSE
             DISPLAY "FAIL"
