@@ -393,6 +393,58 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
 
 END PROGRAM JsonParse-Integer.
 
+*> --- JsonParse-Float ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. JsonParse-Float.
+
+DATA DIVISION.
+LOCAL-STORAGE SECTION.
+    01 INT-VALUE        BINARY-LONG.
+    01 CHARCODE         BINARY-CHAR UNSIGNED.
+    01 CHAR-COUNT       BINARY-LONG UNSIGNED    VALUE 0.
+    01 MULTIPLIER       FLOAT-LONG.
+LINKAGE SECTION.
+    01 LK-INPUT         PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+    01 LK-FLAG          BINARY-CHAR UNSIGNED.
+    01 LK-VALUE         FLOAT-LONG.
+
+PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
+    *> TODO support scientific notation
+    *> start by reading the integer part
+    CALL "JsonParse-Integer" USING LK-INPUT LK-OFFSET LK-FLAG INT-VALUE
+    MOVE INT-VALUE TO LK-VALUE
+    *> abort on error, or if there is no decimal point
+    IF LK-FLAG NOT = 0 OR LK-OFFSET > (LENGTH OF LK-INPUT) OR LK-INPUT(LK-OFFSET:1) NOT = "."
+        GOBACK
+    END-IF
+    ADD 1 TO LK-OFFSET
+    *> read digits after the decimal point
+    IF LK-VALUE < 0
+        MOVE -0.1 TO MULTIPLIER
+    ELSE
+        MOVE 0.1 TO MULTIPLIER
+    END-IF
+    PERFORM UNTIL LK-OFFSET > (LENGTH OF LK-INPUT)
+        COMPUTE CHARCODE = FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) - 1
+        *> exit the loop once a non-digit character is found
+        IF CHARCODE < 48 OR CHARCODE > 57
+            EXIT PERFORM
+        END-IF
+        COMPUTE LK-VALUE = LK-VALUE + (CHARCODE - 48) * MULTIPLIER
+        COMPUTE MULTIPLIER = MULTIPLIER / 10
+        ADD 1 TO LK-OFFSET
+        ADD 1 TO CHAR-COUNT
+    END-PERFORM
+    *> check if at least one digit was found
+    IF CHAR-COUNT = 0
+        MOVE 1 TO LK-FLAG
+        GOBACK
+    END-IF
+    GOBACK.
+
+END PROGRAM JsonParse-Float.
+
 *> --- JsonParse-SkipValue ---
 IDENTIFICATION DIVISION.
 PROGRAM-ID. JsonParse-SkipValue IS RECURSIVE.
@@ -401,7 +453,7 @@ DATA DIVISION.
 LOCAL-STORAGE SECTION.
     01 EXIT-LOOP        BINARY-CHAR UNSIGNED.
     01 DUMMY-STR        PIC X(1000).
-    01 DUMMY-INT        BINARY-LONG.
+    01 DUMMY-FLOAT      FLOAT-LONG.
     01 DUMMY-BOOL       BINARY-CHAR UNSIGNED.
 LINKAGE SECTION.
     01 LK-INPUT         PIC X ANY LENGTH.
@@ -431,11 +483,11 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG.
         WHEN '"' *> string
             CALL "JsonParse-String" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-STR
 
-        WHEN "-" *> integer
-            CALL "JsonParse-Integer" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-INT
+        WHEN "-" *> float or integer
+            CALL "JsonParse-Float" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-FLOAT
 
-        WHEN "0" THRU "9" *> integer
-            CALL "JsonParse-Integer" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-INT
+        WHEN "0" THRU "9" *> float or integer
+            CALL "JsonParse-Float" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-FLOAT
 
         *> TODO: implement floating point numbers
 
