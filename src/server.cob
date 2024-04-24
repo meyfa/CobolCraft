@@ -938,13 +938,11 @@ HandlePlay SECTION.
             EVALUATE TRUE
                 *> started digging
                 WHEN TEMP-INT32 = 0
-                    DIVIDE TEMP-POSITION-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
-                    DIVIDE TEMP-POSITION-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
                     *> ignore face
                     CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
                     *> ensure the position is not outside the world
-                    *> TODO: make this dynamic based on world dimensions
-                    IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
+                    CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
+                    IF TEMP-INT8 = 0
                         *> acknowledge the action
                         CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
                         CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
@@ -1024,9 +1022,9 @@ HandlePlay SECTION.
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0
                 *> compute the inventory slot
-                COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
+                COMPUTE TEMP-INT16 = 36 + PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             ELSE
-                MOVE 45 TO TEMP-INT8
+                MOVE 45 TO TEMP-INT16
             END-IF
             *> block position
             CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
@@ -1049,12 +1047,9 @@ HandlePlay SECTION.
                 WHEN 5
                     COMPUTE TEMP-POSITION-X = TEMP-POSITION-X + 1
             END-EVALUATE
-            *> find the chunk and block index
-            DIVIDE TEMP-POSITION-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
-            DIVIDE TEMP-POSITION-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
             *> ensure the position is not outside the world
-            *> TODO: make this dynamic based on the world dimensions
-            IF CHUNK-X >= -3 AND CHUNK-X <= 3 AND CHUNK-Z >= -3 AND CHUNK-Z <= 3 AND TEMP-POSITION-Y >= 0 AND TEMP-POSITION-Y < 384
+            CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
+            IF TEMP-INT8 = 0
                 *> acknowledge the action
                 CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
                 CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
@@ -1065,7 +1060,7 @@ HandlePlay SECTION.
                 *> Determine the block to place by converting the item ID to a registry string, then looking for an
                 *> identically named block in the blocks list.
                 *> For example: item 27 -> "minecraft:grass_block" -> block state 9.
-                MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT8 + 1) TO TEMP-INT32
+                MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
                 CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-REGISTRY
                 CALL "Blocks-Get-DefaultStateId" USING TEMP-REGISTRY TEMP-INT32
                 MOVE TEMP-INT32 TO TEMP-INT16
