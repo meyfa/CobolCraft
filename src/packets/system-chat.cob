@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-SystemChat.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'69'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'6C'.
     *> temporary data used during encoding
     01 UINT16           BINARY-SHORT UNSIGNED.
     01 BUFFER           PIC X(8).

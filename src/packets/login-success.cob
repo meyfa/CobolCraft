@@ -37,6 +37,10 @@ PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-PLAYER-UUID LK-USERNAME LK-USERNAME
 
     *> properties (omitted)
 
+    *> disconnect on invalid data
+    MOVE X"01" TO PAYLOAD(PAYLOADLEN + 1:1)
+    ADD 1 TO PAYLOADLEN
+
     *> Send the packet
     CALL "SendPacket" USING LK-HNDL PACKET-ID PAYLOAD PAYLOADLEN LK-ERRNO
     GOBACK.

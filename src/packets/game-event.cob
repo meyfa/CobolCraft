@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-GameEvent.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'20'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'22'.
     *> temporary data used during encoding
     01 BUFFER           PIC X(8).
     01 BUFFERLEN        BINARY-LONG UNSIGNED.

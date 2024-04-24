@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-FinishConfiguration.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'02'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'03'.
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(1).
     01 PAYLOADLEN       BINARY-LONG UNSIGNED    VALUE 0.

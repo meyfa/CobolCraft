@@ -1,6 +1,6 @@
 # CobolCraft
 
-A Minecraft server written in COBOL. It supports Minecraft 1.20.4 (the latest version at time of writing).
+A Minecraft server written in COBOL. It supports Minecraft 1.20.5 (the latest version at time of writing).
 
 ## Progress/TODO
 

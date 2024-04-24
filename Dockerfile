@@ -1,10 +1,11 @@
 # --- Build stage ---
-FROM debian:bookworm-slim AS build
+# Need to use ubuntu instead of debian to get a recent Java version
+FROM ubuntu:jammy AS build
 
 # Install packages required for building
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
-    apt-get install -y gcc g++ make gnucobol curl default-jre-headless && \
+    apt-get install -y gcc g++ make gnucobol curl openjdk-21-jre-headless && \
     rm -rf /var/lib/apt/lists/*
 
 # Perform data extraction first to allow Docker to cache this layer
@@ -20,7 +21,7 @@ COPY blobs ./blobs
 RUN make
 
 # --- Runtime stage ---
-FROM debian:bookworm-slim
+FROM ubuntu:jammy
 
 # Install runtime packages
 ENV DEBIAN_FRONTEND=noninteractive
