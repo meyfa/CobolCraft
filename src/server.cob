@@ -61,8 +61,8 @@ WORKING-STORAGE SECTION.
     01 PLAYERS OCCURS 10 TIMES.
         02 PLAYER-CLIENT        BINARY-LONG UNSIGNED    VALUE 0.
         02 PLAYER-UUID          PIC X(16).
-        02 USERNAME             PIC X(16).
-        02 USERNAME-LENGTH      BINARY-LONG.
+        02 PLAYER-NAME          PIC X(16).
+        02 PLAYER-NAME-LENGTH   BINARY-LONG.
         02 PLAYER-POSITION.
             03 PLAYER-X             FLOAT-LONG              VALUE 0.
             03 PLAYER-Y             FLOAT-LONG              VALUE 64.
@@ -95,8 +95,8 @@ WORKING-STORAGE SECTION.
         02 TEMP-POSITION-X      BINARY-LONG.
         02 TEMP-POSITION-Y      BINARY-LONG.
         02 TEMP-POSITION-Z      BINARY-LONG.
-    01 TEMP-USERNAME        PIC X(16).
-    01 TEMP-USERNAME-LEN    BINARY-LONG.
+    01 TEMP-PLAYER-NAME     PIC X(16).
+    01 TEMP-PLAYER-NAME-LEN BINARY-LONG.
     01 TEMP-REGISTRY        PIC X(100)              VALUE SPACES.
     *> Time measurement
     01 CURRENT-TIME         BINARY-LONG-LONG.
@@ -397,8 +397,8 @@ DisconnectClient SECTION.
     IF CLIENT-STATE(CLIENT-ID) = 4
         *> send "<username> left the game" to all clients in play state, except the current client
         MOVE 0 TO BYTE-COUNT
-        MOVE USERNAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
-        ADD USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
+        MOVE PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
+        ADD PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
         MOVE " left the game" TO BUFFER(BYTE-COUNT + 1:14)
         ADD 14 TO BYTE-COUNT
         PERFORM BroadcastMessageExceptCurrent
@@ -621,7 +621,7 @@ HandleLogin SECTION.
         *> Login start
         WHEN H'00'
             *> Decode username and UUID
-            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-USERNAME-LEN TEMP-USERNAME
+            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-PLAYER-NAME-LEN TEMP-PLAYER-NAME
             MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:16) TO TEMP-UUID
             ADD 16 TO PACKET-POSITION
 
@@ -629,13 +629,13 @@ HandleLogin SECTION.
             *> Since this is an offline server, we can simply generate our own UUID to achieve this.
             *> For lack of a better implementation, we will simply use the bytes of the username as the UUID.
             MOVE X"00000000000000000000000000000000" TO TEMP-UUID
-            MOVE TEMP-USERNAME(1:TEMP-USERNAME-LEN) TO TEMP-UUID(1:TEMP-USERNAME-LEN)
+            MOVE TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) TO TEMP-UUID(1:TEMP-PLAYER-NAME-LEN)
 
             *> Check username against the whitelist
-            IF WHITELIST-ENABLE > 0 AND TEMP-USERNAME(1:TEMP-USERNAME-LEN) NOT = WHITELIST-PLAYER
+            IF WHITELIST-ENABLE > 0 AND TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) NOT = WHITELIST-PLAYER
                 MOVE "You are not white-listed on this server!" TO BUFFER
                 MOVE 40 TO BYTE-COUNT
-                DISPLAY "Disconnecting " TEMP-USERNAME(1:TEMP-USERNAME-LEN) ": " BUFFER(1:BYTE-COUNT)
+                DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
@@ -654,19 +654,19 @@ HandleLogin SECTION.
                     MOVE PLAYER-CLIENT(TEMP-INT8) TO CLIENT-ID
                     MOVE "You logged in from another location" TO BUFFER
                     MOVE 35 TO BYTE-COUNT
-                    DISPLAY "Disconnecting " USERNAME(TEMP-INT8)(1:USERNAME-LENGTH(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
+                    DISPLAY "Disconnecting " PLAYER-NAME(TEMP-INT8)(1:PLAYER-NAME-LENGTH(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
                     *> TODO: Send the message to the existing client
                     PERFORM DisconnectClient
                     MOVE TEMP-INT64 TO CLIENT-ID
                 END-IF
                 *> Once we find an unused slot with either the same UUID or no player, we can stop searching.
-                IF PLAYER-CLIENT(TEMP-INT8) = 0 AND (PLAYER-UUID(TEMP-INT8) = TEMP-UUID OR USERNAME-LENGTH(TEMP-INT8) = 0)
+                IF PLAYER-CLIENT(TEMP-INT8) = 0 AND (PLAYER-UUID(TEMP-INT8) = TEMP-UUID OR PLAYER-NAME-LENGTH(TEMP-INT8) = 0)
                     *> associate the player with the client
                     MOVE CLIENT-ID TO PLAYER-CLIENT(TEMP-INT8)
                     MOVE TEMP-INT8 TO CLIENT-PLAYER(CLIENT-ID)
                     *> store the username and UUID on the player
-                    MOVE TEMP-USERNAME(1:TEMP-USERNAME-LEN) TO USERNAME(TEMP-INT8)
-                    MOVE TEMP-USERNAME-LEN TO USERNAME-LENGTH(TEMP-INT8)
+                    MOVE TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) TO PLAYER-NAME(TEMP-INT8)
+                    MOVE TEMP-PLAYER-NAME-LEN TO PLAYER-NAME-LENGTH(TEMP-INT8)
                     MOVE TEMP-UUID TO PLAYER-UUID(TEMP-INT8)
                     EXIT PERFORM
                 END-IF
@@ -676,7 +676,7 @@ HandleLogin SECTION.
             IF CLIENT-PLAYER(CLIENT-ID) = 0
                 MOVE "The server is full" TO BUFFER
                 MOVE 18 TO BYTE-COUNT
-                DISPLAY "Disconnecting " TEMP-USERNAME(1:TEMP-USERNAME-LEN) ": " BUFFER(1:BYTE-COUNT)
+                DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
@@ -687,7 +687,7 @@ HandleLogin SECTION.
             END-IF
 
             *> Send login success. This should result in a "login acknowledged" packet by the client.
-            CALL "SendPacket-LoginSuccess" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) USERNAME(CLIENT-PLAYER(CLIENT-ID)) USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))
+            CALL "SendPacket-LoginSuccess" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))
             PERFORM HandleClientError
 
         *> Login acknowledge
@@ -830,7 +830,7 @@ HandleConfiguration SECTION.
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
                 IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = 4
                     MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
-                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
+                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) PLAYER-NAME-LENGTH(TEMP-INT32)
                     IF ERRNO = 0 AND TEMP-INT16 NOT = CLIENT-ID
                         CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                     END-IF
@@ -854,7 +854,7 @@ HandleConfiguration SECTION.
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4 AND CLIENT-ID NOT = TEMP-INT16
-                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) USERNAME(TEMP-INT32) USERNAME-LENGTH(TEMP-INT32)
+                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) PLAYER-NAME-LENGTH(TEMP-INT32)
                     PERFORM HandleClientError
                     *> spawn a player entity
                     IF ERRNO = 0
@@ -867,8 +867,8 @@ HandleConfiguration SECTION.
 
             *> send "<username> joined the game" to all clients in play state, except the current client
             MOVE 0 TO BYTE-COUNT
-            MOVE USERNAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
-            ADD USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
+            MOVE PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
+            ADD PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
             MOVE " joined the game" TO BUFFER(BYTE-COUNT + 1:16)
             ADD 16 TO BYTE-COUNT
             PERFORM BroadcastMessageExceptCurrent
@@ -900,13 +900,13 @@ HandlePlay SECTION.
                 EXIT SECTION
             END-IF
             *> display the message in the server console
-            DISPLAY "<" USERNAME(CLIENT-PLAYER(CLIENT-ID))(1:USERNAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))) "> " BUFFER(1:BYTE-COUNT)
+            DISPLAY "<" PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))(1:PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))) "> " BUFFER(1:BYTE-COUNT)
             *> send the message to all clients in play state
             MOVE CLIENT-ID TO TEMP-INT16
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
-                    CALL "SendPacket-PlayerChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) USERNAME(TEMP-INT32) BUFFER BYTE-COUNT
+                    CALL "SendPacket-PlayerChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) BUFFER BYTE-COUNT
                     PERFORM HandleClientError
                 END-IF
             END-PERFORM
