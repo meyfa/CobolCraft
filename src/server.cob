@@ -54,30 +54,9 @@ WORKING-STORAGE SECTION.
     *> The client handle of the connection that is currently being processed, and the index in the CLIENTS array
     01 TEMP-HNDL            PIC X(4).
     01 CLIENT-ID            BINARY-LONG UNSIGNED.
-    *> Player data. Once a new player is connected, their data is stored here. When they disconnect, the client is
-    *> set to 0, but the player data remains to be reclaimed if the same player connects again.
     *> TODO: add some way of offloading player data to disk
-    01 MAX-PLAYERS          BINARY-LONG UNSIGNED    VALUE 10.
-    01 PLAYERS OCCURS 10 TIMES.
-        02 PLAYER-CLIENT        BINARY-LONG UNSIGNED    VALUE 0.
-        02 PLAYER-UUID          PIC X(16).
-        02 PLAYER-NAME          PIC X(16).
-        02 PLAYER-NAME-LENGTH   BINARY-LONG.
-        02 PLAYER-POSITION.
-            03 PLAYER-X             FLOAT-LONG              VALUE 0.
-            03 PLAYER-Y             FLOAT-LONG              VALUE 64.
-            03 PLAYER-Z             FLOAT-LONG              VALUE 0.
-        02 PLAYER-ROTATION.
-            03 PLAYER-YAW           FLOAT-SHORT             VALUE 0.
-            03 PLAYER-PITCH         FLOAT-SHORT             VALUE 0.
-        02 PLAYER-INVENTORY.
-            03 PLAYER-INVENTORY-SLOT OCCURS 46 TIMES.
-                *> If no item is present, the count is 0 and the ID is -1
-                04 PLAYER-INVENTORY-SLOT-ID         BINARY-LONG             VALUE 0.
-                04 PLAYER-INVENTORY-SLOT-COUNT      BINARY-CHAR UNSIGNED    VALUE 0.
-                04 PLAYER-INVENTORY-SLOT-NBT-LENGTH BINARY-SHORT UNSIGNED   VALUE 0.
-                04 PLAYER-INVENTORY-SLOT-NBT-DATA   PIC X(1024).
-        02 PLAYER-HOTBAR    BINARY-CHAR UNSIGNED    VALUE 0.
+    *> TODO: remove need to access player data directly in this file
+    COPY DD-PLAYERS.
     *> Incoming/outgoing packet data
     01 PACKET-ID            BINARY-LONG.
     01 PACKET-POSITION      BINARY-LONG UNSIGNED.
@@ -96,7 +75,7 @@ WORKING-STORAGE SECTION.
         02 TEMP-POSITION-Y      BINARY-LONG.
         02 TEMP-POSITION-Z      BINARY-LONG.
     01 TEMP-PLAYER-NAME     PIC X(16).
-    01 TEMP-PLAYER-NAME-LEN BINARY-LONG.
+    01 TEMP-PLAYER-NAME-LEN BINARY-LONG UNSIGNED.
     01 TEMP-REGISTRY        PIC X(100)              VALUE SPACES.
     *> Time measurement
     01 CURRENT-TIME         BINARY-LONG-LONG.
@@ -177,11 +156,14 @@ LoadBlocks.
 
 GenerateWorld.
     DISPLAY "Loading world"
+    *> prepare chunks
     CALL "World-Load" USING TEMP-INT8
     IF TEMP-INT8 NOT = 0
         DISPLAY "Failed to load world"
         STOP RUN
     END-IF
+    *> prepare player data
+    CALL "Players-Init"
     .
 
 StartServer.
@@ -424,7 +406,7 @@ DisconnectClient SECTION.
 
     *> If there is an associated player, remove the association
     IF CLIENT-PLAYER(CLIENT-ID) > 0
-        MOVE 0 TO PLAYER-CLIENT(CLIENT-PLAYER(CLIENT-ID))
+        CALL "Players-Disconnect" USING CLIENT-PLAYER(CLIENT-ID)
         MOVE 0 TO CLIENT-PLAYER(CLIENT-ID)
     END-IF
 
@@ -645,32 +627,22 @@ HandleLogin SECTION.
                 EXIT SECTION
             END-IF
 
+            *> If the player is already connected, disconnect them first
+            CALL "Players-FindConnectedByUUID" USING TEMP-UUID TEMP-INT8
+            IF TEMP-INT8 > 0
+                MOVE "You logged in from another location" TO BUFFER
+                MOVE 35 TO BYTE-COUNT
+                DISPLAY "Disconnecting " PLAYER-NAME(TEMP-INT8)(1:PLAYER-NAME-LENGTH(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
+                MOVE CLIENT-ID TO TEMP-INT64
+                MOVE PLAYER-CLIENT(TEMP-INT8) TO CLIENT-ID
+                *> TODO: Send the message to the existing client
+                PERFORM DisconnectClient
+                MOVE TEMP-INT64 TO CLIENT-ID
+            END-IF
+
             *> Try to find an existing player for the UUID, or find a free slot to add a new player.
-            PERFORM VARYING TEMP-INT8 FROM 1 BY 1 UNTIL TEMP-INT8 > MAX-PLAYERS
-                *> If the player is already connected, disconnect the existing client to replace it
-                IF PLAYER-CLIENT(TEMP-INT8) > 0 AND PLAYER-UUID(TEMP-INT8) = TEMP-UUID
-                    *> TODO: fix fragile save/restore of temporary variables
-                    MOVE CLIENT-ID TO TEMP-INT64
-                    MOVE PLAYER-CLIENT(TEMP-INT8) TO CLIENT-ID
-                    MOVE "You logged in from another location" TO BUFFER
-                    MOVE 35 TO BYTE-COUNT
-                    DISPLAY "Disconnecting " PLAYER-NAME(TEMP-INT8)(1:PLAYER-NAME-LENGTH(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
-                    *> TODO: Send the message to the existing client
-                    PERFORM DisconnectClient
-                    MOVE TEMP-INT64 TO CLIENT-ID
-                END-IF
-                *> Once we find an unused slot with either the same UUID or no player, we can stop searching.
-                IF PLAYER-CLIENT(TEMP-INT8) = 0 AND (PLAYER-UUID(TEMP-INT8) = TEMP-UUID OR PLAYER-NAME-LENGTH(TEMP-INT8) = 0)
-                    *> associate the player with the client
-                    MOVE CLIENT-ID TO PLAYER-CLIENT(TEMP-INT8)
-                    MOVE TEMP-INT8 TO CLIENT-PLAYER(CLIENT-ID)
-                    *> store the username and UUID on the player
-                    MOVE TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) TO PLAYER-NAME(TEMP-INT8)
-                    MOVE TEMP-PLAYER-NAME-LEN TO PLAYER-NAME-LENGTH(TEMP-INT8)
-                    MOVE TEMP-UUID TO PLAYER-UUID(TEMP-INT8)
-                    EXIT PERFORM
-                END-IF
-            END-PERFORM
+            CALL "Players-Connect" USING CLIENT-ID TEMP-UUID TEMP-PLAYER-NAME TEMP-PLAYER-NAME-LEN TEMP-INT8
+            MOVE TEMP-INT8 TO CLIENT-PLAYER(CLIENT-ID)
 
             *> If no player slot was found, the server is full
             IF CLIENT-PLAYER(CLIENT-ID) = 0
