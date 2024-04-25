@@ -77,7 +77,7 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
             GOBACK
         END-IF
 
-        *> Loop over each key in the object. We only care about the "states" key.
+        *> Loop over each key in the object.
         PERFORM UNTIL EXIT
             *> Read the key.
             CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE OBJECT-KEY
@@ -86,6 +86,35 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
             END-IF
 
             EVALUATE OBJECT-KEY
+                WHEN "properties"
+                    *> Expect the start of the properties object.
+                    CALL "JsonParse-ObjectStart" USING LK-JSON LK-OFFSET LK-FAILURE
+                    IF LK-FAILURE NOT = 0
+                        GOBACK
+                    END-IF
+
+                    *> Loop over each key in the properties object, each representing a block property.
+                    PERFORM UNTIL EXIT
+                        *> Read the property.
+                        ADD 1 TO BLOCK-ENTRY-PROPERTY-COUNT(LK-BLOCK)
+                        CALL "Blocks-Parse-Property" USING LK-JSON LK-OFFSET LK-FAILURE BLOCK-ENTRY-PROPERTY(LK-BLOCK, BLOCK-ENTRY-PROPERTY-COUNT(LK-BLOCK))
+                        IF LK-FAILURE NOT = 0
+                            GOBACK
+                        END-IF
+
+                        *> Check if there is a comma; if not, exit the loop.
+                        CALL "JsonParse-Comma" USING LK-JSON LK-OFFSET EXIT-LOOP
+                        IF EXIT-LOOP = 1
+                            EXIT PERFORM
+                        END-IF
+                    END-PERFORM
+
+                    *> Expect the end of the properties object.
+                    CALL "JsonParse-ObjectEnd" USING LK-JSON LK-OFFSET LK-FAILURE
+                    IF LK-FAILURE NOT = 0
+                        GOBACK
+                    END-IF
+
                 WHEN "states"
                     *> Expect the start of the states array.
                     CALL "JsonParse-ArrayStart" USING LK-JSON LK-OFFSET LK-FAILURE
@@ -136,6 +165,59 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
         CALL "JsonParse-ObjectEnd" USING LK-JSON LK-OFFSET LK-FAILURE
 
         GOBACK.
+
+        *> --- Blocks-Parse-Property ---
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. Blocks-Parse-Property.
+
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+            01 EXIT-LOOP        BINARY-CHAR UNSIGNED.
+        LINKAGE SECTION.
+            01 LK-JSON          PIC X ANY LENGTH.
+            01 LK-OFFSET        BINARY-LONG UNSIGNED.
+            01 LK-FAILURE       BINARY-CHAR UNSIGNED.
+            01 LK-PROPERTY.
+                02 LK-PROPERTY-NAME         PIC X(64).
+                02 LK-PROPERTY-VALUE-COUNT  BINARY-LONG UNSIGNED.
+                02 LK-PROPERTY-VALUE OCCURS 32 TIMES.
+                    03 LK-PROPERTY-VALUE-NAME  PIC X(64).
+
+        PROCEDURE DIVISION USING LK-JSON LK-OFFSET LK-FAILURE LK-PROPERTY.
+            *> Read the property name.
+            CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE LK-PROPERTY-NAME
+            IF LK-FAILURE NOT = 0
+                GOBACK
+            END-IF
+
+            *> Expect the start of the property value array.
+            CALL "JsonParse-ArrayStart" USING LK-JSON LK-OFFSET LK-FAILURE
+            IF LK-FAILURE NOT = 0
+                GOBACK
+            END-IF
+
+            *> Loop over each value in the array.
+            PERFORM UNTIL EXIT
+                *> Read the value.
+                ADD 1 TO LK-PROPERTY-VALUE-COUNT
+                CALL "JsonParse-String" USING LK-JSON LK-OFFSET LK-FAILURE LK-PROPERTY-VALUE(LK-PROPERTY-VALUE-COUNT)
+                IF LK-FAILURE NOT = 0
+                    GOBACK
+                END-IF
+
+                *> Check if there is a comma; if not, exit the loop.
+                CALL "JsonParse-Comma" USING LK-JSON LK-OFFSET EXIT-LOOP
+                IF EXIT-LOOP = 1
+                    EXIT PERFORM
+                END-IF
+            END-PERFORM
+
+            *> Expect the end of the property value array.
+            CALL "JsonParse-ArrayEnd" USING LK-JSON LK-OFFSET LK-FAILURE
+
+            GOBACK.
+
+        END PROGRAM Blocks-Parse-Property.
 
         *> --- Blocks-Parse-State ---
         IDENTIFICATION DIVISION.
@@ -229,3 +311,105 @@ PROCEDURE DIVISION USING LK-BLOCK-NAME LK-STATE-ID.
     GOBACK.
 
 END PROGRAM Blocks-Get-DefaultStateId.
+
+*> --- Blocks-Get-StateDescription ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Blocks-Get-StateDescription.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
+    01 STATE-INDEX          BINARY-LONG UNSIGNED.
+    01 PROPERTY-INDEX       BINARY-LONG UNSIGNED.
+    01 PROPERTY-CODE        BINARY-LONG UNSIGNED.
+    01 PROPERTY-VALUE-INDEX BINARY-LONG UNSIGNED.
+    *> shared data
+    COPY DD-BLOCKS.
+LINKAGE SECTION.
+    01 LK-STATE-ID          BINARY-LONG.
+    01 LK-STATE-DESCRIPTION.
+        02 LK-STATE-NAME            PIC X(64).
+        02 LK-STATE-PROPERTY-COUNT  BINARY-LONG UNSIGNED.
+        02 LK-STATE-PROPERTY OCCURS 16 TIMES.
+            03 LK-STATE-PROPERTY-NAME   PIC X(64).
+            03 LK-STATE-PROPERTY-VALUE  PIC X(64).
+
+PROCEDURE DIVISION USING LK-STATE-ID LK-STATE-DESCRIPTION.
+    *> TODO optimize this operation
+    MOVE SPACES TO LK-STATE-DESCRIPTION
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCKS-COUNT
+        *> Skip the block entirely if the state ID is out of range. This works because state IDs are contiguous.
+        IF LK-STATE-ID <= BLOCK-ENTRY-STATE-ID(BLOCK-INDEX, BLOCK-ENTRY-STATES-COUNT(BLOCK-INDEX))
+            PERFORM VARYING STATE-INDEX FROM 1 BY 1 UNTIL STATE-INDEX > BLOCK-ENTRY-STATES-COUNT(BLOCK-INDEX)
+                IF LK-STATE-ID = BLOCK-ENTRY-STATE-ID(BLOCK-INDEX, STATE-INDEX)
+                    MOVE BLOCK-ENTRY-NAME(BLOCK-INDEX) TO LK-STATE-NAME
+                    MOVE BLOCK-ENTRY-PROPERTY-COUNT(BLOCK-INDEX) TO LK-STATE-PROPERTY-COUNT
+                    *> The property values are computed based on the block state's position within the block's states array.
+                    *> This is done to massively reduce the memory consumption of each block state.
+                    COMPUTE PROPERTY-CODE = STATE-INDEX - 1
+                    PERFORM VARYING PROPERTY-INDEX FROM LK-STATE-PROPERTY-COUNT BY -1 UNTIL PROPERTY-INDEX < 1
+                        MOVE BLOCK-ENTRY-PROPERTY-NAME(BLOCK-INDEX, PROPERTY-INDEX) TO LK-STATE-PROPERTY-NAME(PROPERTY-INDEX)
+                        DIVIDE PROPERTY-CODE BY BLOCK-ENTRY-PROPERTY-VALUE-COUNT(BLOCK-INDEX, PROPERTY-INDEX) GIVING PROPERTY-CODE REMAINDER PROPERTY-VALUE-INDEX
+                        MOVE BLOCK-ENTRY-PROPERTY-VALUE(BLOCK-INDEX, PROPERTY-INDEX, PROPERTY-VALUE-INDEX + 1) TO LK-STATE-PROPERTY-VALUE(PROPERTY-INDEX)
+                    END-PERFORM
+                    EXIT PERFORM
+                END-IF
+            END-PERFORM
+        END-IF
+    END-PERFORM
+    GOBACK.
+
+END PROGRAM Blocks-Get-StateDescription.
+
+*> --- Blocks-Get-StateId ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Blocks-Get-StateId.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 BLOCK-INDEX      BINARY-LONG UNSIGNED.
+    01 PROPERTY-CODE    BINARY-LONG UNSIGNED.
+    01 PROPERTY-INDEX   BINARY-LONG UNSIGNED.
+    01 PROPERTY-INDEX-2 BINARY-LONG UNSIGNED.
+    01 VALUE-INDEX      BINARY-LONG UNSIGNED.
+    *> shared data
+    COPY DD-BLOCKS.
+LINKAGE SECTION.
+    01 LK-STATE-DESCRIPTION.
+        02 LK-STATE-NAME            PIC X(64).
+        02 LK-STATE-PROPERTY-COUNT  BINARY-LONG UNSIGNED.
+        02 LK-STATE-PROPERTY OCCURS 16 TIMES.
+            03 LK-STATE-PROPERTY-NAME   PIC X(64).
+            03 LK-STATE-PROPERTY-VALUE  PIC X(64).
+    01 LK-STATE-ID      BINARY-LONG.
+
+PROCEDURE DIVISION USING LK-STATE-DESCRIPTION LK-STATE-ID.
+    *> TODO optimize this operation
+    MOVE -1 TO LK-STATE-ID
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCKS-COUNT
+        IF LK-STATE-NAME = BLOCK-ENTRY-NAME(BLOCK-INDEX)
+            MOVE BLOCK-ENTRY-STATE-ID(BLOCK-INDEX, 1) TO LK-STATE-ID
+            *> Compute the property code (= offset within the block's states array) based on the property values.
+            MOVE 0 TO PROPERTY-CODE
+            *> Loop over each expected property.
+            PERFORM VARYING PROPERTY-INDEX FROM 1 BY 1 UNTIL PROPERTY-INDEX > BLOCK-ENTRY-PROPERTY-COUNT(BLOCK-INDEX)
+                COMPUTE PROPERTY-CODE = PROPERTY-CODE * BLOCK-ENTRY-PROPERTY-VALUE-COUNT(BLOCK-INDEX, PROPERTY-INDEX)
+                *> Find the property in the state description. If not found, the first value is assumed.
+                PERFORM VARYING PROPERTY-INDEX-2 FROM 1 BY 1 UNTIL PROPERTY-INDEX-2 > LK-STATE-PROPERTY-COUNT
+                    IF BLOCK-ENTRY-PROPERTY-NAME(BLOCK-INDEX, PROPERTY-INDEX) = LK-STATE-PROPERTY-NAME(PROPERTY-INDEX-2)
+                        PERFORM VARYING VALUE-INDEX FROM 1 BY 1 UNTIL VALUE-INDEX > BLOCK-ENTRY-PROPERTY-VALUE-COUNT(BLOCK-INDEX, PROPERTY-INDEX)
+                            IF BLOCK-ENTRY-PROPERTY-VALUE(BLOCK-INDEX, PROPERTY-INDEX, VALUE-INDEX) = LK-STATE-PROPERTY-VALUE(PROPERTY-INDEX-2)
+                                COMPUTE PROPERTY-CODE = PROPERTY-CODE + (VALUE-INDEX - 1)
+                            END-IF
+                        END-PERFORM
+                        EXIT PERFORM
+                    END-IF
+                END-PERFORM
+            END-PERFORM
+            COMPUTE LK-STATE-ID = BLOCK-ENTRY-STATE-ID(BLOCK-INDEX, 1) + PROPERTY-CODE
+            EXIT PERFORM
+        END-IF
+    END-PERFORM
+    GOBACK.
+
+END PROGRAM Blocks-Get-StateId.

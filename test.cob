@@ -7,6 +7,7 @@ PROCEDURE DIVISION.
     CALL "Test-Decode"
     CALL "Test-Encode"
     CALL "Test-JsonParse"
+    CALL "Test-World"
     STOP RUN.
 
 END PROGRAM TestMain.

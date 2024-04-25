@@ -16,7 +16,7 @@ The following features are already working:
 - [X] multiplayer
 - [X] chat
 - [X] server console commands
-- [ ] persisting data across restarts
+- [ ] persisting data across restarts (WIP: chunks are saved, but players are not)
 
 ## How-to
 
