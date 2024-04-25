@@ -46,12 +46,12 @@ PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-INVENTORY.
     *> slot data
     PERFORM VARYING SLOT-INDEX FROM 1 BY 1 UNTIL SLOT-INDEX > 46
         IF LK-SLOT-ID(SLOT-INDEX) < 0 OR LK-SLOT-COUNT(SLOT-INDEX) = 0
-            *> present = false
+            *> count = 0
             MOVE X"00" TO PAYLOAD(PAYLOADLEN + 1:1)
             ADD 1 TO PAYLOADLEN
         ELSE
-            *> present = true
-            MOVE X"01" TO PAYLOAD(PAYLOADLEN + 1:1)
+            *> count
+            MOVE FUNCTION CHAR(LK-SLOT-COUNT(SLOT-INDEX) + 1) TO PAYLOAD(PAYLOADLEN + 1:1)
             ADD 1 TO PAYLOADLEN
 
             *> item ID
@@ -59,10 +59,6 @@ PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-INVENTORY.
             CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
             MOVE BUFFER(1:BUFFERLEN) TO PAYLOAD(PAYLOADLEN + 1:BUFFERLEN)
             ADD BUFFERLEN TO PAYLOADLEN
-
-            *> item count
-            MOVE FUNCTION CHAR(LK-SLOT-COUNT(SLOT-INDEX) + 1) TO PAYLOAD(PAYLOADLEN + 1:1)
-            ADD 1 TO PAYLOADLEN
 
             *> NBT data
             MOVE LK-SLOT-NBT-LENGTH(SLOT-INDEX) TO INT32
