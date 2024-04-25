@@ -25,8 +25,9 @@ LINKAGE SECTION.
     01 LK-HNDL          PIC X(4).
     01 LK-ERRNO         PIC 9(3).
     01 LK-CHUNK.
-        02 LK-CHUNK-X BINARY-LONG.
-        02 LK-CHUNK-Z BINARY-LONG.
+        02 LK-CHUNK-PRESENT BINARY-CHAR UNSIGNED.
+        02 LK-CHUNK-X       BINARY-LONG.
+        02 LK-CHUNK-Z       BINARY-LONG.
         *> block IDs (16x384x16) - X increases fastest, then Z, then Y
         02 LK-CHUNK-BLOCKS.
             03 LK-BLOCK OCCURS 98304 TIMES.

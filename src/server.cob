@@ -176,8 +176,12 @@ LoadBlocks.
     .
 
 GenerateWorld.
-    DISPLAY "Generating world"
-    CALL "World-Generate"
+    DISPLAY "Loading world"
+    CALL "World-Load" USING TEMP-INT8
+    IF TEMP-INT8 NOT = 0
+        DISPLAY "Failed to load world"
+        STOP RUN
+    END-IF
     .
 
 StartServer.
@@ -255,6 +259,16 @@ ServerLoop.
     END-PERFORM
     .
 
+SaveWorld.
+    DISPLAY "Saving world"
+    CALL "World-Save" USING TEMP-INT8
+    IF TEMP-INT8 NOT = 0
+        DISPLAY "Failed to save world"
+        STOP RUN
+    END-IF
+    DISPLAY "World saved!"
+    .
+
 StopServer.
     DISPLAY "Stopping server"
     CALL "Socket-Close" USING LISTEN ERRNO
@@ -305,6 +319,7 @@ ConsoleInput SECTION.
             DISPLAY "Available commands:"
             DISPLAY "  /help - show this help"
             DISPLAY "  /say <message> - broadcast a message"
+            DISPLAY "  /save - save the world"
             DISPLAY "  /stop - stop the server"
         WHEN "say"
             MOVE "[Server] " TO BUFFER
@@ -312,7 +327,10 @@ ConsoleInput SECTION.
             COMPUTE BYTE-COUNT = BYTE-COUNT - TEMP-INT32 - 1 + 9
             PERFORM BroadcastMessage
         WHEN "stop"
+            PERFORM SaveWorld
             PERFORM StopServer
+        WHEN "save"
+            PERFORM SaveWorld
         WHEN OTHER
             DISPLAY "Unknown command: " CONSOLE-INPUT(1:TEMP-INT32)
     END-EVALUATE
@@ -798,12 +816,13 @@ HandleConfiguration SECTION.
 
             *> send chunk data ("Chunk Data and Update Light") for all chunks
             *> TODO: only send chunks around the player
-            COMPUTE TEMP-INT32 = WORLD-CHUNKS-COUNT-X * WORLD-CHUNKS-COUNT-Z
-            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > TEMP-INT32
-                CALL "SendPacket-ChunkData" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-CHUNK(TEMP-INT16)
-                IF ERRNO NOT = 0
-                    PERFORM HandleClientError
-                    EXIT SECTION
+            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > WORLD-CHUNK-COUNT
+                IF WORLD-CHUNK-PRESENT(TEMP-INT16) > 0
+                    CALL "SendPacket-ChunkData" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-CHUNK(TEMP-INT16)
+                    IF ERRNO NOT = 0
+                        PERFORM HandleClientError
+                        EXIT SECTION
+                    END-IF
                 END-IF
             END-PERFORM
 
