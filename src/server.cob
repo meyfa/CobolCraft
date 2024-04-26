@@ -54,7 +54,6 @@ WORKING-STORAGE SECTION.
     *> The client handle of the connection that is currently being processed, and the index in the CLIENTS array
     01 TEMP-HNDL            PIC X(4).
     01 CLIENT-ID            BINARY-LONG UNSIGNED.
-    *> TODO: add some way of offloading player data to disk
     *> TODO: remove need to access player data directly in this file
     COPY DD-PLAYERS.
     *> Incoming/outgoing packet data
@@ -243,11 +242,14 @@ ServerLoop.
 
 SaveWorld.
     DISPLAY "Saving world"
+    *> save chunks
     CALL "World-Save" USING TEMP-INT8
     IF TEMP-INT8 NOT = 0
         DISPLAY "Failed to save world"
         STOP RUN
     END-IF
+    *> save player data
+    CALL "Players-Save"
     DISPLAY "World saved!"
     .
 

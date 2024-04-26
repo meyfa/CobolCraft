@@ -18,11 +18,11 @@
         03 PLAYER-ROTATION.
             04 PLAYER-YAW           FLOAT-SHORT.
             04 PLAYER-PITCH         FLOAT-SHORT.
+        03 PLAYER-HOTBAR    BINARY-CHAR UNSIGNED.
         03 PLAYER-INVENTORY.
             04 PLAYER-INVENTORY-SLOT OCCURS 46 TIMES.
-                *> If no item is present, the count is 0 and the ID is -1
+                *> If no item is present, the count is 0 and the ID is 0.
                 05 PLAYER-INVENTORY-SLOT-ID         BINARY-LONG.
                 05 PLAYER-INVENTORY-SLOT-COUNT      BINARY-CHAR UNSIGNED.
                 05 PLAYER-INVENTORY-SLOT-NBT-LENGTH BINARY-SHORT UNSIGNED.
                 05 PLAYER-INVENTORY-SLOT-NBT-DATA   PIC X(1024).
-        03 PLAYER-HOTBAR    BINARY-CHAR UNSIGNED.
