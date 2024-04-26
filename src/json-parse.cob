@@ -399,6 +399,7 @@ PROGRAM-ID. JsonParse-Float.
 
 DATA DIVISION.
 LOCAL-STORAGE SECTION.
+    01 INPUT-LENGTH     BINARY-LONG UNSIGNED.
     01 INT-VALUE        BINARY-LONG.
     01 CHARCODE         BINARY-CHAR UNSIGNED.
     01 CHAR-COUNT       BINARY-LONG UNSIGNED    VALUE 0.
@@ -410,12 +411,12 @@ LINKAGE SECTION.
     01 LK-VALUE         FLOAT-LONG.
 
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
-    *> TODO support scientific notation
+    MOVE FUNCTION LENGTH(LK-INPUT) TO INPUT-LENGTH
     *> start by reading the integer part
     CALL "JsonParse-Integer" USING LK-INPUT LK-OFFSET LK-FLAG INT-VALUE
     MOVE INT-VALUE TO LK-VALUE
     *> abort on error, or if there is no decimal point
-    IF LK-FLAG NOT = 0 OR LK-OFFSET > (LENGTH OF LK-INPUT) OR LK-INPUT(LK-OFFSET:1) NOT = "."
+    IF LK-FLAG NOT = 0 OR LK-OFFSET > INPUT-LENGTH OR LK-INPUT(LK-OFFSET:1) NOT = "."
         GOBACK
     END-IF
     ADD 1 TO LK-OFFSET
@@ -425,7 +426,7 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
     ELSE
         MOVE 0.1 TO MULTIPLIER
     END-IF
-    PERFORM UNTIL LK-OFFSET > (LENGTH OF LK-INPUT)
+    PERFORM UNTIL LK-OFFSET > INPUT-LENGTH
         COMPUTE CHARCODE = FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) - 1
         *> exit the loop once a non-digit character is found
         IF CHARCODE < 48 OR CHARCODE > 57
@@ -441,6 +442,22 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
         MOVE 1 TO LK-FLAG
         GOBACK
     END-IF
+    *> abort if there is no exponent
+    IF LK-OFFSET > INPUT-LENGTH OR NOT (LK-INPUT(LK-OFFSET:1) = "e" OR LK-INPUT(LK-OFFSET:1) = "E")
+        GOBACK
+    END-IF
+    ADD 1 TO LK-OFFSET
+    *> ignore plus sign because integer parsing does not allow it
+    IF LK-OFFSET <= INPUT-LENGTH AND LK-INPUT(LK-OFFSET:1) = "+"
+        ADD 1 TO LK-OFFSET
+    END-IF
+    *> read the exponent
+    CALL "JsonParse-Integer" USING LK-INPUT LK-OFFSET LK-FLAG INT-VALUE
+    IF LK-FLAG NOT = 0
+        GOBACK
+    END-IF
+    *> compute the final value
+    COMPUTE LK-VALUE = LK-VALUE * (10 ** INT-VALUE)
     GOBACK.
 
 END PROGRAM JsonParse-Float.

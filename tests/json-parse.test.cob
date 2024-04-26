@@ -615,6 +615,50 @@ PROCEDURE DIVISION.
         ELSE
             DISPLAY "FAIL"
         END-IF.
+    ScientificNotationMinus.
+        DISPLAY "    Case: '  1.23e-4  ' - " WITH NO ADVANCING
+        MOVE "  1.23e-4  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 1.23e-4
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    ScientificNotationUpper.
+        DISPLAY "    Case: '  1.23E-4  ' - " WITH NO ADVANCING
+        MOVE "  1.23E-4  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 1.23e-4
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    ScientificNotationPlus.
+        DISPLAY "    Case: '  1.23e+4  ' - " WITH NO ADVANCING
+        MOVE "  1.23e+4  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 12300.0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    ScientificNotationNegative.
+        DISPLAY "    Case: '  -1.23e-4  ' - " WITH NO ADVANCING
+        MOVE "  -1.23e-4  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        IF OFFSET = 11 AND FLAG = 0 AND RESULT = -1.23e-4
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
 
         GOBACK.
 
