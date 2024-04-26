@@ -217,6 +217,21 @@ ServerLoop.
                             CALL "SendPacket-SetHeadRotation" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-YAW(TEMP-INT32)
                         END-IF
                         IF ERRNO = 0
+                            *> index(byte), type(VarInt), value(VarInt); terminator is 0xFF
+                            *> index of pose: 6, type of pose: 21
+                            *> value of standing: 0, value of sneaking: 5
+                            MOVE X"06" TO BUFFER(1:1)
+                            MOVE X"15" TO BUFFER(2:1)
+                            IF PLAYER-SNEAKING(TEMP-INT32) = 1
+                                MOVE X"05" TO BUFFER(3:1)
+                            ELSE
+                                MOVE X"00" TO BUFFER(3:1)
+                            END-IF
+                            MOVE X"FF" TO BUFFER(4:1)
+                            MOVE 4 TO BYTE-COUNT
+                            CALL "SendPacket-SetEntityMetadata" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 BYTE-COUNT BUFFER
+                        END-IF
+                        IF ERRNO = 0
                             COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR(TEMP-INT32) + 1
                             CALL "SendPacket-SetEquipment" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-INVENTORY-SLOT(TEMP-INT32, TEMP-INT8)
                         END-IF
@@ -956,6 +971,20 @@ HandlePlay SECTION.
                         END-PERFORM
                         MOVE TEMP-INT16 TO CLIENT-ID
                     END-IF
+            END-EVALUATE
+        *> Player command
+        WHEN H'25'
+            *> entity ID (why does this exist? should always be the player's entity ID - skip it)
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            *> action ID
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            EVALUATE TEMP-INT32
+                *> start sneaking
+                WHEN 0
+                    MOVE 1 TO PLAYER-SNEAKING(CLIENT-PLAYER(CLIENT-ID))
+                *> stop sneaking
+                WHEN 1
+                    MOVE 0 TO PLAYER-SNEAKING(CLIENT-PLAYER(CLIENT-ID))
             END-EVALUATE
         *> Set held item
         WHEN H'2F'
