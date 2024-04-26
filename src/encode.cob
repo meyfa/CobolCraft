@@ -122,6 +122,35 @@ PROCEDURE DIVISION USING LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
 
 END PROGRAM Encode-VarInt.
 
+*> --- Encode-GetVarIntLength ---
+*> Compute the number of bytes required to encode a signed 32-bit integer as a VarInt.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Encode-GetVarIntLength.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-VALUE-IN          BINARY-LONG.
+    01 LK-OUT-LENGTH        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-VALUE-IN LK-OUT-LENGTH.
+    EVALUATE LK-VALUE-IN
+        WHEN < 0
+            MOVE 5 TO LK-OUT-LENGTH
+        WHEN >= 268435456
+            MOVE 5 TO LK-OUT-LENGTH
+        WHEN >= 2097152
+            MOVE 4 TO LK-OUT-LENGTH
+        WHEN >= 16384
+            MOVE 3 TO LK-OUT-LENGTH
+        WHEN >= 128
+            MOVE 2 TO LK-OUT-LENGTH
+        WHEN OTHER
+            MOVE 1 TO LK-OUT-LENGTH
+    END-EVALUATE
+    GOBACK.
+
+END PROGRAM Encode-GetVarIntLength.
+
 *> --- Encode-UnsignedLong ---
 *> Encode a 64-bit unsigned integer and store it in a buffer (big-endian).
 IDENTIFICATION DIVISION.

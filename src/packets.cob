@@ -17,8 +17,8 @@ LINKAGE SECTION.
     01 LK-ERRNO                 PIC 9(3).
 
 PROCEDURE DIVISION USING LK-HNDL LK-PACKET-ID LK-PAYLOAD LK-PAYLOAD-LENGTH LK-ERRNO.
-    *> Encode packet ID to find the total payload length (TODO: optimize this)
-    CALL "Encode-VarInt" USING LK-PACKET-ID BUFFER NUM-BYTES
+    *> Add length of packet ID to payload length
+    CALL "Encode-GetVarIntLength" USING LK-PACKET-ID NUM-BYTES
     COMPUTE PACKET-LENGTH = NUM-BYTES + LK-PAYLOAD-LENGTH
 
     *> Send payload length
