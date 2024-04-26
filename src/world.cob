@@ -361,6 +361,90 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
 
 END PROGRAM World-LoadChunk.
 
+*> --- World-EnsureChunk ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-EnsureChunk.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 IO-FAILURE           BINARY-CHAR UNSIGNED.
+    *> World data
+    COPY DD-WORLD.
+LINKAGE SECTION.
+    01 LK-CHUNK-X           BINARY-LONG.
+    01 LK-CHUNK-Z           BINARY-LONG.
+    01 LK-CHUNK-INDEX       BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX.
+    *> attempt to find the chunk
+    CALL "World-FindChunkIndex" USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX
+    IF LK-CHUNK-INDEX > 0
+        GOBACK
+    END-IF
+    *> not found, load or generate
+    CALL "World-LoadChunk" USING LK-CHUNK-X LK-CHUNK-Z IO-FAILURE
+    IF IO-FAILURE NOT = 0
+        DISPLAY "Generating chunk: " LK-CHUNK-X " " LK-CHUNK-Z
+        MOVE 0 TO IO-FAILURE
+        CALL "World-GenerateChunk" USING LK-CHUNK-X LK-CHUNK-Z
+    END-IF
+    *> find the chunk again
+    CALL "World-FindChunkIndex" USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX
+    GOBACK.
+
+END PROGRAM World-EnsureChunk.
+
+*> --- World-UnloadChunks ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-UnloadChunks.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
+    01 CHUNK-X              BINARY-LONG.
+    01 CHUNK-Z              BINARY-LONG.
+    01 CHUNK-BLOCK-X        BINARY-LONG.
+    01 CHUNK-BLOCK-Z        BINARY-LONG.
+    01 MAX-DISTANCE         BINARY-LONG.
+    01 PLAYER-INDEX         BINARY-LONG UNSIGNED.
+    *> World data
+    COPY DD-WORLD.
+    *> Player data
+    COPY DD-PLAYERS.
+LINKAGE SECTION.
+    01 LK-VIEW-DISTANCE     BINARY-LONG UNSIGNED.
+    01 LK-FAILURE           BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-VIEW-DISTANCE LK-FAILURE.
+    MOVE 0 TO LK-FAILURE
+    PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > WORLD-CHUNK-COUNT
+        IF WORLD-CHUNK-PRESENT(CHUNK-INDEX) > 0
+            MOVE WORLD-CHUNK-X(CHUNK-INDEX) TO CHUNK-X
+            MOVE WORLD-CHUNK-Z(CHUNK-INDEX) TO CHUNK-Z
+            COMPUTE CHUNK-BLOCK-X = CHUNK-X * 16 + 8
+            COMPUTE CHUNK-BLOCK-Z = CHUNK-Z * 16 + 8
+            *> Compute the maximum distance to any player on any axis
+            MOVE 0 TO MAX-DISTANCE
+            PERFORM VARYING PLAYER-INDEX FROM 1 BY 1 UNTIL PLAYER-INDEX > MAX-PLAYERS
+                IF PLAYER-CLIENT(PLAYER-INDEX) > 0
+                    COMPUTE MAX-DISTANCE = FUNCTION MAX(MAX-DISTANCE, FUNCTION ABS(CHUNK-BLOCK-X - PLAYER-X(PLAYER-INDEX)))
+                    COMPUTE MAX-DISTANCE = FUNCTION MAX(MAX-DISTANCE, FUNCTION ABS(CHUNK-BLOCK-Z - PLAYER-Z(PLAYER-INDEX)))
+                END-IF
+            END-PERFORM
+            *> If the chunk is outside the view distance + 2 (for tolerance against thrashing), unload it
+            COMPUTE MAX-DISTANCE = MAX-DISTANCE / 16 - LK-VIEW-DISTANCE
+            IF MAX-DISTANCE > 2
+                IF WORLD-CHUNK-DIRTY(CHUNK-INDEX) > 0
+                    CALL "World-SaveChunk" USING CHUNK-X CHUNK-Z LK-FAILURE
+                END-IF
+                MOVE 0 TO WORLD-CHUNK-PRESENT(CHUNK-INDEX)
+            END-IF
+        END-IF
+    END-PERFORM
+    GOBACK.
+
+END PROGRAM World-UnloadChunks.
+
 *> --- World-Save ---
 IDENTIFICATION DIVISION.
 PROGRAM-ID. World-Save.
