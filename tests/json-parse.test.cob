@@ -720,6 +720,17 @@ PROCEDURE DIVISION.
         ELSE
             DISPLAY "FAIL"
         END-IF.
+    ScientificNotation.
+        DISPLAY "    Case: '    1.23e-4  ' - " WITH NO ADVANCING
+        MOVE "    1.23e-4  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
+        IF OFFSET = 12 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
     StringValue.
         DISPLAY "    Case: '    ""abc""  ' - " WITH NO ADVANCING
         MOVE "    ""abc""  " TO STR
@@ -727,6 +738,17 @@ PROCEDURE DIVISION.
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
         IF OFFSET = 10 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    StringEscape.
+        DISPLAY "    Case: '    ""1\""2\\3\/4\b5\f6\n7\r8\t9""  ' - " WITH NO ADVANCING
+        MOVE "    ""1\""2\\3\/4\b5\f6\n7\r8\t9""  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
+        IF OFFSET = 32 AND FLAG = 0
             DISPLAY "PASS"
         ELSE
             DISPLAY "FAIL"

@@ -5,10 +5,11 @@ PROGRAM-ID. Registries-Parse.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 OFFSET           BINARY-LONG UNSIGNED.
-    01 EXIT-LOOP        BINARY-CHAR UNSIGNED.
     *> shared data
     COPY DD-REGISTRIES.
+LOCAL-STORAGE SECTION.
+    01 OFFSET           BINARY-LONG UNSIGNED    VALUE 1.
+    01 EXIT-LOOP        BINARY-CHAR UNSIGNED    VALUE 0.
 LINKAGE SECTION.
     01 LK-JSON          PIC X ANY LENGTH.
     01 LK-JSON-LEN      BINARY-LONG UNSIGNED.
@@ -17,28 +18,17 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
     MOVE 0 TO REGISTRIES-COUNT
 
-    MOVE 1 TO OFFSET
-
     *> Expect start of the root object.
     CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
-    IF LK-FAILURE NOT = 0
-        GOBACK
-    END-IF
 
     *> Loop over each key in the root object, each representing a registry.
-    PERFORM UNTIL EXIT
+    PERFORM UNTIL LK-FAILURE NOT = 0 OR EXIT-LOOP = 1
         *> Read the registry.
         ADD 1 TO REGISTRIES-COUNT
         CALL "Registries-Parse-Registry" USING LK-JSON OFFSET LK-FAILURE REGISTRIES-COUNT
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
 
-        *> Check if there is a comma; if not, exit the loop.
+        *> Continue reading if there is a comma.
         CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
-        IF EXIT-LOOP = 1
-            EXIT PERFORM
-        END-IF
     END-PERFORM
 
     *> Expect end of the root object.

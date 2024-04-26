@@ -5,10 +5,11 @@ PROGRAM-ID. Blocks-Parse.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 OFFSET           BINARY-LONG UNSIGNED.
-    01 EXIT-LOOP        BINARY-CHAR UNSIGNED.
     *> shared data
     COPY DD-BLOCKS.
+LOCAL-STORAGE SECTION.
+    01 OFFSET           BINARY-LONG UNSIGNED    VALUE 1.
+    01 EXIT-LOOP        BINARY-CHAR UNSIGNED    VALUE 0.
 LINKAGE SECTION.
     01 LK-JSON          PIC X ANY LENGTH.
     01 LK-JSON-LEN      BINARY-LONG UNSIGNED.
@@ -17,28 +18,16 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
     MOVE 0 TO BLOCKS-COUNT
 
-    MOVE 1 TO OFFSET
-
     *> Expect start of the root object.
     CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
-    IF LK-FAILURE NOT = 0
-        GOBACK
-    END-IF
 
-    *> Loop over each key in the root object, each representing a block.
-    PERFORM UNTIL EXIT
-        *> Read the block.
+    *> Each key in the root object represents a block.
+    PERFORM UNTIL LK-FAILURE NOT = 0 OR EXIT-LOOP = 1
         ADD 1 TO BLOCKS-COUNT
         CALL "Blocks-Parse-Block" USING LK-JSON OFFSET LK-FAILURE BLOCKS-COUNT
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
 
-        *> Check if there is a comma; if not, exit the loop.
+        *> Continue reading if there is a comma.
         CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
-        IF EXIT-LOOP = 1
-            EXIT PERFORM
-        END-IF
     END-PERFORM
 
     *> Expect end of the root object.
@@ -53,7 +42,7 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         01 EXIT-LOOP        BINARY-CHAR UNSIGNED.
-        01 OBJECT-KEY       PIC X(100).
+        01 OBJECT-KEY       PIC X(50).
         01 STATE-ID         BINARY-LONG UNSIGNED.
         01 IS-DEFAULT       BINARY-CHAR UNSIGNED.
         *> shared data
@@ -65,24 +54,19 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
         01 LK-BLOCK         BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION USING LK-JSON LK-OFFSET LK-FAILURE LK-BLOCK.
+        MOVE 0 TO BLOCK-ENTRY-PROPERTY-COUNT(LK-BLOCK)
         MOVE 999999999 TO BLOCK-ENTRY-MINIMUM-STATE-ID(LK-BLOCK)
         MOVE 0 TO BLOCK-ENTRY-MAXIMUM-STATE-ID(LK-BLOCK)
         MOVE 0 TO BLOCK-ENTRY-DEFAULT-STATE-ID(LK-BLOCK)
 
         *> Read the block name.
         CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE BLOCK-ENTRY-NAME(LK-BLOCK)
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
 
         *> Expect start of the block object.
         CALL "JsonParse-ObjectStart" USING LK-JSON LK-OFFSET LK-FAILURE
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
 
         *> Loop over each key in the object.
-        PERFORM UNTIL EXIT
+        PERFORM UNTIL LK-FAILURE NOT = 0
             *> Read the key.
             CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE OBJECT-KEY
             IF LK-FAILURE NOT = 0
@@ -93,18 +77,12 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
                 WHEN "properties"
                     *> Expect the start of the properties object.
                     CALL "JsonParse-ObjectStart" USING LK-JSON LK-OFFSET LK-FAILURE
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
 
                     *> Loop over each key in the properties object, each representing a block property.
-                    PERFORM UNTIL EXIT
+                    PERFORM UNTIL LK-FAILURE NOT = 0
                         *> Read the property.
                         ADD 1 TO BLOCK-ENTRY-PROPERTY-COUNT(LK-BLOCK)
                         CALL "Blocks-Parse-Property" USING LK-JSON LK-OFFSET LK-FAILURE BLOCK-ENTRY-PROPERTY(LK-BLOCK, BLOCK-ENTRY-PROPERTY-COUNT(LK-BLOCK))
-                        IF LK-FAILURE NOT = 0
-                            GOBACK
-                        END-IF
 
                         *> Check if there is a comma; if not, exit the loop.
                         CALL "JsonParse-Comma" USING LK-JSON LK-OFFSET EXIT-LOOP
@@ -115,27 +93,18 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
 
                     *> Expect the end of the properties object.
                     CALL "JsonParse-ObjectEnd" USING LK-JSON LK-OFFSET LK-FAILURE
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
 
                 WHEN "states"
                     *> Expect the start of the states array.
                     CALL "JsonParse-ArrayStart" USING LK-JSON LK-OFFSET LK-FAILURE
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
 
                     *> Loop over each key in the states array, each representing a block state.
-                    PERFORM UNTIL EXIT
+                    PERFORM UNTIL LK-FAILURE NOT = 0
                         *> Read the state.
                         CALL "Blocks-Parse-State" USING LK-JSON LK-OFFSET LK-FAILURE STATE-ID IS-DEFAULT
-                        IF LK-FAILURE NOT = 0
-                            GOBACK
-                        END-IF
 
-                        COMPUTE BLOCK-ENTRY-MINIMUM-STATE-ID(LK-BLOCK) = FUNCTION MIN(BLOCK-ENTRY-MINIMUM-STATE-ID(LK-BLOCK), STATE-ID)
-                        COMPUTE BLOCK-ENTRY-MAXIMUM-STATE-ID(LK-BLOCK) = FUNCTION MAX(BLOCK-ENTRY-MAXIMUM-STATE-ID(LK-BLOCK), STATE-ID)
+                        MOVE FUNCTION MIN(BLOCK-ENTRY-MINIMUM-STATE-ID(LK-BLOCK), STATE-ID) TO BLOCK-ENTRY-MINIMUM-STATE-ID(LK-BLOCK)
+                        MOVE FUNCTION MAX(BLOCK-ENTRY-MAXIMUM-STATE-ID(LK-BLOCK), STATE-ID) TO BLOCK-ENTRY-MAXIMUM-STATE-ID(LK-BLOCK)
                         IF IS-DEFAULT > 0
                             MOVE STATE-ID TO BLOCK-ENTRY-DEFAULT-STATE-ID(LK-BLOCK)
                         END-IF
@@ -149,15 +118,9 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
 
                     *> Expect the end of the states array.
                     CALL "JsonParse-ArrayEnd" USING LK-JSON LK-OFFSET LK-FAILURE
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
 
                 WHEN OTHER
                     CALL "JsonParse-SkipValue" USING LK-JSON LK-OFFSET LK-FAILURE
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
             END-EVALUATE
 
             *> Check if there is a comma; if not, exit the loop.
@@ -184,32 +147,24 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
             01 LK-OFFSET        BINARY-LONG UNSIGNED.
             01 LK-FAILURE       BINARY-CHAR UNSIGNED.
             01 LK-PROPERTY.
-                02 LK-PROPERTY-NAME         PIC X(64).
+                02 LK-PROPERTY-NAME         PIC X(32).
                 02 LK-PROPERTY-VALUE-COUNT  BINARY-LONG UNSIGNED.
-                02 LK-PROPERTY-VALUE OCCURS 32 TIMES.
-                    03 LK-PROPERTY-VALUE-NAME  PIC X(64).
+                02 LK-PROPERTY-VALUE        PIC X(32) OCCURS 32 TIMES.
 
         PROCEDURE DIVISION USING LK-JSON LK-OFFSET LK-FAILURE LK-PROPERTY.
+            MOVE 0 TO LK-PROPERTY-VALUE-COUNT
+
             *> Read the property name.
             CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE LK-PROPERTY-NAME
-            IF LK-FAILURE NOT = 0
-                GOBACK
-            END-IF
 
             *> Expect the start of the property value array.
             CALL "JsonParse-ArrayStart" USING LK-JSON LK-OFFSET LK-FAILURE
-            IF LK-FAILURE NOT = 0
-                GOBACK
-            END-IF
 
             *> Loop over each value in the array.
-            PERFORM UNTIL EXIT
+            PERFORM UNTIL LK-FAILURE NOT = 0
                 *> Read the value.
                 ADD 1 TO LK-PROPERTY-VALUE-COUNT
                 CALL "JsonParse-String" USING LK-JSON LK-OFFSET LK-FAILURE LK-PROPERTY-VALUE(LK-PROPERTY-VALUE-COUNT)
-                IF LK-FAILURE NOT = 0
-                    GOBACK
-                END-IF
 
                 *> Check if there is a comma; if not, exit the loop.
                 CALL "JsonParse-Comma" USING LK-JSON LK-OFFSET EXIT-LOOP
@@ -232,7 +187,7 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
         DATA DIVISION.
         WORKING-STORAGE SECTION.
             01 EXIT-LOOP            BINARY-CHAR UNSIGNED.
-            01 OBJECT-KEY           PIC X(100).
+            01 OBJECT-KEY           PIC X(50).
         LINKAGE SECTION.
             01 LK-JSON              PIC X ANY LENGTH.
             01 LK-OFFSET            BINARY-LONG UNSIGNED.

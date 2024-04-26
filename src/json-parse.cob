@@ -3,17 +3,20 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. JsonParse-SkipWhitespace.
 
 DATA DIVISION.
-LOCAL-STORAGE SECTION.
+WORKING-STORAGE SECTION.
+    01 INPUT-LENGTH     BINARY-LONG UNSIGNED.
     01 CHARCODE         BINARY-CHAR UNSIGNED.
 LINKAGE SECTION.
     01 LK-INPUT         PIC X ANY LENGTH.
     01 LK-OFFSET        BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET.
-    PERFORM UNTIL LK-OFFSET > LENGTH OF LK-INPUT
-        COMPUTE CHARCODE = FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) - 1
+    MOVE FUNCTION LENGTH(LK-INPUT) TO INPUT-LENGTH
+    PERFORM UNTIL LK-OFFSET > INPUT-LENGTH
+        MOVE FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) TO CHARCODE
         *> Exit the loop once a non-whitespace character is found
-        IF CHARCODE NOT = 9 AND CHARCODE NOT = 10 AND CHARCODE NOT = 11 AND CHARCODE NOT = 13 AND CHARCODE NOT = 32
+        *> Note that ORD is 1-based, so the values here are 1 higher than the ASCII values
+        IF CHARCODE NOT = 33 AND CHARCODE NOT = 10 AND CHARCODE NOT = 11 AND CHARCODE NOT = 14
             EXIT PERFORM
         END-IF
         ADD 1 TO LK-OFFSET
@@ -137,10 +140,12 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. JsonParse-String.
 
 DATA DIVISION.
-LOCAL-STORAGE SECTION.
-    01 I                BINARY-LONG UNSIGNED.
+WORKING-STORAGE SECTION.
+    01 INPUT-LENGTH     BINARY-LONG UNSIGNED.
     01 CHARCODE         BINARY-CHAR UNSIGNED.
-    01 ESCAPING         BINARY-CHAR UNSIGNED    VAlUE 0.
+LOCAL-STORAGE SECTION.
+    01 I                BINARY-LONG UNSIGNED    VALUE 1.
+    01 ESCAPING         BINARY-CHAR UNSIGNED    VALUE 0.
 LINKAGE SECTION.
     01 LK-INPUT         PIC X ANY LENGTH.
     01 LK-OFFSET        BINARY-LONG UNSIGNED.
@@ -149,76 +154,72 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-STRING.
     MOVE 0 TO LK-FLAG
+    MOVE FUNCTION LENGTH(LK-INPUT) TO INPUT-LENGTH
     CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
     *> consume the start quote
-    IF LK-OFFSET > (LENGTH OF LK-INPUT) OR LK-INPUT(LK-OFFSET:1) NOT = '"'
+    IF LK-OFFSET > INPUT-LENGTH OR LK-INPUT(LK-OFFSET:1) NOT = '"'
         MOVE 1 TO LK-FLAG
         GOBACK
     END-IF
     ADD 1 TO LK-OFFSET
     *> string content
     MOVE SPACES TO LK-STRING
-    MOVE 1 TO I
-    PERFORM UNTIL LK-OFFSET > LENGTH OF LK-INPUT
+    PERFORM UNTIL LK-OFFSET > INPUT-LENGTH
         COMPUTE CHARCODE = FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) - 1
         IF ESCAPING = 1
             EVALUATE CHARCODE
                 WHEN 34 *> quote
                     MOVE '"' TO LK-STRING(I:1)
-                WHEN 92 *> backslash
-                    MOVE "\" TO LK-STRING(I:1)
                 WHEN 47 *> slash
                     MOVE "/" TO LK-STRING(I:1)
+                WHEN 92 *> backslash
+                    MOVE "\" TO LK-STRING(I:1)
                 WHEN 98 *> backspace
-                    MOVE FUNCTION CHAR(9) TO LK-STRING(I:1)
+                    MOVE X"08" TO LK-STRING(I:1)
                 WHEN 102 *> formfeed
-                    MOVE FUNCTION CHAR(13) TO LK-STRING(I:1)
+                    MOVE X"0C" TO LK-STRING(I:1)
                 WHEN 110 *> newline
-                    MOVE FUNCTION CHAR(11) TO LK-STRING(I:1)
+                    MOVE X"0A" TO LK-STRING(I:1)
                 WHEN 114 *> carriage return
-                    MOVE FUNCTION CHAR(14) TO LK-STRING(I:1)
+                    MOVE X"0D" TO LK-STRING(I:1)
                 WHEN 116 *> tab
-                    MOVE FUNCTION CHAR(10) TO LK-STRING(I:1)
+                    MOVE X"09" TO LK-STRING(I:1)
                 WHEN 117 *> unicode
                     ADD 1 TO LK-OFFSET
-                    CALL "JsonParse-String-Unicode" USING LK-INPUT LK-OFFSET LK-FLAG CHARCODE
-                    IF LK-FLAG = 1
+                    IF LK-OFFSET + 4 > INPUT-LENGTH
+                        MOVE 1 TO LK-FLAG
                         GOBACK
                     END-IF
+                    CALL "JsonParse-String-Unicode" USING LK-INPUT LK-OFFSET CHARCODE
                     MOVE FUNCTION CHAR(CHARCODE + 1) TO LK-STRING(I:1)
-                    ADD 1 TO I
+                    SUBTRACT 1 FROM LK-OFFSET
                 WHEN OTHER
                     MOVE 1 TO LK-FLAG
                     GOBACK
             END-EVALUATE
-            IF CHARCODE NOT = 117
-                ADD 1 TO LK-OFFSET
-                ADD 1 TO I
-            END-IF
+            ADD 1 TO LK-OFFSET
+            ADD 1 TO I
             MOVE 0 TO ESCAPING
         ELSE
             EVALUATE CHARCODE
-                WHEN 34 *> quote
-                    EXIT PERFORM
+                WHEN 34 *> end quote
+                    ADD 1 TO LK-OFFSET
+                    GOBACK
                 WHEN 92 *> backslash
                     MOVE 1 TO ESCAPING
-                    ADD 1 TO LK-OFFSET
                 WHEN OTHER
                     MOVE LK-INPUT(LK-OFFSET:1) TO LK-STRING(I:1)
-                    ADD 1 TO LK-OFFSET
                     ADD 1 TO I
             END-EVALUATE
+            ADD 1 TO LK-OFFSET
         END-IF
     END-PERFORM
-    *> consume the end quote
-    IF LK-OFFSET > (LENGTH OF LK-INPUT) OR LK-INPUT(LK-OFFSET:1) NOT = '"'
-        MOVE 1 TO LK-FLAG
-        GOBACK
-    END-IF
-    ADD 1 TO LK-OFFSET
+    *> end quote not found
+    MOVE 1 TO LK-FLAG
     GOBACK.
 
     *> --- JsonParse-String-Unicode ---
+    *> Note: It is the caller's responsibility to ensure that the input contains at least 4 characters after the offset.
     IDENTIFICATION DIVISION.
     PROGRAM-ID. JsonParse-String-Unicode.
 
@@ -229,16 +230,11 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-STRING.
     LINKAGE SECTION.
         01 LK-INPUT         PIC X ANY LENGTH.
         01 LK-OFFSET        BINARY-LONG UNSIGNED.
-        01 LK-FLAG          BINARY-CHAR UNSIGNED.
         01 LK-CHARCODE      BINARY-CHAR UNSIGNED.
 
-    PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-CHARCODE.
+    PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-CHARCODE.
         MOVE 0 TO LK-CHARCODE
         PERFORM 4 TIMES
-            IF LK-OFFSET > (LENGTH OF LK-INPUT)
-                MOVE 1 TO LK-FLAG
-                GOBACK
-            END-IF
             MOVE LK-INPUT(LK-OFFSET:1) TO CURRENT-CHAR
             CALL "DecodeHexChar" USING CURRENT-CHAR NIBBLE
             COMPUTE LK-CHARCODE = LK-CHARCODE * 16 + NIBBLE
@@ -262,11 +258,7 @@ LINKAGE SECTION.
     01 LK-KEY           PIC X ANY LENGTH.
 
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-KEY.
-    MOVE 0 TO LK-FLAG
     CALL "JsonParse-String" USING LK-INPUT LK-OFFSET LK-FLAG LK-KEY
-    IF LK-FLAG = 1
-        GOBACK
-    END-IF
     CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
     IF LK-OFFSET > (LENGTH OF LK-INPUT) OR LK-INPUT(LK-OFFSET:1) NOT = ":"
         MOVE 1 TO LK-FLAG
@@ -290,10 +282,8 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG.
     MOVE 0 TO LK-FLAG
     CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
-    *> This may seem redundant; however, I'm pretty sure there is a compiler bug here, as if we check for
-    *> LK-INPUT(LK-OFFSET:4) directly, GnuCOBOL complains about "length of 'LK-INPUT' out of bounds: 4".
-    *> Meanwhile, doing it this way works fine.
-    IF LK-OFFSET + 3 > (LENGTH OF LK-INPUT) OR NOT (LK-INPUT(LK-OFFSET:1) = "n" AND LK-INPUT(LK-OFFSET + 1:1) = "u" AND LK-INPUT(LK-OFFSET + 2:1) = "l" AND LK-INPUT(LK-OFFSET + 3:1) = "l")
+    *> This parser doesn't need to be strict. Once we see "n", assume the rest is correct.
+    IF LK-OFFSET + 3 > (LENGTH OF LK-INPUT) OR LK-INPUT(LK-OFFSET:1) NOT = "n"
         MOVE 1 TO LK-FLAG
         GOBACK
     END-IF
@@ -320,17 +310,17 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
         MOVE 1 TO LK-FLAG
         GOBACK
     END-IF
-    *> See note in JsonParse-Null regarding the length check
+    *> Same as with "null", we don't need to compare the whole string, but are satisfied with the first character.
     EVALUATE LK-INPUT(LK-OFFSET:1)
         WHEN "t"
-            IF LK-OFFSET + 3 > (LENGTH OF LK-INPUT) OR NOT (LK-INPUT(LK-OFFSET + 1:1) = "r" AND LK-INPUT(LK-OFFSET + 2:1) = "u" AND LK-INPUT(LK-OFFSET + 3:1) = "e")
+            IF LK-OFFSET + 3 > (LENGTH OF LK-INPUT)
                 MOVE 1 TO LK-FLAG
                 GOBACK
             END-IF
             MOVE 1 TO LK-VALUE
             ADD 4 TO LK-OFFSET
         WHEN "f"
-            IF LK-OFFSET + 4 > (LENGTH OF LK-INPUT) OR NOT (LK-INPUT(LK-OFFSET + 1:1) = "a" AND LK-INPUT(LK-OFFSET + 2:1) = "l" AND LK-INPUT(LK-OFFSET + 3:1) = "s" AND LK-INPUT(LK-OFFSET + 4:1) = "e")
+            IF LK-OFFSET + 4 > (LENGTH OF LK-INPUT)
                 MOVE 1 TO LK-FLAG
                 GOBACK
             END-IF
@@ -348,11 +338,12 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. JsonParse-Integer.
 
 DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 INPUT-LENGTH     BINARY-LONG UNSIGNED.
+    01 CHARCODE         BINARY-CHAR UNSIGNED.
 LOCAL-STORAGE SECTION.
     01 VALUE-SIGN       BINARY-CHAR             VALUE 1.
     01 VALUE-ABS        BINARY-LONG UNSIGNED    VALUE 0.
-    01 CHAR-COUNT       BINARY-LONG UNSIGNED    VALUE 0.
-    01 CHARCODE         BINARY-CHAR UNSIGNED.
 LINKAGE SECTION.
     01 LK-INPUT         PIC X ANY LENGTH.
     01 LK-OFFSET        BINARY-LONG UNSIGNED.
@@ -360,9 +351,9 @@ LINKAGE SECTION.
     01 LK-VALUE         BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
-    MOVE 0 TO LK-FLAG
+    MOVE FUNCTION LENGTH(LK-INPUT) TO INPUT-LENGTH
     CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
-    IF LK-OFFSET > (LENGTH OF LK-INPUT)
+    IF LK-OFFSET > INPUT-LENGTH
         MOVE 1 TO LK-FLAG
         GOBACK
     END-IF
@@ -372,22 +363,19 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
         ADD 1 TO LK-OFFSET
     END-IF
     *> read digits and convert to unsigned integer
-    PERFORM UNTIL LK-OFFSET > LENGTH OF LK-INPUT
-        COMPUTE CHARCODE = FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) - 1
+    MOVE 1 TO LK-FLAG
+    PERFORM UNTIL LK-OFFSET > INPUT-LENGTH
+        MOVE FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) TO CHARCODE
         *> exit the loop once a non-digit character is found
-        IF CHARCODE < 48 OR CHARCODE > 57
+        IF CHARCODE < 49 OR CHARCODE > 58
             EXIT PERFORM
         END-IF
-        COMPUTE VALUE-ABS = VALUE-ABS * 10 + CHARCODE - 48
+        COMPUTE VALUE-ABS = VALUE-ABS * 10 + CHARCODE - 49
         ADD 1 TO LK-OFFSET
-        ADD 1 TO CHAR-COUNT
+        *> Found a digit, so reset the flag
+        MOVE 0 TO LK-FLAG
     END-PERFORM
-    *> check if at least one digit was found
-    IF CHAR-COUNT = 0
-        MOVE 1 TO LK-FLAG
-        GOBACK
-    END-IF
-    *> comoute the final value
+    *> compute the final value
     COMPUTE LK-VALUE = VALUE-SIGN * VALUE-ABS
     GOBACK.
 
@@ -398,11 +386,10 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. JsonParse-Float.
 
 DATA DIVISION.
-LOCAL-STORAGE SECTION.
+WORKING-STORAGE SECTION.
     01 INPUT-LENGTH     BINARY-LONG UNSIGNED.
     01 INT-VALUE        BINARY-LONG.
     01 CHARCODE         BINARY-CHAR UNSIGNED.
-    01 CHAR-COUNT       BINARY-LONG UNSIGNED    VALUE 0.
     01 MULTIPLIER       FLOAT-LONG.
 LINKAGE SECTION.
     01 LK-INPUT         PIC X ANY LENGTH.
@@ -426,22 +413,19 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
     ELSE
         MOVE 0.1 TO MULTIPLIER
     END-IF
+    MOVE 1 TO LK-FLAG
     PERFORM UNTIL LK-OFFSET > INPUT-LENGTH
-        COMPUTE CHARCODE = FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) - 1
+        MOVE FUNCTION ORD(LK-INPUT(LK-OFFSET:1)) TO CHARCODE
         *> exit the loop once a non-digit character is found
-        IF CHARCODE < 48 OR CHARCODE > 57
+        IF CHARCODE < 49 OR CHARCODE > 58
             EXIT PERFORM
         END-IF
-        COMPUTE LK-VALUE = LK-VALUE + (CHARCODE - 48) * MULTIPLIER
-        COMPUTE MULTIPLIER = MULTIPLIER / 10
+        COMPUTE LK-VALUE = LK-VALUE + (CHARCODE - 49) * MULTIPLIER
+        DIVIDE MULTIPLIER BY 10 GIVING MULTIPLIER
         ADD 1 TO LK-OFFSET
-        ADD 1 TO CHAR-COUNT
+        *> Found a digit, so reset the flag
+        MOVE 0 TO LK-FLAG
     END-PERFORM
-    *> check if at least one digit was found
-    IF CHAR-COUNT = 0
-        MOVE 1 TO LK-FLAG
-        GOBACK
-    END-IF
     *> abort if there is no exponent
     IF LK-OFFSET > INPUT-LENGTH OR NOT (LK-INPUT(LK-OFFSET:1) = "e" OR LK-INPUT(LK-OFFSET:1) = "E")
         GOBACK
@@ -467,11 +451,12 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. JsonParse-SkipValue IS RECURSIVE.
 
 DATA DIVISION.
-LOCAL-STORAGE SECTION.
-    01 EXIT-LOOP        BINARY-CHAR UNSIGNED.
-    01 DUMMY-STR        PIC X(1000).
+WORKING-STORAGE SECTION.
+    01 INPUT-LENGTH     BINARY-LONG UNSIGNED.
     01 DUMMY-FLOAT      FLOAT-LONG.
-    01 DUMMY-BOOL       BINARY-CHAR UNSIGNED.
+LOCAL-STORAGE SECTION.
+    01 EXIT-LOOP        BINARY-CHAR UNSIGNED    VALUE 0.
+    01 ESCAPING         BINARY-CHAR UNSIGNED    VALUE 0.
 LINKAGE SECTION.
     01 LK-INPUT         PIC X ANY LENGTH.
     01 LK-OFFSET        BINARY-LONG UNSIGNED.
@@ -479,9 +464,10 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG.
     MOVE 0 TO LK-FLAG
+    MOVE FUNCTION LENGTH(LK-INPUT) TO INPUT-LENGTH
 
     CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
-    IF LK-OFFSET > (LENGTH OF LK-INPUT)
+    IF LK-OFFSET > INPUT-LENGTH
         MOVE 1 TO LK-FLAG
         GOBACK
     END-IF
@@ -489,16 +475,28 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG.
     *> Determine the type of the value and skip it
     EVALUATE LK-INPUT(LK-OFFSET:1)
         WHEN "t" *> true
-            CALL "JsonParse-Boolean" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-BOOL
+            ADD 4 TO LK-OFFSET
 
         WHEN "f" *> false
-            CALL "JsonParse-Boolean" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-BOOL
+            ADD 5 TO LK-OFFSET
 
         WHEN "n" *> null
-            CALL "JsonParse-Null" USING LK-INPUT LK-OFFSET LK-FLAG
+            ADD 4 TO LK-OFFSET
 
         WHEN '"' *> string
-            CALL "JsonParse-String" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-STR
+            *> This is performance sensitive, so don't use JsonParse-String here, since we don't need the value.
+            ADD 1 TO LK-OFFSET
+            PERFORM UNTIL LK-OFFSET > INPUT-LENGTH
+                EVALUATE LK-INPUT(LK-OFFSET:1)
+                    WHEN '"'
+                        ADD 1 TO LK-OFFSET
+                        EXIT PERFORM
+                    WHEN "\"
+                        ADD 2 TO LK-OFFSET
+                    WHEN OTHER
+                        ADD 1 TO LK-OFFSET
+                END-EVALUATE
+            END-PERFORM
 
         WHEN "-" *> float or integer
             CALL "JsonParse-Float" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-FLOAT
@@ -507,66 +505,86 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG.
             CALL "JsonParse-Float" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-FLOAT
 
         WHEN "[" *> array
-            CALL "JsonParse-ArrayStart" USING LK-INPUT LK-OFFSET LK-FLAG
-            IF LK-FLAG = 1
-                GOBACK
-            END-IF
+            ADD 1 TO LK-OFFSET
 
             *> Consume the closing bracket, if possible
-            CALL "JsonParse-ArrayEnd" USING LK-INPUT LK-OFFSET LK-FLAG
-            IF LK-FLAG = 0
+            CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
+            IF LK-OFFSET > INPUT-LENGTH
+                MOVE 1 TO LK-FLAG
                 GOBACK
             END-IF
-            MOVE 0 TO LK-FLAG
+            IF LK-INPUT(LK-OFFSET:1) = "]"
+                ADD 1 TO LK-OFFSET
+                GOBACK
+            END-IF
 
-            *> Error consuming closing bracket - parse array content
-            PERFORM UNTIL LK-FLAG = 1
+            *> Array has content, skip it
+            PERFORM UNTIL LK-FLAG = 1 OR EXIT-LOOP = 1
                 CALL "JsonParse-SkipValue" USING LK-INPUT LK-OFFSET LK-FLAG
-                IF LK-FLAG = 1
-                    GOBACK
-                END-IF
                 *> If there is a comma, consume it and continue the loop; otherwise, exit
                 CALL "JsonParse-Comma" USING LK-INPUT LK-OFFSET EXIT-LOOP
-                IF EXIT-LOOP = 1
-                    EXIT PERFORM
-                END-IF
             END-PERFORM
 
-            *> Consume the closing bracket
-            CALL "JsonParse-ArrayEnd" USING LK-INPUT LK-OFFSET LK-FLAG
+            *> Consume the closing bracket. Whitespace was already skipped by JsonParse-Comma.
+            IF LK-OFFSET > INPUT-LENGTH OR LK-INPUT(LK-OFFSET:1) NOT = "]"
+                MOVE 1 TO LK-FLAG
+                GOBACK
+            END-IF
+            ADD 1 TO LK-OFFSET
 
         WHEN "{" *> object
-            CALL "JsonParse-ObjectStart" USING LK-INPUT LK-OFFSET LK-FLAG
-            IF LK-FLAG = 1
-                GOBACK
-            END-IF
+            ADD 1 TO LK-OFFSET
 
             *> Consume the closing brace, if possible
-            CALL "JsonParse-ObjectEnd" USING LK-INPUT LK-OFFSET LK-FLAG
-            IF LK-FLAG = 0
+            CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
+            IF LK-OFFSET > INPUT-LENGTH
+                MOVE 1 TO LK-FLAG
                 GOBACK
             END-IF
-            MOVE 0 TO LK-FLAG
+            IF LK-INPUT(LK-OFFSET:1) = "}"
+                ADD 1 TO LK-OFFSET
+                GOBACK
+            END-IF
 
-            *> Error consuming closing brace - parse object content
-            PERFORM UNTIL LK-FLAG = 1
-                CALL "JsonParse-ObjectKey" USING LK-INPUT LK-OFFSET LK-FLAG DUMMY-STR
-                IF LK-FLAG = 1
+            *> Object has content, skip it
+            PERFORM UNTIL LK-FLAG = 1 OR EXIT-LOOP = 1
+                CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
+                *> Skip the key
+                IF LK-OFFSET > INPUT-LENGTH OR LK-INPUT(LK-OFFSET:1) NOT = '"'
+                    MOVE 1 TO LK-FLAG
                     GOBACK
                 END-IF
+                ADD 1 TO LK-OFFSET
+                PERFORM UNTIL LK-OFFSET > INPUT-LENGTH
+                    EVALUATE LK-INPUT(LK-OFFSET:1)
+                        WHEN '"'
+                            ADD 1 TO LK-OFFSET
+                            EXIT PERFORM
+                        WHEN "\"
+                            ADD 2 TO LK-OFFSET
+                        WHEN OTHER
+                            ADD 1 TO LK-OFFSET
+                    END-EVALUATE
+                END-PERFORM
+                *> Skip whitespace and colon
+                CALL "JsonParse-SkipWhitespace" USING LK-INPUT LK-OFFSET
+                IF LK-OFFSET > INPUT-LENGTH OR LK-INPUT(LK-OFFSET:1) NOT = ":"
+                    MOVE 1 TO LK-FLAG
+                    GOBACK
+                END-IF
+                ADD 1 TO LK-OFFSET
+                *> Skip the value
                 CALL "JsonParse-SkipValue" USING LK-INPUT LK-OFFSET LK-FLAG
-                IF LK-FLAG = 1
-                    GOBACK
-                END-IF
                 *> If there is a comma, consume it and continue the loop; otherwise, exit
                 CALL "JsonParse-Comma" USING LK-INPUT LK-OFFSET EXIT-LOOP
-                IF EXIT-LOOP = 1
-                    EXIT PERFORM
-                END-IF
             END-PERFORM
 
-            *> Consume the closing brace
-            CALL "JsonParse-ObjectEnd" USING LK-INPUT LK-OFFSET LK-FLAG
+            *> Consume the closing brace. Whitespace was already skipped by JsonParse-Comma.
+            IF LK-OFFSET > INPUT-LENGTH OR LK-INPUT(LK-OFFSET:1) NOT = "}"
+                MOVE 1 TO LK-FLAG
+                GOBACK
+            END-IF
+            ADD 1 TO LK-OFFSET
 
         WHEN OTHER
             MOVE 1 TO LK-FLAG

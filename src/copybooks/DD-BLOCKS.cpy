@@ -8,9 +8,9 @@
         *> to store the properties instead of one array per state.
         03 BLOCK-ENTRY-PROPERTY-COUNT BINARY-LONG UNSIGNED.
         03 BLOCK-ENTRY-PROPERTY OCCURS 16 TIMES.
-            04 BLOCK-ENTRY-PROPERTY-NAME PIC X(64).
+            04 BLOCK-ENTRY-PROPERTY-NAME PIC X(32).
             04 BLOCK-ENTRY-PROPERTY-VALUE-COUNT BINARY-LONG UNSIGNED.
-            04 BLOCK-ENTRY-PROPERTY-VALUE PIC X(64) OCCURS 32 TIMES.
+            04 BLOCK-ENTRY-PROPERTY-VALUE PIC X(32) OCCURS 32 TIMES.
         *> Some blocks have a lot of states. For instance, redstone wire has 1296 states (3 power states per
         *> north/east/south/west * 15 power levels).
         *> To save memory, we only store the minimum and maximum IDs instead of the entire list.
