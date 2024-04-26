@@ -30,9 +30,10 @@ LINKAGE SECTION.
         02 LK-CHUNK-X       BINARY-LONG.
         02 LK-CHUNK-Z       BINARY-LONG.
         02 LK-CHUNK-SECTION OCCURS 24 TIMES.
+            03 LK-NON-AIR       BINARY-LONG UNSIGNED.
             *> block IDs (16x16x16) - X increases fastest, then Z, then Y
             03 LK-BLOCK OCCURS 4096 TIMES.
-                04 LK-BLOCK-ID BINARY-LONG UNSIGNED.
+                04 LK-BLOCK-ID      BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-CHUNK.
     MOVE 0 TO PAYLOADLEN
@@ -170,8 +171,9 @@ PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-CHUNK.
     LINKAGE SECTION.
         01 LK-CHUNK-SEC     BINARY-LONG UNSIGNED.
         01 LK-SECTION.
+            02 LK-NON-AIR       BINARY-LONG UNSIGNED.
             02 LK-BLOCK OCCURS 4096 TIMES.
-                03 LK-BLOCK-ID BINARY-LONG UNSIGNED.
+                03 LK-BLOCK-ID      BINARY-LONG UNSIGNED.
         01 LK-BUFFER        PIC X ANY LENGTH.
         01 LK-BUFFERLEN     BINARY-LONG UNSIGNED.
 
@@ -186,27 +188,40 @@ PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-CHUNK.
 
         *> TODO: implement an actual palette to save bandwidth, and improve performance
 
-        *> block states
-        *> - bits per entry: 15 = direct palette
-        MOVE X"0F" TO LK-BUFFER(LK-BUFFERLEN + 1:1)
-        ADD 1 TO LK-BUFFERLEN
-        *> - palette: empty, since we have a direct palette
-        *> - data array length: (4096 / 4 = 1024)
-        MOVE 1024 TO INT32
-        CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
-        MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
-        ADD BUFFERLEN TO LK-BUFFERLEN
-        *> - data array: block ids - x increases fastest, then z, then y
-        COMPUTE BLOCK-INDEX = 1
-        PERFORM 1024 TIMES
-            *> Each block uses 15 bits, and 4 blocks are packed into a 64-bit long starting from the least
-            *> significant bit. Since only 60 bits are used, the 4 most significant bits become padding (0).
-            COMPUTE PALETTE-ENTRY = LK-BLOCK-ID(BLOCK-INDEX) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 1) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 2) + 32768 * LK-BLOCK-ID(BLOCK-INDEX + 3)))
-            CALL "Encode-Long" USING PALETTE-ENTRY PALETTE-BUFF PALETTE-BUFFLEN
-            MOVE PALETTE-BUFF(1:PALETTE-BUFFLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:PALETTE-BUFFLEN)
-            ADD PALETTE-BUFFLEN TO LK-BUFFERLEN
-            ADD 4 TO BLOCK-INDEX
-        END-PERFORM
+        IF LK-NON-AIR = 0
+            *> shortcut if the section is empty
+            *> - bits per entry: 0 = single-valued
+            ADD 1 TO LK-BUFFERLEN
+            MOVE X"00" TO LK-BUFFER(LK-BUFFERLEN:1)
+            *> - palette: 0 = id of the air block
+            ADD 1 TO LK-BUFFERLEN
+            MOVE X"00" TO LK-BUFFER(LK-BUFFERLEN:1)
+            *> - data array length: 0, since we have a single-valued palette
+            ADD 1 TO LK-BUFFERLEN
+            MOVE X"00" TO LK-BUFFER(LK-BUFFERLEN:1)
+        ELSE
+            *> block states
+            *> - bits per entry: 15 = direct palette
+            MOVE X"0F" TO LK-BUFFER(LK-BUFFERLEN + 1:1)
+            ADD 1 TO LK-BUFFERLEN
+            *> - palette: empty, since we have a direct palette
+            *> - data array length: (4096 / 4 = 1024)
+            MOVE 1024 TO INT32
+            CALL "Encode-VarInt" USING INT32 BUFFER BUFFERLEN
+            MOVE BUFFER(1:BUFFERLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:BUFFERLEN)
+            ADD BUFFERLEN TO LK-BUFFERLEN
+            *> - data array: block ids - x increases fastest, then z, then y
+            MOVE 1 TO BLOCK-INDEX
+            PERFORM 1024 TIMES
+                *> Each block uses 15 bits, and 4 blocks are packed into a 64-bit long starting from the least
+                *> significant bit. Since only 60 bits are used, the 4 most significant bits become padding (0).
+                COMPUTE PALETTE-ENTRY = LK-BLOCK-ID(BLOCK-INDEX) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 1) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 2) + 32768 * LK-BLOCK-ID(BLOCK-INDEX + 3)))
+                CALL "Encode-Long" USING PALETTE-ENTRY PALETTE-BUFF PALETTE-BUFFLEN
+                MOVE PALETTE-BUFF(1:PALETTE-BUFFLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:PALETTE-BUFFLEN)
+                ADD PALETTE-BUFFLEN TO LK-BUFFERLEN
+                ADD 4 TO BLOCK-INDEX
+            END-PERFORM
+        END-IF
 
         *> biomes
         *> - bits per entry: 0 = single-valued
