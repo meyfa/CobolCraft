@@ -2,7 +2,7 @@
 
 A Minecraft server written in COBOL. It supports Minecraft 1.20.5 (the latest version at time of writing).
 
-## Progress/TODO
+## Features
 
 The following features are already working:
 
@@ -16,7 +16,7 @@ The following features are already working:
 - [X] multiplayer
 - [X] chat
 - [X] server console commands
-- [ ] persisting data across restarts (WIP: chunks are saved, but players are not)
+- [X] persisting data across restarts
 
 ## How-to
 
