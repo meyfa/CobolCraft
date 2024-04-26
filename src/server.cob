@@ -12,9 +12,9 @@ FILE-CONTROL.
 DATA DIVISION.
 FILE SECTION.
     FD FD-REGISTRIES-FILE.
-        01 REGISTRIES-LINE PIC X(1024).
+        01 REGISTRIES-LINE PIC X(255).
     FD FD-BLOCKS-FILE.
-        01 BLOCKS-LINE PIC X(1024).
+        01 BLOCKS-LINE PIC X(255).
 
 WORKING-STORAGE SECTION.
     *> Constants
@@ -121,16 +121,13 @@ LoadRegistries.
     *> read the entire registries.json file into memory
     MOVE 0 TO DATA-BUFFER-LEN
     OPEN INPUT FD-REGISTRIES-FILE
-    MOVE 1024 TO BYTE-COUNT
+    MOVE 1 TO BYTE-COUNT
     PERFORM UNTIL BYTE-COUNT = 0
         READ FD-REGISTRIES-FILE
             AT END
                 MOVE 0 TO BYTE-COUNT
             NOT AT END
-                IF DATA-BUFFER-LEN > 0
-                    MOVE " " TO DATA-BUFFER(DATA-BUFFER-LEN + 1:1)
-                    ADD 1 TO DATA-BUFFER-LEN
-                END-IF
+                *> Note: This swallows the newline, which is fine for JSON data.
                 MOVE FUNCTION STORED-CHAR-LENGTH(REGISTRIES-LINE) TO TEMP-INT32
                 MOVE REGISTRIES-LINE(1:TEMP-INT32) TO DATA-BUFFER(DATA-BUFFER-LEN + 1:TEMP-INT32)
                 ADD TEMP-INT32 TO DATA-BUFFER-LEN
@@ -150,16 +147,13 @@ LoadBlocks.
     *> read the entire blocks.json file into memory
     MOVE 0 TO DATA-BUFFER-LEN
     OPEN INPUT FD-BLOCKS-FILE
-    MOVE 1024 TO BYTE-COUNT
+    MOVE 1 TO BYTE-COUNT
     PERFORM UNTIL BYTE-COUNT = 0
         READ FD-BLOCKS-FILE
             AT END
                 MOVE 0 TO BYTE-COUNT
             NOT AT END
-                IF DATA-BUFFER-LEN > 0
-                    MOVE " " TO DATA-BUFFER(DATA-BUFFER-LEN + 1:1)
-                    ADD 1 TO DATA-BUFFER-LEN
-                END-IF
+                *> Note: This swallows the newline, which is fine for JSON data.
                 MOVE FUNCTION STORED-CHAR-LENGTH(BLOCKS-LINE) TO TEMP-INT32
                 MOVE BLOCKS-LINE(1:TEMP-INT32) TO DATA-BUFFER(DATA-BUFFER-LEN + 1:TEMP-INT32)
                 ADD TEMP-INT32 TO DATA-BUFFER-LEN
