@@ -5,6 +5,7 @@ PROGRAM-ID. Test-Encode.
 PROCEDURE DIVISION.
     DISPLAY "Test: encode.cob"
     CALL "Test-Encode-VarInt"
+    CALL "Test-Encode-GetVarIntLength"
     CALL "Test-Encode-Double"
     CALL "Test-Encode-Float"
     CALL "Test-Encode-Angle"
@@ -117,6 +118,103 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Encode-VarInt.
+
+    *> --- Test: Encode-GetVarIntLength ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-GetVarIntLength.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 VALUE-IN     BINARY-LONG.
+        01 BUFFERLEN    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-GetVarIntLength".
+    Int0.
+        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        MOVE 0 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int1.
+        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        MOVE 1 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int127.
+        DISPLAY "    Case: 127 - " WITH NO ADVANCING
+        MOVE 127 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int128.
+        DISPLAY "    Case: 128 - " WITH NO ADVANCING
+        MOVE 128 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int255.
+        DISPLAY "    Case: 255 - " WITH NO ADVANCING
+        MOVE 255 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int25565.
+        DISPLAY "    Case: 25565 - " WITH NO ADVANCING
+        MOVE 25565 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 3
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntMax.
+        DISPLAY "    Case: 2147483647 - " WITH NO ADVANCING
+        MOVE 2147483647 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntNegative1.
+        DISPLAY "    Case: -1 - " WITH NO ADVANCING
+        MOVE -1 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntMin.
+        DISPLAY "    Case: -2147483648 - " WITH NO ADVANCING
+        MOVE -2147483648 TO VALUE-IN
+        CALL "Encode-GetVarIntLength" USING VALUE-IN BUFFERLEN
+        IF BUFFERLEN = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-GetVarIntLength.
 
     *> --- Test: Encode-Double ---
     IDENTIFICATION DIVISION.
