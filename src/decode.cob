@@ -56,13 +56,14 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. Decode-VarInt.
 
 DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 BYTE-ALPHA.
+        02 BYTE-VALUE           BINARY-CHAR UNSIGNED.
 LOCAL-STORAGE SECTION.
-    01 VARINT-READ-COUNT    BINARY-CHAR UNSIGNED    VALUE 0.
-    01 VARINT-BYTE          BINARY-CHAR UNSIGNED    VALUE 0.
-    01 VARINT-BYTE-VALUE    BINARY-CHAR UNSIGNED    VALUE 0.
     01 VARINT-MULTIPLIER    BINARY-LONG UNSIGNED    VALUE 1.
-    01 VARINT-CONTINUE      BINARY-CHAR UNSIGNED    VALUE 1.
     01 UINT-VALUE           BINARY-LONG UNSIGNED    VALUE 0.
+    *> The maximum number of bytes a VarInt can have is 5
+    01 VARINT-CONTINUE      BINARY-CHAR UNSIGNED    VALUE 5.
 LINKAGE SECTION.
     01 LK-BUFFER            PIC X ANY LENGTH.
     01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
@@ -71,17 +72,16 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-BUFFER LK-BUFFERPOS LK-VALUE.
     PERFORM UNTIL VARINT-CONTINUE = 0
         *> Read the next byte
-        COMPUTE VARINT-BYTE = FUNCTION ORD(LK-BUFFER(LK-BUFFERPOS:1)) - 1
+        MOVE LK-BUFFER(LK-BUFFERPOS:1) TO BYTE-ALPHA
         ADD 1 TO LK-BUFFERPOS
-        ADD 1 TO VARINT-READ-COUNT
-        *> Extract the lower 7 bits
-        MOVE FUNCTION MOD(VARINT-BYTE, 128) TO VARINT-BYTE-VALUE
-        *> This yields the value when multiplied by the position multiplier
-        COMPUTE UINT-VALUE = UINT-VALUE + VARINT-BYTE-VALUE * VARINT-MULTIPLIER
-        MULTIPLY VARINT-MULTIPLIER BY 128 GIVING VARINT-MULTIPLIER
-        *> Check if we need to continue (if the high bit is set and the maximum number of bytes has not been reached)
-        IF VARINT-BYTE < 128 OR VARINT-READ-COUNT >= 5
+        SUBTRACT 1 FROM VARINT-CONTINUE
+        *> The lower 7 bits of the byte are the value, and the high bit indicates if there are more bytes
+        IF BYTE-VALUE < 128
+            COMPUTE UINT-VALUE = UINT-VALUE + BYTE-VALUE * VARINT-MULTIPLIER
             MOVE 0 TO VARINT-CONTINUE
+        ELSE
+            COMPUTE UINT-VALUE = UINT-VALUE + (BYTE-VALUE - 128) * VARINT-MULTIPLIER
+            MULTIPLY VARINT-MULTIPLIER BY 128 GIVING VARINT-MULTIPLIER
         END-IF
     END-PERFORM
     *> Check if the number should be negative (i.e., is larger than 2^31-1) and compute its signed value
