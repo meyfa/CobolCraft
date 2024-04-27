@@ -32,20 +32,7 @@ PROCEDURE DIVISION USING LK-ITEM-NAME.
     PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE.
         *> Compute the position of the block to be affected
         MOVE LK-POSITION TO BLOCK-POSITION
-        EVALUATE LK-FACE
-            WHEN 0
-                COMPUTE BLOCK-Y = BLOCK-Y - 1
-            WHEN 1
-                COMPUTE BLOCK-Y = BLOCK-Y + 1
-            WHEN 2
-                COMPUTE BLOCK-Z = BLOCK-Z - 1
-            WHEN 3
-                COMPUTE BLOCK-Z = BLOCK-Z + 1
-            WHEN 4
-                COMPUTE BLOCK-X = BLOCK-X - 1
-            WHEN 5
-                COMPUTE BLOCK-X = BLOCK-X + 1
-        END-EVALUATE
+        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
 
         *> Ensure the position is not outside the world
         CALL "World-CheckBounds" USING BLOCK-POSITION BOUNDS-CHECK

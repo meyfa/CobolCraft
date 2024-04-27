@@ -36,6 +36,7 @@ PROCEDURE DIVISION.
             02 BLOCK-X              BINARY-LONG.
             02 BLOCK-Y              BINARY-LONG.
             02 BLOCK-Z              BINARY-LONG.
+        01 FACING                   PIC X(5).
         01 BOUNDS-CHECK             BINARY-CHAR UNSIGNED.
         01 BLOCK-ID                 BINARY-LONG.
     LINKAGE SECTION.
@@ -44,38 +45,10 @@ PROCEDURE DIVISION.
     PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE.
         *> TODO reduce duplication with other callbacks
 
-        EVALUATE LK-ITEM-NAME
-            WHEN C-MINECRAFT-TORCH
-                MOVE C-MINECRAFT-WALL_TORCH TO WALL_TORCH-NAME
-            WHEN C-MINECRAFT-SOUL_TORCH
-                MOVE C-MINECRAFT-SOUL_WALL_TORCH TO WALL_TORCH-NAME
-            WHEN C-MINECRAFT-REDSTONE_TORCH
-                MOVE C-MINECRAFT-REDSTONE_WALL_TORCH TO WALL_TORCH-NAME
-        END-EVALUATE
-
-        MOVE 1 TO WALL_TORCH-PROPS
-        MOVE "facing" TO WALL_TORCH-PROP-NAME(1)
-
         *> Compute the position of the block to be affected
         MOVE LK-POSITION TO BLOCK-POSITION
-        EVALUATE LK-FACE
-            WHEN 0
-                COMPUTE BLOCK-Y = BLOCK-Y - 1
-            WHEN 1
-                COMPUTE BLOCK-Y = BLOCK-Y + 1
-            WHEN 2
-                COMPUTE BLOCK-Z = BLOCK-Z - 1
-                MOVE "north" TO WALL_TORCH-PROP-VALUE(1)
-            WHEN 3
-                COMPUTE BLOCK-Z = BLOCK-Z + 1
-                MOVE "south" TO WALL_TORCH-PROP-VALUE(1)
-            WHEN 4
-                COMPUTE BLOCK-X = BLOCK-X - 1
-                MOVE "west" TO WALL_TORCH-PROP-VALUE(1)
-            WHEN 5
-                COMPUTE BLOCK-X = BLOCK-X + 1
-                MOVE "east" TO WALL_TORCH-PROP-VALUE(1)
-        END-EVALUATE
+        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
+        CALL "Facing-ToString" USING LK-FACE FACING
 
         *> Ensure the position is not outside the world
         CALL "World-CheckBounds" USING BLOCK-POSITION BOUNDS-CHECK
@@ -91,10 +64,24 @@ PROCEDURE DIVISION.
 
         *> TODO: check for solid block where the torch will be placed
 
-        IF LK-FACE = 0 OR LK-FACE = 1
+        IF FACING = "up" OR FACING = "down"
             CALL "Blocks-Get-DefaultStateId" USING LK-ITEM-NAME BLOCK-ID
             CALL "World-SetBlock" USING BLOCK-POSITION BLOCK-ID
         ELSE
+            *> use the correct wall torch type
+            EVALUATE LK-ITEM-NAME
+                WHEN C-MINECRAFT-TORCH
+                    MOVE C-MINECRAFT-WALL_TORCH TO WALL_TORCH-NAME
+                WHEN C-MINECRAFT-SOUL_TORCH
+                    MOVE C-MINECRAFT-SOUL_WALL_TORCH TO WALL_TORCH-NAME
+                WHEN C-MINECRAFT-REDSTONE_TORCH
+                    MOVE C-MINECRAFT-REDSTONE_WALL_TORCH TO WALL_TORCH-NAME
+            END-EVALUATE
+
+            MOVE 1 TO WALL_TORCH-PROPS
+            MOVE "facing" TO WALL_TORCH-PROP-NAME(1)
+            MOVE FACING TO WALL_TORCH-PROP-VALUE(1)
+
             CALL "Blocks-Get-StateId" USING WALL_TORCH-DESCRIPTOR BLOCK-ID
             CALL "World-SetBlock" USING BLOCK-POSITION BLOCK-ID
         END-IF
