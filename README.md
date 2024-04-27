@@ -22,6 +22,10 @@ The following features are already working:
 - [X] server console commands
 - [X] whitelist (single player, edit `main.cob` to enable/set username)
 
+Note that blocks with multiple states and/or orientations require large amounts of specialized code to make them
+behave properly, which is way beyond the scope of this project.
+Some are supported, however (currently: all torch variants).
+
 ## How-to
 
 CobolCraft was developed using GnuCOBOL and is meant to be run on Linux.

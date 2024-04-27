@@ -91,9 +91,11 @@ WORKING-STORAGE SECTION.
         02 TEMP-POSITION-X      BINARY-LONG.
         02 TEMP-POSITION-Y      BINARY-LONG.
         02 TEMP-POSITION-Z      BINARY-LONG.
+    01 TEMP-BLOCK-FACE      BINARY-LONG.
     01 TEMP-PLAYER-NAME     PIC X(16).
     01 TEMP-PLAYER-NAME-LEN BINARY-LONG UNSIGNED.
     01 TEMP-REGISTRY        PIC X(100)              VALUE SPACES.
+    01 CALLBACK-PTR         PROGRAM-POINTER.
     *> Time measurement
     01 CURRENT-TIME         BINARY-LONG-LONG.
     01 TICK-ENDTIME         BINARY-LONG-LONG.
@@ -107,6 +109,11 @@ WORKING-STORAGE SECTION.
     01 CHUNK-END-Z          BINARY-LONG.
     01 PREV-CENTER-CHUNK-X  BINARY-LONG.
     01 PREV-CENTER-CHUNK-Z  BINARY-LONG.
+    *> Variables used for item registration
+    01 REGISTRY-INDEX       BINARY-LONG.
+    01 REGISTRY-LENGTH      BINARY-LONG UNSIGNED.
+    01 REGISTRY-ENTRY-INDEX BINARY-LONG UNSIGNED.
+    01 REGISTRY-ENTRY-NAME  PIC X(100).
     *> TODO: remove need to access world data directly in this file
     COPY DD-WORLD.
 
@@ -169,6 +176,28 @@ LoadBlocks.
         DISPLAY "Failed to parse blocks"
         STOP RUN
     END-IF
+    .
+
+RegisterItems.
+    DISPLAY "Registering items"
+
+    *> Register a generic block item for each item that has an identically-named block
+    CALL "Registries-GetRegistryIndex" USING C-MINECRAFT-ITEM REGISTRY-INDEX
+    IF REGISTRY-INDEX <= 0
+        DISPLAY "Failed to find " FUNCTION TRIM(C-MINECRAFT-ITEM) " registry"
+        STOP RUN
+    END-IF
+    CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
+    PERFORM VARYING REGISTRY-ENTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-ENTRY-INDEX > REGISTRY-LENGTH
+        CALL "Registries-Iterate-EntryName" USING REGISTRY-INDEX REGISTRY-ENTRY-INDEX REGISTRY-ENTRY-NAME
+        CALL "Blocks-Get-DefaultStateId" USING REGISTRY-ENTRY-NAME TEMP-INT32
+        IF TEMP-INT32 > 0
+            CALL "RegisterItem-Block" USING REGISTRY-ENTRY-NAME
+        END-IF
+    END-PERFORM
+
+    *> Register items with special handling
+    CALL "RegisterItem-Torch"
     .
 
 GenerateWorld.
@@ -1231,11 +1260,27 @@ HandlePlay SECTION.
             *> block position
             CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
             *>  face enum (0-5): -Y, +Y, -Z, +Z, -X, +X
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-BLOCK-FACE
             *> TODO: cursor position, inside block
             ADD 13 TO PACKET-POSITION
-            *> compute the location of the block to be affected
-            EVALUATE TEMP-INT32
+            *> acknowledge the action
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
+            IF ERRNO NOT = 0
+                PERFORM HandleClientError
+                EXIT SECTION
+            END-IF
+            *> determine the item in the inventory slot and find its "use" callback
+            MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
+            CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-REGISTRY
+            CALL "GetCallback-ItemUse" USING TEMP-REGISTRY CALLBACK-PTR
+            IF CALLBACK-PTR = NULL
+                EXIT SECTION
+            END-IF
+            CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-REGISTRY TEMP-POSITION TEMP-BLOCK-FACE
+            *> HACK: Send updates to the clients for the affected blocks.
+            *> TODO Improve the factoring of networking code so the callbacks can handle this themselves.
+            EVALUATE TEMP-BLOCK-FACE
                 WHEN 0
                     COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y - 1
                 WHEN 1
@@ -1249,30 +1294,10 @@ HandlePlay SECTION.
                 WHEN 5
                     COMPUTE TEMP-POSITION-X = TEMP-POSITION-X + 1
             END-EVALUATE
-            *> ensure the position is not outside the world
             CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
             IF TEMP-INT8 = 0
-                *> acknowledge the action
-                CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-                CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
-                IF ERRNO NOT = 0
-                    PERFORM HandleClientError
-                    EXIT SECTION
-                END-IF
-                *> Determine the block to place by converting the item ID to a registry string, then looking for an
-                *> identically named block in the blocks list.
-                *> For example: item 27 -> "minecraft:grass_block" -> block state 9.
-                MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
-                CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-REGISTRY
-                CALL "Blocks-Get-DefaultStateId" USING TEMP-REGISTRY TEMP-INT32
-                MOVE TEMP-INT32 TO TEMP-INT16
-                *> Ensure the block was previously air
-                CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
-                IF TEMP-INT16 > 0 AND TEMP-INT32 = 0
-                    MOVE TEMP-INT16 TO TEMP-INT32
-                    CALL "World-SetBlock" USING TEMP-POSITION TEMP-INT32
-                END-IF
                 *> send the block update to all players
+                CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
                 MOVE CLIENT-ID TO TEMP-INT16
                 PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                     IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
