@@ -25,6 +25,9 @@ WORKING-STORAGE SECTION.
     *> TODO: Improve performance so this can be increased to a reasonable value.
     01 VIEW-DISTANCE                BINARY-LONG     VALUE 3.
     78 CHUNK-QUEUE-LENGTH                           VALUE 100.
+    *> The amount of milliseconds between autosaves, and the last autosave timestamp.
+    01 AUTOSAVE-INTERVAL            BINARY-LONG     VALUE 300000.
+    01 LAST-AUTOSAVE                BINARY-LONG-LONG.
     *> A large buffer to hold JSON data before parsing.
     01 DATA-BUFFER          PIC X(10000000).
     01 DATA-BUFFER-LEN      BINARY-LONG UNSIGNED    VALUE 0.
@@ -178,6 +181,8 @@ GenerateWorld.
     END-IF
     *> prepare player data
     CALL "Players-Init"
+    *> don't autosave immediately
+    CALL "Util-SystemTimeMillis" USING LAST-AUTOSAVE
     .
 
 StartServer.
@@ -195,6 +200,12 @@ ServerLoop.
     PERFORM UNTIL EXIT
         CALL "Util-SystemTimeMillis" USING CURRENT-TIME
         COMPUTE TICK-ENDTIME = CURRENT-TIME + (1000 / 20)
+
+        COMPUTE TEMP-INT64 = CURRENT-TIME - LAST-AUTOSAVE
+        IF TEMP-INT64 >= AUTOSAVE-INTERVAL
+            PERFORM SaveWorld
+            MOVE CURRENT-TIME TO LAST-AUTOSAVE
+        END-IF
 
         *> Update the game state
         PERFORM GameLoop
