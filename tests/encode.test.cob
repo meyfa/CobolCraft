@@ -4,13 +4,104 @@ PROGRAM-ID. Test-Encode.
 
 PROCEDURE DIVISION.
     DISPLAY "Test: encode.cob"
+    CALL "Test-Encode-UnsignedShort"
+    CALL "Test-Encode-UnsignedInt"
     CALL "Test-Encode-VarInt"
     CALL "Test-Encode-GetVarIntLength"
+    CALL "Test-Encode-UnsignedLong"
     CALL "Test-Encode-Double"
     CALL "Test-Encode-Float"
     CALL "Test-Encode-Angle"
     CALL "Test-Encode-Position"
     GOBACK.
+
+    *> --- Test: Encode-UnsignedShort ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-UnsignedShort.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 VALUE-IN     BINARY-SHORT UNSIGNED.
+        01 BUFFER       PIC X(10).
+        01 BUFFERLEN    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-UnsignedShort".
+    Short0.
+        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        MOVE 0 TO VALUE-IN
+        CALL "Encode-UnsignedShort" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"0000" AND BUFFERLEN = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Short1.
+        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        MOVE 1 TO VALUE-IN
+        CALL "Encode-UnsignedShort" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"0001" AND BUFFERLEN = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    ShortMax.
+        DISPLAY "    Case: 65535 - " WITH NO ADVANCING
+        MOVE 65535 TO VALUE-IN
+        CALL "Encode-UnsignedShort" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"FFFF" AND BUFFERLEN = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-UnsignedShort.
+
+    *> --- Test: Encode-UnsignedInt ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-UnsignedInt.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 VALUE-IN     BINARY-LONG UNSIGNED.
+        01 BUFFER       PIC X(10).
+        01 BUFFERLEN    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-UnsignedInt".
+    Int0.
+        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        MOVE 0 TO VALUE-IN
+        CALL "Encode-UnsignedInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"00000000" AND BUFFERLEN = 4
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int1.
+        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        MOVE 1 TO VALUE-IN
+        CALL "Encode-UnsignedInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"00000001" AND BUFFERLEN = 4
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntMax.
+        DISPLAY "    Case: 4294967295 - " WITH NO ADVANCING
+        MOVE 4294967295 TO VALUE-IN
+        CALL "Encode-UnsignedInt" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"FFFFFFFF" AND BUFFERLEN = 4
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-UnsignedInt.
 
     *> --- Test: Encode-VarInt ---
     IDENTIFICATION DIVISION.
@@ -215,6 +306,59 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Encode-GetVarIntLength.
+
+    *> --- Test: Encode-UnsignedLong ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-UnsignedLong.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 VALUE-IN     BINARY-LONG-LONG UNSIGNED.
+        01 BUFFER       PIC X(10).
+        01 BUFFERLEN    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-UnsignedLong".
+    Long0.
+        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        MOVE 0 TO VALUE-IN
+        CALL "Encode-UnsignedLong" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"0000000000000000" AND BUFFERLEN = 8
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Long1.
+        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        MOVE 1 TO VALUE-IN
+        CALL "Encode-UnsignedLong" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"0000000000000001" AND BUFFERLEN = 8
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Long25565.
+        DISPLAY "    Case: 25565 - " WITH NO ADVANCING
+        MOVE 25565 TO VALUE-IN
+        CALL "Encode-UnsignedLong" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"00000000000063DD" AND BUFFERLEN = 8
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    LongMax.
+        DISPLAY "    Case: 18446744073709551615 - " WITH NO ADVANCING
+        MOVE 18446744073709551615 TO VALUE-IN
+        CALL "Encode-UnsignedLong" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"FFFFFFFFFFFFFFFF" AND BUFFERLEN = 8
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-UnsignedLong.
 
     *> --- Test: Encode-Double ---
     IDENTIFICATION DIVISION.

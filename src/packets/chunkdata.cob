@@ -216,7 +216,7 @@ PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-CHUNK.
                 *> Each block uses 15 bits, and 4 blocks are packed into a 64-bit long starting from the least
                 *> significant bit. Since only 60 bits are used, the 4 most significant bits become padding (0).
                 COMPUTE PALETTE-ENTRY = LK-BLOCK-ID(BLOCK-INDEX) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 1) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 2) + 32768 * LK-BLOCK-ID(BLOCK-INDEX + 3)))
-                CALL "Encode-Long" USING PALETTE-ENTRY PALETTE-BUFF PALETTE-BUFFLEN
+                CALL "Encode-UnsignedLong" USING PALETTE-ENTRY PALETTE-BUFF PALETTE-BUFFLEN
                 MOVE PALETTE-BUFF(1:PALETTE-BUFFLEN) TO LK-BUFFER(LK-BUFFERLEN + 1:PALETTE-BUFFLEN)
                 ADD PALETTE-BUFFLEN TO LK-BUFFERLEN
                 ADD 4 TO BLOCK-INDEX
