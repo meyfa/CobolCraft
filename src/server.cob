@@ -1280,20 +1280,7 @@ HandlePlay SECTION.
             CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-REGISTRY TEMP-POSITION TEMP-BLOCK-FACE
             *> HACK: Send updates to the clients for the affected blocks.
             *> TODO Improve the factoring of networking code so the callbacks can handle this themselves.
-            EVALUATE TEMP-BLOCK-FACE
-                WHEN 0
-                    COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y - 1
-                WHEN 1
-                    COMPUTE TEMP-POSITION-Y = TEMP-POSITION-Y + 1
-                WHEN 2
-                    COMPUTE TEMP-POSITION-Z = TEMP-POSITION-Z - 1
-                WHEN 3
-                    COMPUTE TEMP-POSITION-Z = TEMP-POSITION-Z + 1
-                WHEN 4
-                    COMPUTE TEMP-POSITION-X = TEMP-POSITION-X - 1
-                WHEN 5
-                    COMPUTE TEMP-POSITION-X = TEMP-POSITION-X + 1
-            END-EVALUATE
+            CALL "Facing-GetRelative" USING TEMP-BLOCK-FACE TEMP-POSITION
             CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
             IF TEMP-INT8 = 0
                 *> send the block update to all players
