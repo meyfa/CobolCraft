@@ -42,7 +42,7 @@ PROCEDURE DIVISION.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
-    PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE.
+    PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
         *> TODO reduce duplication with other callbacks
 
         *> Compute the position of the block to be affected
