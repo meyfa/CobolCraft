@@ -74,6 +74,36 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
             END-IF
 
             EVALUATE OBJECT-KEY
+                WHEN "definition"
+                    *> Expect the start of the definition object.
+                    CALL "JsonParse-ObjectStart" USING LK-JSON LK-OFFSET LK-FAILURE
+
+                    *> Loop over each key in the definition object.
+                    PERFORM UNTIL LK-FAILURE NOT = 0
+                        *> Read the key.
+                        CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE OBJECT-KEY
+                        IF LK-FAILURE NOT = 0
+                            GOBACK
+                        END-IF
+
+                        *> We care about the "type" key.
+                        EVALUATE OBJECT-KEY
+                            WHEN "type"
+                                CALL "JsonParse-String" USING LK-JSON LK-OFFSET LK-FAILURE BLOCK-ENTRY-TYPE(LK-BLOCK)
+                            WHEN OTHER
+                                CALL "JsonParse-SkipValue" USING LK-JSON LK-OFFSET LK-FAILURE
+                        END-EVALUATE
+
+                        *> Check if there is a comma; if not, exit the loop.
+                        CALL "JsonParse-Comma" USING LK-JSON LK-OFFSET EXIT-LOOP
+                        IF EXIT-LOOP = 1
+                            EXIT PERFORM
+                        END-IF
+                    END-PERFORM
+
+                    *> Expect the end of the definition object.
+                    CALL "JsonParse-ObjectEnd" USING LK-JSON LK-OFFSET LK-FAILURE
+
                 WHEN "properties"
                     *> Expect the start of the properties object.
                     CALL "JsonParse-ObjectStart" USING LK-JSON LK-OFFSET LK-FAILURE
@@ -244,6 +274,59 @@ PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
     END PROGRAM Blocks-Parse-Block.
 
 END PROGRAM Blocks-Parse.
+
+*> --- Blocks-GetCount ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Blocks-GetCount.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared data
+    COPY DD-BLOCKS.
+LINKAGE SECTION.
+    01 LK-COUNT         BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-COUNT.
+    MOVE BLOCKS-COUNT TO LK-COUNT
+    GOBACK.
+
+END PROGRAM Blocks-GetCount.
+
+*> --- Blocks-Iterate-Name ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Blocks-Iterate-Name.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared data
+    COPY DD-BLOCKS.
+LINKAGE SECTION.
+    01 LK-INDEX         BINARY-LONG UNSIGNED.
+    01 LK-NAME          PIC X ANY LENGTH.
+
+PROCEDURE DIVISION USING LK-INDEX LK-NAME.
+    MOVE BLOCK-ENTRY-NAME(LK-INDEX) TO LK-NAME
+    GOBACK.
+
+END PROGRAM Blocks-Iterate-Name.
+
+*> --- Blocks-Iterate-Type ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Blocks-Iterate-Type.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared data
+    COPY DD-BLOCKS.
+LINKAGE SECTION.
+    01 LK-INDEX         BINARY-LONG UNSIGNED.
+    01 LK-TYPE          PIC X ANY LENGTH.
+
+PROCEDURE DIVISION USING LK-INDEX LK-TYPE.
+    MOVE BLOCK-ENTRY-TYPE(LK-INDEX) TO LK-TYPE
+    GOBACK.
+
+END PROGRAM Blocks-Iterate-Type.
 
 *> --- Blocks-Get-DefaultStateId ---
 IDENTIFICATION DIVISION.

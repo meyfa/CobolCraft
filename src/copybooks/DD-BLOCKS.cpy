@@ -3,6 +3,8 @@
     02 BLOCKS-COUNT BINARY-LONG UNSIGNED.
     02 BLOCK-ENTRY OCCURS 2000 TIMES.
         03 BLOCK-ENTRY-NAME PIC X(100).
+        *> The value of "definition"."type". For example, "minecraft:slab" for slab blocks.
+        03 BLOCK-ENTRY-TYPE PIC X(100).
         *> We make use of the fact that each block state corresponds to a combination of properties,
         *> and that they occur in a predictable order. This allows us to use a single array per block
         *> to store the properties instead of one array per state.
