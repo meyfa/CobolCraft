@@ -5,13 +5,26 @@ PROGRAM-ID. RegisterItem-Slab.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 C-MINECRAFT-AIR                  PIC X(32) GLOBAL    VALUE "minecraft:air".
-    01 C-MINECRAFT-STONE_SLAB           PIC X(32) GLOBAL    VALUE "minecraft:stone_slab".
+    01 C-MINECRAFT-SLAB                 PIC X(32) GLOBAL    VALUE "minecraft:slab".
     01 USE-PTR                          PROGRAM-POINTER.
+    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
+    01 BLOCK-NAME                       PIC X(64).
+    01 BLOCK-TYPE                       PIC X(64).
 
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
-    *> TODO implement all slab types - can be done by checking "definition"."type" == "minecraft:slab" in blocks.json
-    CALL "SetCallback-ItemUse" USING C-MINECRAFT-STONE_SLAB USE-PTR
+
+    *> Loop over all blocks and register the callback for each slab
+    CALL "Blocks-GetCount" USING BLOCK-COUNT
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
+        CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
+        IF BLOCK-TYPE = C-MINECRAFT-SLAB
+            CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
+            CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
+        END-IF
+    END-PERFORM
+
     GOBACK.
 
     *> --- Callback-Use ---
