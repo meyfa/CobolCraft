@@ -92,6 +92,10 @@ WORKING-STORAGE SECTION.
         02 TEMP-POSITION-Y      BINARY-LONG.
         02 TEMP-POSITION-Z      BINARY-LONG.
     01 TEMP-BLOCK-FACE      BINARY-LONG.
+    01 TEMP-CURSOR.
+        02 TEMP-CURSOR-X        FLOAT-SHORT.
+        02 TEMP-CURSOR-Y        FLOAT-SHORT.
+        02 TEMP-CURSOR-Z        FLOAT-SHORT.
     01 TEMP-PLAYER-NAME     PIC X(16).
     01 TEMP-PLAYER-NAME-LEN BINARY-LONG UNSIGNED.
     01 TEMP-REGISTRY        PIC X(100)              VALUE SPACES.
@@ -198,6 +202,7 @@ RegisterItems.
 
     *> Register items with special handling
     CALL "RegisterItem-Torch"
+    CALL "RegisterItem-Slab"
     .
 
 GenerateWorld.
@@ -1261,8 +1266,11 @@ HandlePlay SECTION.
             CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
             *>  face enum (0-5): -Y, +Y, -Z, +Z, -X, +X
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-BLOCK-FACE
-            *> TODO: cursor position, inside block
-            ADD 13 TO PACKET-POSITION
+            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-X
+            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-Y
+            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-Z
+            *> TODO: "inside block" flag
+            ADD 1 TO PACKET-POSITION
             *> acknowledge the action
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
@@ -1277,13 +1285,26 @@ HandlePlay SECTION.
             IF CALLBACK-PTR = NULL
                 EXIT SECTION
             END-IF
-            CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-REGISTRY TEMP-POSITION TEMP-BLOCK-FACE
+            CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-REGISTRY TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
             *> HACK: Send updates to the clients for the affected blocks.
             *> TODO Improve the factoring of networking code so the callbacks can handle this themselves.
+            *> First, for the clicked block.
+            CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
+            IF TEMP-INT8 = 0
+                CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
+                MOVE CLIENT-ID TO TEMP-INT16
+                PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+                    IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = 4
+                        CALL "SendPacket-BlockUpdate" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-POSITION TEMP-INT32
+                        PERFORM HandleClientError
+                    END-IF
+                END-PERFORM
+                MOVE TEMP-INT16 TO CLIENT-ID
+            END-IF
+            *> Second, for the block next to it.
             CALL "Facing-GetRelative" USING TEMP-BLOCK-FACE TEMP-POSITION
             CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
             IF TEMP-INT8 = 0
-                *> send the block update to all players
                 CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
                 MOVE CLIENT-ID TO TEMP-INT16
                 PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
