@@ -98,7 +98,7 @@ WORKING-STORAGE SECTION.
         02 TEMP-CURSOR-Z        FLOAT-SHORT.
     01 TEMP-PLAYER-NAME     PIC X(16).
     01 TEMP-PLAYER-NAME-LEN BINARY-LONG UNSIGNED.
-    01 TEMP-REGISTRY        PIC X(100)              VALUE SPACES.
+    01 TEMP-IDENTIFIER      PIC X(100)              VALUE SPACES.
     01 CALLBACK-PTR         PROGRAM-POINTER.
     *> Time measurement
     01 CURRENT-TIME         BINARY-LONG-LONG.
@@ -903,6 +903,14 @@ HandleConfiguration SECTION.
         WHEN H'00'
             *> Note: payload of this packet is ignored for now
 
+            *> Send brand
+            MOVE "minecraft:brand" TO TEMP-IDENTIFIER
+            MOVE 10 TO TEMP-INT32 *> length of the brand string
+            CALL "Encode-VarInt" USING TEMP-INT32 BUFFER BYTE-COUNT
+            MOVE "CobolCraft" TO BUFFER(BYTE-COUNT + 1:TEMP-INT32)
+            ADD TEMP-INT32 TO BYTE-COUNT
+            CALL "SendPacket-PluginMessage" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-IDENTIFIER BYTE-COUNT BUFFER
+
             *> Send feature flags
             CALL "SendPacket-FeatureFlags" USING CLIENT-HNDL(CLIENT-ID) ERRNO
             IF ERRNO NOT = 0
@@ -1280,12 +1288,12 @@ HandlePlay SECTION.
             END-IF
             *> determine the item in the inventory slot and find its "use" callback
             MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
-            CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-REGISTRY
-            CALL "GetCallback-ItemUse" USING TEMP-REGISTRY CALLBACK-PTR
+            CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-IDENTIFIER
+            CALL "GetCallback-ItemUse" USING TEMP-IDENTIFIER CALLBACK-PTR
             IF CALLBACK-PTR = NULL
                 EXIT SECTION
             END-IF
-            CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-REGISTRY TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
+            CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
             *> HACK: Send updates to the clients for the affected blocks.
             *> TODO Improve the factoring of networking code so the callbacks can handle this themselves.
             *> First, for the clicked block.
