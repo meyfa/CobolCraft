@@ -34,20 +34,11 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         01 C-TYPE                   PIC X(4)                VALUE "type".
-        *> TODO move this to a copybook somehow
-        01 CURRENT-DESCRIPTION.
-            02 CURRENT-NAME         PIC X(64).
-            02 CURRENT-PROPS        BINARY-LONG UNSIGNED.
-            02 CURRENT-PROP OCCURS 16 TIMES.
-                03 CURRENT-PROP-NAME    PIC X(64).
-                03 CURRENT-PROP-VALUE   PIC X(64).
+        *> Block state description for the block currently in the world.
+        COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CURRENT==.
         01 CURRENT-TYPE             PIC X(16).
-        01 SLAB-DESCRIPTION.
-            02 SLAB-NAME            PIC X(64).
-            02 SLAB-PROPS           BINARY-LONG UNSIGNED.
-            02 SLAB-PROP OCCURS 16 TIMES.
-                03 SLAB-PROP-NAME       PIC X(64).
-                03 SLAB-PROP-VALUE      PIC X(64).
+        *> Block state description for the block to place.
+        COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==SLAB==.
         01 BLOCK-POSITION.
             02 BLOCK-X              BINARY-LONG.
             02 BLOCK-Y              BINARY-LONG.
@@ -61,22 +52,22 @@ PROCEDURE DIVISION.
     PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
         MOVE LK-ITEM-NAME TO SLAB-NAME
 
-        MOVE 2 TO SLAB-PROPS
-        MOVE C-TYPE TO SLAB-PROP-NAME(1)
-        MOVE "waterlogged" TO SLAB-PROP-NAME(2)
-        MOVE "false" TO SLAB-PROP-VALUE(2)
+        MOVE 2 TO SLAB-PROPERTY-COUNT
+        MOVE C-TYPE TO SLAB-PROPERTY-NAME(1)
+        MOVE "waterlogged" TO SLAB-PROPERTY-NAME(2)
+        MOVE "false" TO SLAB-PROPERTY-VALUE(2)
 
         CALL "Facing-ToString" USING LK-FACE FACING
         EVALUATE FACING
             WHEN "up"
-                MOVE "bottom" TO SLAB-PROP-VALUE(1)
+                MOVE "bottom" TO SLAB-PROPERTY-VALUE(1)
             WHEN "down"
-                MOVE "top" TO SLAB-PROP-VALUE(1)
+                MOVE "top" TO SLAB-PROPERTY-VALUE(1)
             WHEN OTHER
                 IF LK-CURSOR-Y > 0.5
-                    MOVE "top" TO SLAB-PROP-VALUE(1)
+                    MOVE "top" TO SLAB-PROPERTY-VALUE(1)
                 ELSE
-                    MOVE "bottom" TO SLAB-PROP-VALUE(1)
+                    MOVE "bottom" TO SLAB-PROPERTY-VALUE(1)
                 END-IF
         END-EVALUATE
 
@@ -88,14 +79,14 @@ PROCEDURE DIVISION.
             CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION C-TYPE CURRENT-TYPE
             EVALUATE FACING ALSO CURRENT-TYPE
                 WHEN "up" ALSO "bottom"
-                    MOVE "double" TO SLAB-PROP-VALUE(1)
+                    MOVE "double" TO SLAB-PROPERTY-VALUE(1)
                 WHEN "down" ALSO "top"
-                    MOVE "double" TO SLAB-PROP-VALUE(1)
+                    MOVE "double" TO SLAB-PROPERTY-VALUE(1)
             END-EVALUATE
         END-IF
 
         *> Unless it can be doubled in-place, the slab should be placed next to the clicked block
-        IF SLAB-PROP-VALUE(1) NOT = "double"
+        IF SLAB-PROPERTY-VALUE(1) NOT = "double"
             CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
             CALL "World-CheckBounds" USING BLOCK-POSITION BOUNDS-CHECK
             IF BOUNDS-CHECK NOT = 0
@@ -107,11 +98,11 @@ PROCEDURE DIVISION.
             CALL "Blocks-Get-StateDescription" USING BLOCK-ID CURRENT-DESCRIPTION
             IF CURRENT-NAME = SLAB-NAME
                 CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION C-TYPE CURRENT-TYPE
-                EVALUATE SLAB-PROP-VALUE(1) ALSO CURRENT-TYPE
+                EVALUATE SLAB-PROPERTY-VALUE(1) ALSO CURRENT-TYPE
                     WHEN "top" ALSO "bottom"
-                        MOVE "double" TO SLAB-PROP-VALUE(1)
+                        MOVE "double" TO SLAB-PROPERTY-VALUE(1)
                     WHEN "bottom" ALSO "top"
-                        MOVE "double" TO SLAB-PROP-VALUE(1)
+                        MOVE "double" TO SLAB-PROPERTY-VALUE(1)
                     WHEN OTHER
                         GOBACK
                 END-EVALUATE
