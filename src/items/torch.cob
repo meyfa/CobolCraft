@@ -25,13 +25,8 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        *> TODO move this to a copybook somehow
-        01 WALL_TORCH-DESCRIPTOR.
-            02 WALL_TORCH-NAME              PIC X(64).
-            02 WALL_TORCH-PROPS             BINARY-LONG UNSIGNED.
-            02 WALL_TORCH-PROP OCCURS 16 TIMES.
-                03 WALL_TORCH-PROP-NAME     PIC X(64).
-                03 WALL_TORCH-PROP-VALUE    PIC X(64).
+        *> Block state description for the wall torch variant.
+        COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==WALL_TORCH==.
         01 BLOCK-POSITION.
             02 BLOCK-X              BINARY-LONG.
             02 BLOCK-Y              BINARY-LONG.
@@ -78,11 +73,11 @@ PROCEDURE DIVISION.
                     MOVE C-MINECRAFT-REDSTONE_WALL_TORCH TO WALL_TORCH-NAME
             END-EVALUATE
 
-            MOVE 1 TO WALL_TORCH-PROPS
-            MOVE "facing" TO WALL_TORCH-PROP-NAME(1)
-            MOVE FACING TO WALL_TORCH-PROP-VALUE(1)
+            MOVE 1 TO WALL_TORCH-PROPERTY-COUNT
+            MOVE "facing" TO WALL_TORCH-PROPERTY-NAME(1)
+            MOVE FACING TO WALL_TORCH-PROPERTY-VALUE(1)
 
-            CALL "Blocks-Get-StateId" USING WALL_TORCH-DESCRIPTOR BLOCK-ID
+            CALL "Blocks-Get-StateId" USING WALL_TORCH-DESCRIPTION BLOCK-ID
             CALL "World-SetBlock" USING BLOCK-POSITION BLOCK-ID
         END-IF
 
