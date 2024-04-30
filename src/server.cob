@@ -32,7 +32,12 @@ WORKING-STORAGE SECTION.
     01 DATA-BUFFER          PIC X(10000000).
     01 DATA-BUFFER-LEN      BINARY-LONG UNSIGNED    VALUE 0.
     *> Console input
-    01 CONSOLE-INPUT        PIC X(255).
+    01 CONSOLE-INPUT        PIC X(256).
+    01 CONSOLE-PART-COUNT   BINARY-LONG UNSIGNED.
+    01 CONSOLE-PARTS.
+        02 CONSOLE-PART OCCURS 128 TIMES.
+            03 CONSOLE-PART-VALUE   PIC X(256).
+            03 CONSOLE-PART-LENGTH  BINARY-LONG UNSIGNED.
     *> Socket variables (server socket handle, error number from last operation)
     01 LISTEN               PIC X(4).
     01 ERRNO                PIC 9(3)                VALUE 0.
@@ -361,31 +366,47 @@ ConsoleInput SECTION.
         EXIT SECTION
     END-IF
 
-    *> Ignore leading forward slash
+    *> Ignore leading forward slash and terminating newline
     IF CONSOLE-INPUT(1:1) = "/"
-        COMPUTE BYTE-COUNT = BYTE-COUNT - 1
+        SUBTRACT 1 FROM BYTE-COUNT
         MOVE CONSOLE-INPUT(2:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
         MOVE BUFFER(1:BYTE-COUNT) TO CONSOLE-INPUT
     END-IF
+    IF CONSOLE-INPUT(BYTE-COUNT:1) = X"0A"
+        SUBTRACT 1 FROM BYTE-COUNT
+    END-IF
 
-    *> Ignore trailing whitespace
-    PERFORM VARYING TEMP-INT32 FROM BYTE-COUNT BY -1 UNTIL TEMP-INT32 = 0
-        IF CONSOLE-INPUT(TEMP-INT32:1) NOT = " " AND CONSOLE-INPUT(TEMP-INT32:1) NOT = X"0A"
-            EXIT PERFORM
-        END-IF
-    END-PERFORM
-    MOVE TEMP-INT32 TO BYTE-COUNT
-
-    *> Look for the first space character (i.e., end of the command)
+    *> Parse the string into space-delimited parts
+    MOVE 1 TO CONSOLE-PART-COUNT
+    MOVE 0 TO CONSOLE-PART-LENGTH(1)
+    MOVE SPACES TO CONSOLE-PART-VALUE(1)
     PERFORM VARYING TEMP-INT32 FROM 1 BY 1 UNTIL TEMP-INT32 > BYTE-COUNT
-       IF CONSOLE-INPUT(TEMP-INT32:1) = " "
-           EXIT PERFORM
-       END-IF
+        EVALUATE CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT) ALSO CONSOLE-INPUT(TEMP-INT32:1)
+            *> ignore spaces at the beginning
+            WHEN 0 ALSO " "
+                CONTINUE
+            *> for a non-empty part, space terminates the part
+            WHEN > 0 ALSO " "
+                ADD 1 TO CONSOLE-PART-COUNT
+                MOVE 0 TO CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT)
+                MOVE SPACES TO CONSOLE-PART-VALUE(CONSOLE-PART-COUNT)
+            *> any other character extends the part
+            WHEN OTHER
+                ADD 1 TO CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT)
+                MOVE CONSOLE-INPUT(TEMP-INT32:1) TO CONSOLE-PART-VALUE(CONSOLE-PART-COUNT)(CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT):1)
+        END-EVALUATE
     END-PERFORM
-    SUBTRACT 1 FROM TEMP-INT32
+    IF CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT) = 0
+        SUBTRACT 1 FROM CONSOLE-PART-COUNT
+    END-IF
+
+    *> Check for empty input
+    IF CONSOLE-PART-COUNT < 1
+        EXIT SECTION
+    END-IF
 
     *> Handle the command
-    EVALUATE CONSOLE-INPUT(1:TEMP-INT32)
+    EVALUATE CONSOLE-PART-VALUE(1)
         WHEN "help"
             DISPLAY "Available commands:"
             DISPLAY "  /help - show this help"
@@ -393,9 +414,14 @@ ConsoleInput SECTION.
             DISPLAY "  /save - save the world"
             DISPLAY "  /stop - stop the server"
         WHEN "say"
-            MOVE "[Server] " TO BUFFER
-            MOVE CONSOLE-INPUT(TEMP-INT32 + 2:BYTE-COUNT - TEMP-INT32 - 1) TO BUFFER(10:BYTE-COUNT - TEMP-INT32 - 1)
-            COMPUTE BYTE-COUNT = BYTE-COUNT - TEMP-INT32 - 1 + 9
+            MOVE "[Server]" TO BUFFER
+            MOVE 8 TO BYTE-COUNT
+            PERFORM VARYING TEMP-INT32 FROM 2 BY 1 UNTIL TEMP-INT32 > CONSOLE-PART-COUNT
+                MOVE " " TO BUFFER(BYTE-COUNT + 1:1)
+                ADD 1 TO BYTE-COUNT
+                MOVE CONSOLE-PART-VALUE(TEMP-INT32) TO BUFFER(BYTE-COUNT + 1:CONSOLE-PART-LENGTH(TEMP-INT32))
+                ADD CONSOLE-PART-LENGTH(TEMP-INT32) TO BYTE-COUNT
+            END-PERFORM
             PERFORM BroadcastMessage
         WHEN "stop"
             PERFORM SaveWorld
@@ -403,7 +429,7 @@ ConsoleInput SECTION.
         WHEN "save"
             PERFORM SaveWorld
         WHEN OTHER
-            DISPLAY "Unknown command: " CONSOLE-INPUT(1:TEMP-INT32)
+            DISPLAY "Unknown command: " CONSOLE-PART-VALUE(1)(1:CONSOLE-PART-LENGTH(1))
     END-EVALUATE
 
     EXIT SECTION.
