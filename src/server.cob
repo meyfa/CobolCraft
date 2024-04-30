@@ -862,7 +862,7 @@ HandleLogin SECTION.
                 MOVE "You are not white-listed on this server!" TO BUFFER
                 MOVE 40 TO BYTE-COUNT
                 DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+                CALL "SendPacket-Disconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
                     EXIT SECTION
@@ -893,7 +893,7 @@ HandleLogin SECTION.
                 MOVE "The server is full" TO BUFFER
                 MOVE 18 TO BYTE-COUNT
                 DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
+                CALL "SendPacket-Disconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                 IF ERRNO NOT = 0
                     PERFORM HandleClientError
                     EXIT SECTION
@@ -936,7 +936,7 @@ HandleConfiguration SECTION.
             CALL "Encode-VarInt" USING TEMP-INT32 BUFFER BYTE-COUNT
             MOVE "CobolCraft" TO BUFFER(BYTE-COUNT + 1:TEMP-INT32)
             ADD TEMP-INT32 TO BYTE-COUNT
-            CALL "SendPacket-PluginMessage" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-IDENTIFIER BYTE-COUNT BUFFER
+            CALL "SendPacket-PluginMessage" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) TEMP-IDENTIFIER BYTE-COUNT BUFFER
 
             *> Send feature flags
             CALL "SendPacket-FeatureFlags" USING CLIENT-HNDL(CLIENT-ID) ERRNO
