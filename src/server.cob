@@ -314,7 +314,9 @@ ConsoleInput SECTION.
     MOVE LENGTH OF BUFFER TO BYTE-COUNT
     CALL "Util-ReadConsole" USING BUFFER BYTE-COUNT
     IF BYTE-COUNT > 0
-        CALL "HandleCommand" USING BUFFER BYTE-COUNT
+        *> client id = 0 means the console
+        MOVE 0 TO TEMP-INT32
+        CALL "HandleCommand" USING TEMP-INT32 BUFFER BYTE-COUNT
     END-IF
     EXIT SECTION.
 
@@ -938,6 +940,16 @@ HandlePlay SECTION.
             IF TEMP-INT32 > TELEPORT-RECV(CLIENT-ID) AND TEMP-INT32 <= TELEPORT-SENT(CLIENT-ID)
                 MOVE TEMP-INT32 TO TELEPORT-RECV(CLIENT-ID)
             END-IF
+        *> Chat command
+        WHEN H'04'
+            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
+            *> Command may not be longer than 256 characters
+            IF BYTE-COUNT > 256
+                PERFORM DisconnectClient
+                EXIT SECTION
+            END-IF
+            *> Handle the command
+            CALL "HandleCommand" USING CLIENT-ID BUFFER BYTE-COUNT
         *> Chat message
         WHEN H'06'
             CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
@@ -1292,19 +1304,14 @@ WORKING-STORAGE SECTION.
     01 SAVE-FAILURE             BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION.
-    DISPLAY "Saving world"
-
     *> save chunks
     CALL "World-Save" USING SAVE-FAILURE
     IF SAVE-FAILURE NOT = 0
         DISPLAY "Failed to save world"
         STOP RUN
     END-IF
-
     *> save player data
     CALL "Players-Save"
-    DISPLAY "World saved!"
-
     GOBACK.
 
 END PROGRAM Server-Save.
@@ -1315,7 +1322,7 @@ PROGRAM-ID. Server-Stop.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 ERRNO                    BINARY-CHAR UNSIGNED.
+    01 ERRNO                    PIC 9(3).
     *> shared state with Server
     01 SERVER-HNDL              PIC X(4)                EXTERNAL.
 
@@ -1329,6 +1336,6 @@ PROCEDURE DIVISION.
         DISPLAY "Error closing server socket: " ERRNO
     END-IF
 
-    GOBACK.
+    STOP RUN.
 
 END PROGRAM Server-Stop.

@@ -19,7 +19,7 @@ The following features are already working:
 - [X] breaking and placing blocks
 - [X] multiplayer (up to 10 concurrent players)
 - [X] chat
-- [X] server console commands
+- [X] commands (in-game and via an interactive console)
 - [X] whitelist (single player, edit `main.cob` to enable/set username)
 
 Note that blocks with multiple states and/or orientations require large amounts of specialized code to make them
