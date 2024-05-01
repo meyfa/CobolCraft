@@ -1,3 +1,5 @@
+*> --- Server ---
+*> This is the entrypoint for starting a CobolCraft server.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Server.
 
@@ -19,80 +21,72 @@ FILE SECTION.
 WORKING-STORAGE SECTION.
     *> Constants
     COPY DD-CLIENT-STATES.
-    01 C-MINECRAFT-ITEM             PIC X(50) VALUE "minecraft:item".
-    01 C-COLOR-WHITE                PIC X(16) VALUE "white".
-    01 C-COLOR-YELLOW               PIC X(16) VALUE "yellow".
+    01 C-MINECRAFT-ITEM             PIC X(50)               VALUE "minecraft:item".
+    01 C-COLOR-WHITE                PIC X(16)               VALUE "white".
+    01 C-COLOR-YELLOW               PIC X(16)               VALUE "yellow".
     *> The server sends (2 * VIEW-DISTANCE + 1) * (2 * VIEW-DISTANCE + 1) chunks around the player.
     *> TODO: Improve performance so this can be increased to a reasonable value.
-    01 VIEW-DISTANCE                BINARY-LONG     VALUE 3.
-    78 CHUNK-QUEUE-LENGTH                           VALUE 100.
+    01 VIEW-DISTANCE                BINARY-LONG             VALUE 3.
     *> The amount of milliseconds between autosaves, and the last autosave timestamp.
-    01 AUTOSAVE-INTERVAL            BINARY-LONG     VALUE 300000.
+    01 AUTOSAVE-INTERVAL            BINARY-LONG             VALUE 300000.
     01 LAST-AUTOSAVE                BINARY-LONG-LONG.
     *> A large buffer to hold JSON data before parsing.
-    01 DATA-BUFFER          PIC X(10000000).
-    01 DATA-BUFFER-LEN      BINARY-LONG UNSIGNED    VALUE 0.
-    *> Console input
-    01 CONSOLE-INPUT        PIC X(256).
-    01 CONSOLE-PART-COUNT   BINARY-LONG UNSIGNED.
-    01 CONSOLE-PARTS.
-        02 CONSOLE-PART OCCURS 128 TIMES.
-            03 CONSOLE-PART-VALUE   PIC X(256).
-            03 CONSOLE-PART-LENGTH  BINARY-LONG UNSIGNED.
+    01 DATA-BUFFER                  PIC X(10000000).
+    01 DATA-BUFFER-LEN              BINARY-LONG UNSIGNED.
     *> Socket variables (server socket handle, error number from last operation)
-    01 LISTEN               PIC X(4).
-    01 ERRNO                PIC 9(3)                VALUE 0.
+    01 SERVER-HNDL                  PIC X(4)                EXTERNAL.
+    01 ERRNO                        PIC 9(3).
     *> Connected clients
     COPY DD-CLIENTS.
     *> The client handle of the connection that is currently being processed, and the index in the CLIENTS array
-    01 TEMP-HNDL            PIC X(4).
-    01 CLIENT-ID            BINARY-LONG UNSIGNED.
+    01 TEMP-HNDL                    PIC X(4).
+    01 CLIENT-ID                    BINARY-LONG UNSIGNED.
     *> TODO: remove need to access player data directly in this file
     COPY DD-PLAYERS.
     *> Incoming/outgoing packet data
-    01 PACKET-ID            BINARY-LONG.
-    01 PACKET-POSITION      BINARY-LONG UNSIGNED.
-    01 BUFFER               PIC X(64000).
-    01 BYTE-COUNT           BINARY-LONG UNSIGNED.
+    01 PACKET-ID                    BINARY-LONG.
+    01 PACKET-POSITION              BINARY-LONG UNSIGNED.
+    01 BUFFER                       PIC X(64000).
+    01 BYTE-COUNT                   BINARY-LONG UNSIGNED.
     *> Temporary variables
-    01 TEMP-INT8            BINARY-CHAR.
-    01 TEMP-INT16           BINARY-SHORT.
-    01 TEMP-INT32           BINARY-LONG.
-    01 TEMP-INT64           BINARY-LONG-LONG.
-    01 TEMP-INT64-2         BINARY-LONG-LONG.
-    01 TEMP-FLOAT           FLOAT-SHORT.
-    01 TEMP-UUID            PIC X(16).
+    01 TEMP-INT8                    BINARY-CHAR.
+    01 TEMP-INT16                   BINARY-SHORT.
+    01 TEMP-INT32                   BINARY-LONG.
+    01 TEMP-INT64                   BINARY-LONG-LONG.
+    01 TEMP-INT64-2                 BINARY-LONG-LONG.
+    01 TEMP-FLOAT                   FLOAT-SHORT.
+    01 TEMP-UUID                    PIC X(16).
     01 TEMP-POSITION.
-        02 TEMP-POSITION-X      BINARY-LONG.
-        02 TEMP-POSITION-Y      BINARY-LONG.
-        02 TEMP-POSITION-Z      BINARY-LONG.
-    01 TEMP-BLOCK-FACE      BINARY-LONG.
+        02 TEMP-POSITION-X          BINARY-LONG.
+        02 TEMP-POSITION-Y          BINARY-LONG.
+        02 TEMP-POSITION-Z          BINARY-LONG.
+    01 TEMP-BLOCK-FACE              BINARY-LONG.
     01 TEMP-CURSOR.
-        02 TEMP-CURSOR-X        FLOAT-SHORT.
-        02 TEMP-CURSOR-Y        FLOAT-SHORT.
-        02 TEMP-CURSOR-Z        FLOAT-SHORT.
-    01 TEMP-PLAYER-NAME     PIC X(16).
-    01 TEMP-PLAYER-NAME-LEN BINARY-LONG UNSIGNED.
-    01 TEMP-IDENTIFIER      PIC X(100)              VALUE SPACES.
-    01 CALLBACK-PTR         PROGRAM-POINTER.
+        02 TEMP-CURSOR-X            FLOAT-SHORT.
+        02 TEMP-CURSOR-Y            FLOAT-SHORT.
+        02 TEMP-CURSOR-Z            FLOAT-SHORT.
+    01 TEMP-PLAYER-NAME             PIC X(16).
+    01 TEMP-PLAYER-NAME-LEN         BINARY-LONG UNSIGNED.
+    01 TEMP-IDENTIFIER              PIC X(100).
+    01 CALLBACK-PTR                 PROGRAM-POINTER.
     *> Time measurement
-    01 CURRENT-TIME         BINARY-LONG-LONG.
-    01 TICK-ENDTIME         BINARY-LONG-LONG.
-    01 TIMEOUT-MS           BINARY-SHORT UNSIGNED.
+    01 CURRENT-TIME                 BINARY-LONG-LONG.
+    01 TICK-ENDTIME                 BINARY-LONG-LONG.
+    01 TIMEOUT-MS                   BINARY-SHORT UNSIGNED.
     *> Variables for working with chunks
-    01 CHUNK-X              BINARY-LONG.
-    01 CHUNK-Z              BINARY-LONG.
-    01 CHUNK-START-X        BINARY-LONG.
-    01 CHUNK-END-X          BINARY-LONG.
-    01 CHUNK-START-Z        BINARY-LONG.
-    01 CHUNK-END-Z          BINARY-LONG.
-    01 PREV-CENTER-CHUNK-X  BINARY-LONG.
-    01 PREV-CENTER-CHUNK-Z  BINARY-LONG.
+    01 CHUNK-X                      BINARY-LONG.
+    01 CHUNK-Z                      BINARY-LONG.
+    01 CHUNK-START-X                BINARY-LONG.
+    01 CHUNK-END-X                  BINARY-LONG.
+    01 CHUNK-START-Z                BINARY-LONG.
+    01 CHUNK-END-Z                  BINARY-LONG.
+    01 PREV-CENTER-CHUNK-X          BINARY-LONG.
+    01 PREV-CENTER-CHUNK-Z          BINARY-LONG.
     *> Variables used for item registration
-    01 REGISTRY-INDEX       BINARY-LONG.
-    01 REGISTRY-LENGTH      BINARY-LONG UNSIGNED.
-    01 REGISTRY-ENTRY-INDEX BINARY-LONG UNSIGNED.
-    01 REGISTRY-ENTRY-NAME  PIC X(100).
+    01 REGISTRY-INDEX               BINARY-LONG.
+    01 REGISTRY-LENGTH              BINARY-LONG UNSIGNED.
+    01 REGISTRY-ENTRY-INDEX         BINARY-LONG UNSIGNED.
+    01 REGISTRY-ENTRY-NAME          PIC X(100).
     *> TODO: remove need to access world data directly in this file
     COPY DD-WORLD.
 
@@ -205,7 +199,7 @@ StartServer.
         MOVE CLIENT-STATE-DISCONNECTED TO CLIENT-STATE(CLIENT-ID)
     END-PERFORM
 
-    CALL "Socket-Listen" USING PORT LISTEN ERRNO
+    CALL "Socket-Listen" USING PORT SERVER-HNDL ERRNO
     PERFORM HandleServerError
 
     DISPLAY "Done! For help, type ""help"""
@@ -219,7 +213,7 @@ ServerLoop.
 
         COMPUTE TEMP-INT64 = CURRENT-TIME - LAST-AUTOSAVE
         IF TEMP-INT64 >= AUTOSAVE-INTERVAL
-            PERFORM SaveWorld
+            CALL "Server-Save"
             MOVE CURRENT-TIME TO LAST-AUTOSAVE
         END-IF
 
@@ -309,26 +303,6 @@ ServerLoop.
     END-PERFORM
     .
 
-SaveWorld.
-    DISPLAY "Saving world"
-    *> save chunks
-    CALL "World-Save" USING TEMP-INT8
-    IF TEMP-INT8 NOT = 0
-        DISPLAY "Failed to save world"
-        STOP RUN
-    END-IF
-    *> save player data
-    CALL "Players-Save"
-    DISPLAY "World saved!"
-    .
-
-StopServer.
-    DISPLAY "Stopping server"
-    CALL "Socket-Close" USING LISTEN ERRNO
-    PERFORM HandleServerError
-
-    STOP RUN.
-
 GameLoop SECTION.
     *> Update the world age
     CALL "World-UpdateAge"
@@ -337,103 +311,16 @@ GameLoop SECTION.
 
 ConsoleInput SECTION.
     *> Read from the console (configured as non-blocking). Note that this will only return full lines.
-    MOVE LENGTH OF CONSOLE-INPUT TO BYTE-COUNT
-    CALL "Util-ReadConsole" USING CONSOLE-INPUT BYTE-COUNT
-    IF BYTE-COUNT = 0
-        EXIT SECTION
+    MOVE LENGTH OF BUFFER TO BYTE-COUNT
+    CALL "Util-ReadConsole" USING BUFFER BYTE-COUNT
+    IF BYTE-COUNT > 0
+        CALL "HandleCommand" USING BUFFER BYTE-COUNT
     END-IF
-
-    *> Ignore leading forward slash and terminating newline
-    IF CONSOLE-INPUT(1:1) = "/"
-        SUBTRACT 1 FROM BYTE-COUNT
-        MOVE CONSOLE-INPUT(2:BYTE-COUNT) TO BUFFER(1:BYTE-COUNT)
-        MOVE BUFFER(1:BYTE-COUNT) TO CONSOLE-INPUT
-    END-IF
-    IF CONSOLE-INPUT(BYTE-COUNT:1) = X"0A"
-        SUBTRACT 1 FROM BYTE-COUNT
-    END-IF
-
-    *> Parse the string into space-delimited parts
-    MOVE 1 TO CONSOLE-PART-COUNT
-    MOVE 0 TO CONSOLE-PART-LENGTH(1)
-    MOVE SPACES TO CONSOLE-PART-VALUE(1)
-    PERFORM VARYING TEMP-INT32 FROM 1 BY 1 UNTIL TEMP-INT32 > BYTE-COUNT
-        EVALUATE CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT) ALSO CONSOLE-INPUT(TEMP-INT32:1)
-            *> ignore spaces at the beginning
-            WHEN 0 ALSO " "
-                CONTINUE
-            *> for a non-empty part, space terminates the part
-            WHEN > 0 ALSO " "
-                ADD 1 TO CONSOLE-PART-COUNT
-                MOVE 0 TO CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT)
-                MOVE SPACES TO CONSOLE-PART-VALUE(CONSOLE-PART-COUNT)
-            *> any other character extends the part
-            WHEN OTHER
-                ADD 1 TO CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT)
-                MOVE CONSOLE-INPUT(TEMP-INT32:1) TO CONSOLE-PART-VALUE(CONSOLE-PART-COUNT)(CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT):1)
-        END-EVALUATE
-    END-PERFORM
-    IF CONSOLE-PART-LENGTH(CONSOLE-PART-COUNT) = 0
-        SUBTRACT 1 FROM CONSOLE-PART-COUNT
-    END-IF
-
-    *> Check for empty input
-    IF CONSOLE-PART-COUNT < 1
-        EXIT SECTION
-    END-IF
-
-    *> Handle the command
-    EVALUATE CONSOLE-PART-VALUE(1)
-        WHEN "help"
-            DISPLAY "Available commands:"
-            DISPLAY "  /help - show this help"
-            DISPLAY "  /say <message> - broadcast a message"
-            DISPLAY "  /save - save the world"
-            DISPLAY "  /stop - stop the server"
-            DISPLAY "  /time set <time> - change the time"
-        WHEN "say"
-            MOVE "[Server]" TO BUFFER
-            MOVE 8 TO BYTE-COUNT
-            PERFORM VARYING TEMP-INT32 FROM 2 BY 1 UNTIL TEMP-INT32 > CONSOLE-PART-COUNT
-                MOVE " " TO BUFFER(BYTE-COUNT + 1:1)
-                ADD 1 TO BYTE-COUNT
-                MOVE CONSOLE-PART-VALUE(TEMP-INT32) TO BUFFER(BYTE-COUNT + 1:CONSOLE-PART-LENGTH(TEMP-INT32))
-                ADD CONSOLE-PART-LENGTH(TEMP-INT32) TO BYTE-COUNT
-            END-PERFORM
-            PERFORM BroadcastMessage
-        WHEN "stop"
-            PERFORM SaveWorld
-            PERFORM StopServer
-        WHEN "save"
-            PERFORM SaveWorld
-        WHEN "time"
-            IF CONSOLE-PART-COUNT NOT = 3 OR CONSOLE-PART-VALUE(2) NOT = "set"
-                DISPLAY "Usage: /time set <time>"
-                EXIT SECTION
-            END-IF
-            EVALUATE CONSOLE-PART-VALUE(3)(1:CONSOLE-PART-LENGTH(3))
-                WHEN "day"
-                    MOVE 1000 TO TEMP-INT64
-                WHEN "noon"
-                    MOVE 6000 TO TEMP-INT64
-                WHEN "night"
-                    MOVE 13000 TO TEMP-INT64
-                WHEN "midnight"
-                    MOVE 18000 TO TEMP-INT64
-                WHEN OTHER
-                    MOVE FUNCTION NUMVAL(CONSOLE-PART-VALUE(3)) TO TEMP-INT64
-            END-EVALUATE
-            CALL "World-SetTime" USING TEMP-INT64
-            DISPLAY "Set the time to " TEMP-INT64
-        WHEN OTHER
-            DISPLAY "Unknown command: " CONSOLE-PART-VALUE(1)(1:CONSOLE-PART-LENGTH(1))
-    END-EVALUATE
-
     EXIT SECTION.
 
 NetworkRead SECTION.
     MOVE 1 TO TIMEOUT-MS
-    CALL "Socket-Poll" USING LISTEN ERRNO TEMP-HNDL TIMEOUT-MS
+    CALL "Socket-Poll" USING SERVER-HNDL ERRNO TEMP-HNDL TIMEOUT-MS
     IF ERRNO = 5
         *> Timeout, nothing to do
         EXIT SECTION
@@ -483,80 +370,6 @@ InsertClient SECTION.
     MOVE -1 TO PACKET-LENGTH(CLIENT-ID)
     MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
 
-    EXIT SECTION.
-
-DisconnectClient SECTION.
-    IF CLIENT-PRESENT(CLIENT-ID) = 0
-        EXIT SECTION
-    END-IF
-
-    MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
-
-    CALL "Socket-Close" USING CLIENT-HNDL(CLIENT-ID) ERRNO
-    PERFORM HandleServerError
-
-    *> If the client was playing, send a leave message to all other clients, and remove the player from their world
-    IF CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-        *> send "<username> left the game" to all clients in play state, except the current client
-        MOVE 0 TO BYTE-COUNT
-        MOVE PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
-        ADD PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
-        MOVE " left the game" TO BUFFER(BYTE-COUNT + 1:14)
-        ADD 14 TO BYTE-COUNT
-        PERFORM BroadcastMessageExceptCurrent
-
-        *> remove the player from the player list, and despawn the player entity
-        MOVE CLIENT-ID TO TEMP-INT16
-        MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-            IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND CLIENT-ID NOT = TEMP-INT16
-                CALL "SendPacket-RemovePlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32)
-                IF ERRNO = 0
-                    CALL "SendPacket-RemoveEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
-                END-IF
-                PERFORM HandleClientError
-            END-IF
-        END-PERFORM
-        MOVE TEMP-INT16 TO CLIENT-ID
-    END-IF
-
-    MOVE X"00000000" TO CLIENT-HNDL(CLIENT-ID)
-    MOVE CLIENT-STATE-DISCONNECTED TO CLIENT-STATE(CLIENT-ID)
-    MOVE 0 TO CONFIG-FINISH(CLIENT-ID)
-
-    *> If there is an associated player, remove the association
-    IF CLIENT-PLAYER(CLIENT-ID) > 0
-        CALL "Players-Disconnect" USING CLIENT-PLAYER(CLIENT-ID)
-        MOVE 0 TO CLIENT-PLAYER(CLIENT-ID)
-    END-IF
-
-    EXIT SECTION.
-
-BroadcastMessage SECTION.
-    *> send BUFFER(1:BYTE-COUNT) to all clients in play state
-    DISPLAY BUFFER(1:BYTE-COUNT)
-    MOVE CLIENT-ID TO TEMP-INT16
-    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-        IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-            CALL "SendPacket-SystemChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT C-COLOR-WHITE
-            PERFORM HandleClientError
-        END-IF
-    END-PERFORM
-    MOVE TEMP-INT16 TO CLIENT-ID
-    EXIT SECTION.
-
-BroadcastMessageExceptCurrent SECTION.
-    *> send BUFFER(1:BYTE-COUNT) to all clients in play state, except the current client
-    DISPLAY BUFFER(1:BYTE-COUNT)
-    MOVE CLIENT-ID TO TEMP-INT16
-    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-        IF CLIENT-ID NOT = TEMP-INT16 AND CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-            *> TODO: invent a way to pass the color to this routine
-            CALL "SendPacket-SystemChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT C-COLOR-YELLOW
-            PERFORM HandleClientError
-        END-IF
-    END-PERFORM
-    MOVE TEMP-INT16 TO CLIENT-ID
     EXIT SECTION.
 
 KeepAlive SECTION.
@@ -1348,20 +1161,174 @@ HandlePlay SECTION.
 
     EXIT SECTION.
 
+DisconnectClient SECTION.
+    *> Disconnect the current client.
+    CALL "Server-DisconnectClient" USING CLIENT-ID
+    EXIT SECTION.
+
+BroadcastMessage SECTION.
+    CALL "BroadcastChatMessage" USING BUFFER BYTE-COUNT C-COLOR-WHITE
+    EXIT SECTION.
+
+BroadcastMessageExceptCurrent SECTION.
+    *> TODO: refactor this to avoid hard-coding the color
+    CALL "BroadcastChatMessageExcept" USING CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
+    EXIT SECTION.
+
 HandleServerError SECTION.
     IF ERRNO NOT = 0
         DISPLAY "Server socket error: " ERRNO
         STOP RUN
-    END-IF.
+    END-IF
 
     EXIT SECTION.
 
 HandleClientError SECTION.
     IF ERRNO NOT = 0
-        DISPLAY "[client=" CLIENT-ID ", state=" CLIENT-STATE(CLIENT-ID) "] Socket error: " ERRNO
-        PERFORM DisconnectClient
-    END-IF.
+        CALL "Server-ClientError" USING CLIENT-ID ERRNO
+    END-IF
 
     EXIT SECTION.
 
 END PROGRAM Server.
+
+*> --- Server-DisconnectClient ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Server-DisconnectClient.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> constants
+    01 C-COLOR-YELLOW           PIC X(16)                   VALUE "yellow".
+    *> shared data
+    COPY DD-CLIENT-STATES.
+    COPY DD-CLIENTS.
+    COPY DD-PLAYERS.
+    *> temporary data
+    01 ERRNO                    PIC 9(3).
+    01 OTHER-CLIENT-ID          BINARY-LONG UNSIGNED.
+    01 PLAYER-ID                BINARY-LONG UNSIGNED.
+    01 BUFFER                   PIC X(256).
+    01 BYTE-COUNT               BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-CLIENT-ID             BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-CLIENT-ID.
+    IF CLIENT-PRESENT(LK-CLIENT-ID) = 0
+        EXIT SECTION
+    END-IF
+
+    MOVE 0 TO CLIENT-PRESENT(LK-CLIENT-ID)
+
+    CALL "Socket-Close" USING CLIENT-HNDL(LK-CLIENT-ID) ERRNO
+    IF ERRNO NOT = 0
+        DISPLAY "Error closing client socket: " ERRNO
+    END-IF
+
+    *> If the client was playing, send a leave message to all other clients, and remove the player from their world
+    IF CLIENT-STATE(LK-CLIENT-ID) = CLIENT-STATE-PLAY
+        *> send "<username> left the game" to all clients in play state, except the current client
+        MOVE 0 TO BYTE-COUNT
+        MOVE PLAYER-NAME(CLIENT-PLAYER(LK-CLIENT-ID)) TO BUFFER
+        ADD PLAYER-NAME-LENGTH(CLIENT-PLAYER(LK-CLIENT-ID)) TO BYTE-COUNT
+        MOVE " left the game" TO BUFFER(BYTE-COUNT + 1:14)
+        ADD 14 TO BYTE-COUNT
+        CALL "BroadcastChatMessageExcept" USING LK-CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
+
+        *> remove the player from the player list, and despawn the player entity
+        MOVE CLIENT-PLAYER(LK-CLIENT-ID) TO PLAYER-ID
+        PERFORM VARYING OTHER-CLIENT-ID FROM 1 BY 1 UNTIL OTHER-CLIENT-ID > MAX-CLIENTS
+            IF CLIENT-PRESENT(OTHER-CLIENT-ID) = 1 AND CLIENT-STATE(OTHER-CLIENT-ID) = CLIENT-STATE-PLAY AND OTHER-CLIENT-ID NOT = LK-CLIENT-ID
+                CALL "SendPacket-RemovePlayer" USING CLIENT-HNDL(OTHER-CLIENT-ID) ERRNO PLAYER-UUID(PLAYER-ID)
+                IF ERRNO = 0
+                    CALL "SendPacket-RemoveEntity" USING CLIENT-HNDL(OTHER-CLIENT-ID) ERRNO PLAYER-ID
+                END-IF
+                *> Note: We intentionally ignore errors here to prevent this program from becoming recursive.
+                *> While not ideal in theory, there are no downsides to waiting for the next packet send to trigger
+                *> the error handling for this client.
+            END-IF
+        END-PERFORM
+    END-IF
+
+    MOVE X"00000000" TO CLIENT-HNDL(LK-CLIENT-ID)
+    MOVE CLIENT-STATE-DISCONNECTED TO CLIENT-STATE(LK-CLIENT-ID)
+    MOVE 0 TO CONFIG-FINISH(LK-CLIENT-ID)
+
+    *> If there is an associated player, remove the association
+    IF CLIENT-PLAYER(LK-CLIENT-ID) > 0
+        CALL "Players-Disconnect" USING CLIENT-PLAYER(LK-CLIENT-ID)
+        MOVE 0 TO CLIENT-PLAYER(LK-CLIENT-ID)
+    END-IF
+
+    GOBACK.
+
+END PROGRAM Server-DisconnectClient.
+
+*> --- Server-ClientError ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Server-ClientError.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-CLIENTS.
+LINKAGE SECTION.
+    01 LK-CLIENT-ID             BINARY-LONG UNSIGNED.
+    01 LK-ERRNO                 PIC 9(3).
+
+PROCEDURE DIVISION USING LK-CLIENT-ID LK-ERRNO.
+    DISPLAY "[client=" LK-CLIENT-ID  ", state=" CLIENT-STATE(LK-CLIENT-ID) "] Socket error: " LK-ERRNO
+    CALL "Server-DisconnectClient" USING LK-CLIENT-ID
+
+    GOBACK.
+
+END PROGRAM Server-ClientError.
+
+*> --- Server-Save ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Server-Save.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 SAVE-FAILURE             BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION.
+    DISPLAY "Saving world"
+
+    *> save chunks
+    CALL "World-Save" USING SAVE-FAILURE
+    IF SAVE-FAILURE NOT = 0
+        DISPLAY "Failed to save world"
+        STOP RUN
+    END-IF
+
+    *> save player data
+    CALL "Players-Save"
+    DISPLAY "World saved!"
+
+    GOBACK.
+
+END PROGRAM Server-Save.
+
+*> --- Server-Stop ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Server-Stop.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 ERRNO                    BINARY-CHAR UNSIGNED.
+    *> shared state with Server
+    01 SERVER-HNDL              PIC X(4)                EXTERNAL.
+
+PROCEDURE DIVISION.
+    CALL "Server-Save"
+
+    DISPLAY "Stopping server"
+
+    CALL "Socket-Close" USING SERVER-HNDL ERRNO
+    IF ERRNO NOT = 0
+        DISPLAY "Error closing server socket: " ERRNO
+    END-IF
+
+    GOBACK.
+
+END PROGRAM Server-Stop.
