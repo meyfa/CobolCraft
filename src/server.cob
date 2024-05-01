@@ -1233,13 +1233,26 @@ PROGRAM-ID. Server-Stop.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 ERRNO                    PIC 9(3).
+    01 CLIENT-ID                BINARY-LONG UNSIGNED.
+    01 BUFFER                   PIC X(256).
+    01 BYTE-COUNT               BINARY-LONG UNSIGNED.
     *> shared state with Server
     01 SERVER-HNDL              PIC X(4)                EXTERNAL.
+    COPY DD-CLIENTS.
 
 PROCEDURE DIVISION.
     CALL "Server-Save"
 
     DISPLAY "Stopping server"
+
+    *> Send a message to all clients
+    MOVE "Server closed" TO BUFFER
+    MOVE 13 TO BYTE-COUNT
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+        IF CLIENT-PRESENT(CLIENT-ID) = 1
+            CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
+        END-IF
+    END-PERFORM
 
     CALL "Socket-Close" USING SERVER-HNDL ERRNO
     IF ERRNO NOT = 0
