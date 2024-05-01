@@ -1,26 +1,39 @@
-*> Note: This implementation is only for plugin messages during the "configuration" phase.
-*> Other phases use different packet IDs.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. SendPacket-PluginMessage.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'01'.
+    COPY DD-CLIENT-STATES.
+    *> packet id depending on connection state
+    78 PACKET-ID-CONFIGURATION  VALUE H'01'.
+    78 PACKET-ID-PLAY           VALUE H'19'.
+    01 PACKET-ID                BINARY-LONG.
     *> buffer used to store the packet data
-    01 PAYLOAD          PIC X(64000).
-    01 PAYLOADLEN       BINARY-LONG UNSIGNED.
+    01 PAYLOAD                  PIC X(64000).
+    01 PAYLOADLEN               BINARY-LONG UNSIGNED.
     *> temporary
-    01 CHANNEL-LEN      BINARY-LONG UNSIGNED.
-    01 BUFFER           PIC X(8).
-    01 BUFFERLEN        BINARY-LONG UNSIGNED.
+    01 CHANNEL-LEN              BINARY-LONG UNSIGNED.
+    01 BUFFER                   PIC X(8).
+    01 BUFFERLEN                BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    01 LK-HNDL          PIC X(4).
-    01 LK-ERRNO         PIC 9(3).
-    01 LK-CHANNEL       PIC X ANY LENGTH.
-    01 LK-DATA-LEN      BINARY-LONG UNSIGNED.
-    01 LK-DATA          PIC X ANY LENGTH.
+    01 LK-HNDL                  PIC X(4).
+    01 LK-ERRNO                 PIC 9(3).
+    01 LK-STATE                 BINARY-CHAR.
+    01 LK-CHANNEL               PIC X ANY LENGTH.
+    01 LK-DATA-LEN              BINARY-LONG UNSIGNED.
+    01 LK-DATA                  PIC X ANY LENGTH.
 
-PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-CHANNEL LK-DATA-LEN LK-DATA.
+PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-STATE LK-CHANNEL LK-DATA-LEN LK-DATA.
+    EVALUATE LK-STATE
+        WHEN CLIENT-STATE-CONFIGURATION
+            MOVE PACKET-ID-CONFIGURATION TO PACKET-ID
+        WHEN CLIENT-STATE-PLAY
+            MOVE PACKET-ID-PLAY TO PACKET-ID
+        WHEN OTHER
+            DISPLAY "Invalid state for PluginMessage packet: " LK-STATE
+            GOBACK
+    END-EVALUATE
+
     MOVE 0 TO PAYLOADLEN
 
     *> channel length
