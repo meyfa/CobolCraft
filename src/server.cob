@@ -43,38 +43,7 @@ WORKING-STORAGE SECTION.
     01 LISTEN               PIC X(4).
     01 ERRNO                PIC 9(3)                VALUE 0.
     *> Connected clients
-    01 MAX-CLIENTS          BINARY-LONG UNSIGNED    VALUE 10.
-    01 CLIENTS OCCURS 10 TIMES.
-        03 CLIENT-PRESENT       BINARY-CHAR             VALUE 0.
-        03 CLIENT-HNDL          PIC X(4)                VALUE X"00000000".
-        *> State of the player (see DD-CLIENT-STATES for possible values)
-        03 CLIENT-STATE         BINARY-CHAR             VALUE -1.
-        03 CONFIG-FINISH        BINARY-CHAR             VALUE 0.
-        *> The index of the associated player, or 0 if login has not been started
-        03 CLIENT-PLAYER        BINARY-CHAR             VALUE 0.
-        *> Last keepalive ID sent and received
-        03 KEEPALIVE-SENT       BINARY-LONG-LONG        VALUE 0.
-        03 KEEPALIVE-RECV       BINARY-LONG-LONG        VALUE 0.
-        *> Last teleport ID sent and received. Until the client acknowledges the teleport, any movement packets it sends
-        *> are ignored.
-        03 TELEPORT-SENT        BINARY-LONG-LONG        VALUE 0.
-        03 TELEPORT-RECV        BINARY-LONG-LONG        VALUE 0.
-        *> Last sent center of the loaded chunk area. Once the player moves across a chunk border, the server sends new
-        *> chunks around the player.
-        03 CENTER-CHUNK-X       BINARY-LONG             VALUE 0.
-        03 CENTER-CHUNK-Z       BINARY-LONG             VALUE 0.
-        *> Queue of chunks that need to be sent. Implemented as a ring buffer.
-        *> Note: To simplify the implementation, these indices are zero-based!
-        03 CHUNK-QUEUE-BEGIN    BINARY-LONG.
-        03 CHUNK-QUEUE-END      BINARY-LONG.
-        03 CHUNK-QUEUE OCCURS CHUNK-QUEUE-LENGTH TIMES.
-            04 CHUNK-QUEUE-X        BINARY-LONG.
-            04 CHUNK-QUEUE-Z        BINARY-LONG.
-        *> Packet reading: expected packet length (-1 if not yet known), packet buffer, amount of received bytes
-        *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
-        03 PACKET-LENGTH        BINARY-LONG.
-        03 PACKET-BUFFER        PIC X(2100000).
-        03 PACKET-BUFFERLEN     BINARY-LONG.
+    COPY DD-CLIENTS.
     *> The client handle of the connection that is currently being processed, and the index in the CLIENTS array
     01 TEMP-HNDL            PIC X(4).
     01 CLIENT-ID            BINARY-LONG UNSIGNED.
@@ -227,15 +196,22 @@ GenerateWorld.
 
 StartServer.
     DISPLAY "Starting server"
+
     CALL "Util-IgnoreSIGPIPE"
+    CALL "Util-SetConsoleNonBlocking"
+
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+        MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
+        MOVE CLIENT-STATE-DISCONNECTED TO CLIENT-STATE(CLIENT-ID)
+    END-PERFORM
+
     CALL "Socket-Listen" USING PORT LISTEN ERRNO
     PERFORM HandleServerError
+
     DISPLAY "Done! For help, type ""help"""
     .
 
 ServerLoop.
-    CALL "Util-SetConsoleNonBlocking"
-
     *> Loop forever - each iteration is one game tick (1/20th of a second).
     PERFORM UNTIL EXIT
         CALL "Util-SystemTimeMillis" USING CURRENT-TIME
