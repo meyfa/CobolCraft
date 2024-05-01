@@ -857,7 +857,7 @@ HandleConfiguration SECTION.
             ADD PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
             MOVE " joined the game" TO BUFFER(BYTE-COUNT + 1:16)
             ADD 16 TO BYTE-COUNT
-            PERFORM BroadcastMessageExceptCurrent
+            CALL "BroadcastChatMessageExcept" USING CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
 
         WHEN H'07'
             *> Serverbound known packs
@@ -1100,15 +1100,6 @@ HandlePlay SECTION.
 DisconnectClient SECTION.
     *> Disconnect the current client.
     CALL "Server-DisconnectClient" USING CLIENT-ID
-    EXIT SECTION.
-
-BroadcastMessage SECTION.
-    CALL "BroadcastChatMessage" USING BUFFER BYTE-COUNT C-COLOR-WHITE
-    EXIT SECTION.
-
-BroadcastMessageExceptCurrent SECTION.
-    *> TODO: refactor this to avoid hard-coding the color
-    CALL "BroadcastChatMessageExcept" USING CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
     EXIT SECTION.
 
 HandleServerError SECTION.
