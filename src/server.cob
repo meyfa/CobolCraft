@@ -490,7 +490,10 @@ InsertClient SECTION.
     EXIT SECTION.
 
 DisconnectClient SECTION.
-    *> Reset this early to avoid infinite loops in case of errors when sending packets to other clients
+    IF CLIENT-PRESENT(CLIENT-ID) = 0
+        EXIT SECTION
+    END-IF
+
     MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
 
     CALL "Socket-Close" USING CLIENT-HNDL(CLIENT-ID) ERRNO
@@ -862,11 +865,8 @@ HandleLogin SECTION.
                 MOVE "You are not white-listed on this server!" TO BUFFER
                 MOVE 40 TO BYTE-COUNT
                 DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
-                IF ERRNO NOT = 0
-                    PERFORM HandleClientError
-                    EXIT SECTION
-                END-IF
+                CALL "SendPacket-Disconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
+                PERFORM HandleClientError
                 PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
@@ -874,12 +874,13 @@ HandleLogin SECTION.
             *> If the player is already connected, disconnect them first
             CALL "Players-FindConnectedByUUID" USING TEMP-UUID TEMP-INT8
             IF TEMP-INT8 > 0
+                MOVE CLIENT-ID TO TEMP-INT64
+                MOVE PLAYER-CLIENT(TEMP-INT8) TO CLIENT-ID
                 MOVE "You logged in from another location" TO BUFFER
                 MOVE 35 TO BYTE-COUNT
                 DISPLAY "Disconnecting " PLAYER-NAME(TEMP-INT8)(1:PLAYER-NAME-LENGTH(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
-                MOVE CLIENT-ID TO TEMP-INT64
-                MOVE PLAYER-CLIENT(TEMP-INT8) TO CLIENT-ID
-                *> TODO: Send the message to the existing client
+                CALL "SendPacket-Disconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
+                PERFORM HandleClientError
                 PERFORM DisconnectClient
                 MOVE TEMP-INT64 TO CLIENT-ID
             END-IF
@@ -893,11 +894,8 @@ HandleLogin SECTION.
                 MOVE "The server is full" TO BUFFER
                 MOVE 18 TO BYTE-COUNT
                 DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-LoginDisconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO BUFFER BYTE-COUNT
-                IF ERRNO NOT = 0
-                    PERFORM HandleClientError
-                    EXIT SECTION
-                END-IF
+                CALL "SendPacket-Disconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
+                PERFORM HandleClientError
                 PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
@@ -936,7 +934,7 @@ HandleConfiguration SECTION.
             CALL "Encode-VarInt" USING TEMP-INT32 BUFFER BYTE-COUNT
             MOVE "CobolCraft" TO BUFFER(BYTE-COUNT + 1:TEMP-INT32)
             ADD TEMP-INT32 TO BYTE-COUNT
-            CALL "SendPacket-PluginMessage" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-IDENTIFIER BYTE-COUNT BUFFER
+            CALL "SendPacket-PluginMessage" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) TEMP-IDENTIFIER BYTE-COUNT BUFFER
 
             *> Send feature flags
             CALL "SendPacket-FeatureFlags" USING CLIENT-HNDL(CLIENT-ID) ERRNO
