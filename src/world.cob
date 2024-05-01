@@ -566,9 +566,9 @@ PROCEDURE DIVISION USING LK-FAILURE.
         MOVE 0 TO WORLD-CHUNK-PRESENT(CHUNK-INDEX)
     END-PERFORM
 
-    *> Load a 7x7 spawn area. If necessary, generate new chunks.
-    PERFORM VARYING CHUNK-Z FROM -3 BY 1 UNTIL CHUNK-Z > 3
-        PERFORM VARYING CHUNK-X FROM -3 BY 1 UNTIL CHUNK-X > 3
+    *> Load a 3x3 spawn area. If necessary, generate new chunks.
+    PERFORM VARYING CHUNK-Z FROM -1 BY 1 UNTIL CHUNK-Z > 1
+        PERFORM VARYING CHUNK-X FROM -1 BY 1 UNTIL CHUNK-X > 1
             CALL "World-LoadChunk" USING CHUNK-X CHUNK-Z IO-FAILURE
             IF IO-FAILURE NOT = 0
                 DISPLAY "Generating chunk: " CHUNK-X " " CHUNK-Z
