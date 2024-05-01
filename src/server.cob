@@ -414,6 +414,7 @@ ConsoleInput SECTION.
             DISPLAY "  /say <message> - broadcast a message"
             DISPLAY "  /save - save the world"
             DISPLAY "  /stop - stop the server"
+            DISPLAY "  /time set <time> - change the time"
         WHEN "say"
             MOVE "[Server]" TO BUFFER
             MOVE 8 TO BYTE-COUNT
@@ -429,6 +430,25 @@ ConsoleInput SECTION.
             PERFORM StopServer
         WHEN "save"
             PERFORM SaveWorld
+        WHEN "time"
+            IF CONSOLE-PART-COUNT NOT = 3 OR CONSOLE-PART-VALUE(2) NOT = "set"
+                DISPLAY "Usage: /time set <time>"
+                EXIT SECTION
+            END-IF
+            EVALUATE CONSOLE-PART-VALUE(3)(1:CONSOLE-PART-LENGTH(3))
+                WHEN "day"
+                    MOVE 1000 TO TEMP-INT64
+                WHEN "noon"
+                    MOVE 6000 TO TEMP-INT64
+                WHEN "night"
+                    MOVE 13000 TO TEMP-INT64
+                WHEN "midnight"
+                    MOVE 18000 TO TEMP-INT64
+                WHEN OTHER
+                    MOVE FUNCTION NUMVAL(CONSOLE-PART-VALUE(3)) TO TEMP-INT64
+            END-EVALUATE
+            CALL "World-SetTime" USING TEMP-INT64
+            DISPLAY "Set the time to " TEMP-INT64
         WHEN OTHER
             DISPLAY "Unknown command: " CONSOLE-PART-VALUE(1)(1:CONSOLE-PART-LENGTH(1))
     END-EVALUATE
