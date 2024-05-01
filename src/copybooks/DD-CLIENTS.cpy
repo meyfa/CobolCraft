@@ -3,6 +3,10 @@
 *> The number of client slots available.
 78 MAX-CLIENTS VALUE 10.
 
+*> The maximum number of chunks that can be queued for a client.
+78 CHUNK-QUEUE-LENGTH                           VALUE 100.
+
+*> Client data
 01 CLIENTS EXTERNAL.
     02 CLIENT OCCURS MAX-CLIENTS TIMES.
         03 CLIENT-PRESENT       BINARY-CHAR.
