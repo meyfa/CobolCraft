@@ -222,9 +222,15 @@ ServerLoop.
 
         *> Handle keep-alive and disconnections for connected clients
         PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-            IF CLIENT-PRESENT(CLIENT-ID) = 1
-                PERFORM KeepAlive
-            END-IF
+            EVALUATE TRUE
+                WHEN CLIENT-PRESENT(CLIENT-ID) = 0
+                    CONTINUE
+                WHEN CLIENT-ERRNO-SEND(CLIENT-ID) NOT = 0
+                    MOVE CLIENT-ERRNO-SEND(CLIENT-ID) TO ERRNO
+                    PERFORM HandleClientError
+                WHEN OTHER
+                    PERFORM KeepAlive
+            END-EVALUATE
         END-PERFORM
 
         *> Send world time every second
@@ -233,8 +239,7 @@ ServerLoop.
             CALL "World-GetTime" USING TEMP-INT64-2
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                    CALL "SendPacket-UpdateTime" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT64 TEMP-INT64-2
-                    PERFORM HandleClientError
+                    CALL "SendPacket-UpdateTime" USING CLIENT-ID TEMP-INT64 TEMP-INT64-2
                 END-IF
             END-PERFORM
         END-IF
@@ -248,30 +253,23 @@ ServerLoop.
                 PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS OR CLIENT-PRESENT(CLIENT-ID) = 0
                     IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = CLIENT-STATE-PLAY AND TEMP-INT16 NOT = CLIENT-ID
                         MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
-                        CALL "SendPacket-TeleportEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
-                        IF ERRNO = 0
-                            CALL "SendPacket-SetHeadRotation" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-YAW(TEMP-INT32)
+                        CALL "SendPacket-TeleportEntity" USING CLIENT-ID TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+                        CALL "SendPacket-SetHeadRotation" USING CLIENT-ID TEMP-INT32 PLAYER-YAW(TEMP-INT32)
+                        *> index(byte), type(VarInt), value(VarInt); terminator is 0xFF
+                        *> index of pose: 6, type of pose: 21
+                        *> value of standing: 0, value of sneaking: 5
+                        MOVE X"06" TO BUFFER(1:1)
+                        MOVE X"15" TO BUFFER(2:1)
+                        IF PLAYER-SNEAKING(TEMP-INT32) = 1
+                            MOVE X"05" TO BUFFER(3:1)
+                        ELSE
+                            MOVE X"00" TO BUFFER(3:1)
                         END-IF
-                        IF ERRNO = 0
-                            *> index(byte), type(VarInt), value(VarInt); terminator is 0xFF
-                            *> index of pose: 6, type of pose: 21
-                            *> value of standing: 0, value of sneaking: 5
-                            MOVE X"06" TO BUFFER(1:1)
-                            MOVE X"15" TO BUFFER(2:1)
-                            IF PLAYER-SNEAKING(TEMP-INT32) = 1
-                                MOVE X"05" TO BUFFER(3:1)
-                            ELSE
-                                MOVE X"00" TO BUFFER(3:1)
-                            END-IF
-                            MOVE X"FF" TO BUFFER(4:1)
-                            MOVE 4 TO BYTE-COUNT
-                            CALL "SendPacket-SetEntityMetadata" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 BYTE-COUNT BUFFER
-                        END-IF
-                        IF ERRNO = 0
-                            COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR(TEMP-INT32) + 1
-                            CALL "SendPacket-SetEquipment" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-INVENTORY-SLOT(TEMP-INT32, TEMP-INT8)
-                        END-IF
-                        PERFORM HandleClientError
+                        MOVE X"FF" TO BUFFER(4:1)
+                        MOVE 4 TO BYTE-COUNT
+                        CALL "SendPacket-SetEntityMetadata" USING CLIENT-ID TEMP-INT32 BYTE-COUNT BUFFER
+                        COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR(TEMP-INT32) + 1
+                        CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 PLAYER-INVENTORY-SLOT(TEMP-INT32, TEMP-INT8)
                     END-IF
                 END-PERFORM
             END-IF
@@ -323,11 +321,16 @@ ConsoleInput SECTION.
 NetworkRead SECTION.
     MOVE 1 TO TIMEOUT-MS
     CALL "Socket-Poll" USING SERVER-HNDL ERRNO TEMP-HNDL TIMEOUT-MS
-    IF ERRNO = 5
-        *> Timeout, nothing to do
-        EXIT SECTION
-    END-IF
-    PERFORM HandleServerError
+    EVALUATE ERRNO
+        WHEN 0
+            CONTINUE
+        WHEN 5
+            *> Timeout, nothing to do
+            EXIT SECTION
+        WHEN OTHER
+            PERFORM HandleServerError
+            EXIT SECTION
+    END-EVALUATE
 
     *> Find an existing client to which the handle belongs
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
@@ -349,12 +352,16 @@ NetworkRead SECTION.
     *> If no free slot was found, close the connection
     DISPLAY "Cannot accept new connection: no free slots"
     CALL "Socket-Close" USING TEMP-HNDL ERRNO
+    IF ERRNO NOT = 0
+        PERFORM HandleServerError
+    END-IF
 
     EXIT SECTION.
 
 InsertClient SECTION.
     MOVE 1 TO CLIENT-PRESENT(CLIENT-ID)
     MOVE TEMP-HNDL TO CLIENT-HNDL(CLIENT-ID)
+    MOVE 0 TO CLIENT-ERRNO-SEND(CLIENT-ID)
     MOVE CLIENT-STATE-HANDSHAKE TO CLIENT-STATE(CLIENT-ID)
     MOVE 0 TO CLIENT-PLAYER(CLIENT-ID)
 
@@ -392,8 +399,7 @@ KeepAlive SECTION.
     COMPUTE TEMP-INT64 = CURRENT-TIME - KEEPALIVE-SENT(CLIENT-ID)
     IF CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND TEMP-INT64 >= 1000
         MOVE CURRENT-TIME TO KEEPALIVE-SENT(CLIENT-ID)
-        CALL "SendPacket-KeepAlive" USING CLIENT-HNDL(CLIENT-ID) ERRNO KEEPALIVE-SENT(CLIENT-ID)
-        PERFORM HandleClientError
+        CALL "SendPacket-KeepAlive" USING CLIENT-ID KEEPALIVE-SENT(CLIENT-ID)
     END-IF
 
     EXIT SECTION.
@@ -414,11 +420,7 @@ SendChunks SECTION.
 
     IF CENTER-CHUNK-X(CLIENT-ID) NOT = PREV-CENTER-CHUNK-X OR CENTER-CHUNK-Z(CLIENT-ID) NOT = PREV-CENTER-CHUNK-Z
         *> send center chunk position
-        CALL "SendPacket-SetCenterChunk" USING CLIENT-HNDL(CLIENT-ID) ERRNO CENTER-CHUNK-X(CLIENT-ID) CENTER-CHUNK-Z(CLIENT-ID)
-        IF ERRNO NOT = 0
-            PERFORM HandleClientError
-            EXIT SECTION
-        END-IF
+        CALL "SendPacket-SetCenterChunk" USING CLIENT-ID CENTER-CHUNK-X(CLIENT-ID) CENTER-CHUNK-Z(CLIENT-ID)
 
         *> compute chunk area that came into view
         *> TODO: make this code look better
@@ -511,8 +513,7 @@ ProcessChunkQueue SECTION.
         IF CHUNK-X >= CHUNK-START-X AND CHUNK-X <= CHUNK-END-X AND CHUNK-Z >= CHUNK-START-Z AND CHUNK-Z <= CHUNK-END-Z
             CALL "World-EnsureChunk" USING CHUNK-X CHUNK-Z TEMP-INT32
             IF TEMP-INT32 > 0
-                CALL "SendPacket-ChunkData" USING CLIENT-HNDL(CLIENT-ID) ERRNO WORLD-CHUNK(TEMP-INT32)
-                PERFORM HandleClientError
+                CALL "SendPacket-ChunkData" USING CLIENT-ID WORLD-CHUNK(TEMP-INT32)
             END-IF
             *> Stop once a chunk has been sent
             EXIT PERFORM
@@ -532,10 +533,13 @@ ReceivePacket SECTION.
         MOVE 1 TO BYTE-COUNT
         MOVE 1 TO TIMEOUT-MS
         CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
-        PERFORM HandleClientError
+        IF ERRNO NOT = 0
+            PERFORM HandleClientError
+            EXIT SECTION
+        END-IF
 
-        *> If nothing was read, we can try again later (unless there was an error).
-        IF BYTE-COUNT = 0 OR ERRNO NOT = 0
+        *> If nothing was read, we can try again later.
+        IF BYTE-COUNT = 0
             EXIT SECTION
         END-IF
 
@@ -636,19 +640,11 @@ HandleStatus SECTION.
                     ADD 1 TO TEMP-INT32
                 END-IF
             END-PERFORM
-            CALL "SendPacket-Status" USING CLIENT-HNDL(CLIENT-ID) ERRNO MOTD MAX-PLAYERS TEMP-INT32
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-Status" USING CLIENT-ID MOTD MAX-PLAYERS TEMP-INT32
         WHEN H'01'
             *> Ping request: respond with the same payload and close the connection
             CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT64
-            CALL "SendPacket-PingResponse" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT64
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-PingResponse" USING CLIENT-ID TEMP-INT64
             PERFORM DisconnectClient
         WHEN OTHER
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
@@ -676,8 +672,7 @@ HandleLogin SECTION.
                 MOVE "You are not white-listed on this server!" TO BUFFER
                 MOVE 40 TO BYTE-COUNT
                 DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-Disconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                PERFORM HandleClientError
+                CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                 PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
@@ -690,8 +685,7 @@ HandleLogin SECTION.
                 MOVE "You logged in from another location" TO BUFFER
                 MOVE 35 TO BYTE-COUNT
                 DISPLAY "Disconnecting " PLAYER-NAME(TEMP-INT8)(1:PLAYER-NAME-LENGTH(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-Disconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                PERFORM HandleClientError
+                CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                 PERFORM DisconnectClient
                 MOVE TEMP-INT64 TO CLIENT-ID
             END-IF
@@ -705,15 +699,13 @@ HandleLogin SECTION.
                 MOVE "The server is full" TO BUFFER
                 MOVE 18 TO BYTE-COUNT
                 DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-Disconnect" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                PERFORM HandleClientError
+                CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                 PERFORM DisconnectClient
                 EXIT SECTION
             END-IF
 
             *> Send login success. This should result in a "login acknowledged" packet by the client.
-            CALL "SendPacket-LoginSuccess" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))
-            PERFORM HandleClientError
+            CALL "SendPacket-LoginSuccess" USING CLIENT-ID PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))
 
         *> Login acknowledge
         WHEN H'03'
@@ -745,35 +737,15 @@ HandleConfiguration SECTION.
             CALL "Encode-VarInt" USING TEMP-INT32 BUFFER BYTE-COUNT
             MOVE "CobolCraft" TO BUFFER(BYTE-COUNT + 1:TEMP-INT32)
             ADD TEMP-INT32 TO BYTE-COUNT
-            CALL "SendPacket-PluginMessage" USING CLIENT-HNDL(CLIENT-ID) ERRNO CLIENT-STATE(CLIENT-ID) TEMP-IDENTIFIER BYTE-COUNT BUFFER
+            CALL "SendPacket-PluginMessage" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) TEMP-IDENTIFIER BYTE-COUNT BUFFER
 
-            *> Send feature flags
-            CALL "SendPacket-FeatureFlags" USING CLIENT-HNDL(CLIENT-ID) ERRNO
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
-
-            *> Send known packs
-            CALL "SendPacket-KnownPacks" USING CLIENT-HNDL(CLIENT-ID) ERRNO
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
-
-            *> Send registry data
-            CALL "SendPacket-Registry" USING CLIENT-HNDL(CLIENT-ID) ERRNO
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            *> Send configuration packets
+            CALL "SendPacket-FeatureFlags" USING CLIENT-ID
+            CALL "SendPacket-KnownPacks" USING CLIENT-ID
+            CALL "SendPacket-Registry" USING CLIENT-ID
 
             *> Send finish configuration
-            CALL "SendPacket-FinishConfiguration" USING CLIENT-HNDL(CLIENT-ID) ERRNO
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-FinishConfiguration" USING CLIENT-ID
 
             *> We now expect an acknowledge packet
             MOVE 1 TO CONFIG-FINISH(CLIENT-ID)
@@ -796,56 +768,32 @@ HandleConfiguration SECTION.
 
             *> send "Login (play)" with player index as entity ID
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            CALL "SendPacket-LoginPlay" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 VIEW-DISTANCE
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE
 
             *> send world time
             CALL "World-GetAge" USING TEMP-INT64
             CALL "World-GetTime" USING TEMP-INT64-2
-            CALL "SendPacket-UpdateTime" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT64 TEMP-INT64-2
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-UpdateTime" USING CLIENT-ID TEMP-INT64 TEMP-INT64-2
 
             *> send game event "start waiting for level chunks"
             MOVE 13 TO TEMP-INT8
             MOVE 0 TO TEMP-FLOAT
-            CALL "SendPacket-GameEvent" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT8 TEMP-FLOAT
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-GameEvent" USING CLIENT-ID TEMP-INT8 TEMP-FLOAT
 
             *> Note: The official server sends a lot of additional packets in this phase, but they seem to be optional.
             *> For example: set ticking state (rate=20, frozen=false); step tick (steps=0 [sic.])
             *> We will skip these for now.
 
             *> send inventory
-            CALL "SendPacket-SetContainerContent" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
 
             *> send selected hotbar slot
-            CALL "SendPacket-SetHeldItem" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-SetHeldItem" USING CLIENT-ID PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
 
             *> send "Set Center Chunk"
             DIVIDE PLAYER-X(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-X(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
             DIVIDE PLAYER-Z(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-Z(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
-            CALL "SendPacket-SetCenterChunk" USING CLIENT-HNDL(CLIENT-ID) ERRNO CENTER-CHUNK-X(CLIENT-ID) CENTER-CHUNK-Z(CLIENT-ID)
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-SetCenterChunk" USING CLIENT-ID CENTER-CHUNK-X(CLIENT-ID) CENTER-CHUNK-Z(CLIENT-ID)
 
             *> enqueue 3x3 chunks around the player first
             COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - 1
@@ -879,37 +827,26 @@ HandleConfiguration SECTION.
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
                 IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = CLIENT-STATE-PLAY
                     MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
-                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) PLAYER-NAME-LENGTH(TEMP-INT32)
-                    IF ERRNO = 0 AND TEMP-INT16 NOT = CLIENT-ID
-                        CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
-                    END-IF
-                    IF ERRNO NOT = 0
-                        PERFORM HandleClientError
-                        EXIT SECTION
+                    CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) PLAYER-NAME-LENGTH(TEMP-INT32)
+                    IF TEMP-INT16 NOT = CLIENT-ID
+                        CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                     END-IF
                 END-IF
             END-PERFORM
 
             *> Send position ("Synchronize Player Position"). The client must confirm the teleportation.
             ADD 1 TO TELEPORT-SENT(CLIENT-ID)
-            CALL "SendPacket-SetPlayerPosition" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID)) TELEPORT-SENT(CLIENT-ID)
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-SetPlayerPosition" USING CLIENT-ID PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID)) TELEPORT-SENT(CLIENT-ID)
 
             *> send the new player to all other players
             MOVE CLIENT-ID TO TEMP-INT16
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND CLIENT-ID NOT = TEMP-INT16
-                    CALL "SendPacket-AddPlayer" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) PLAYER-NAME-LENGTH(TEMP-INT32)
-                    PERFORM HandleClientError
+                    *> add the new player to the player list
+                    CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) PLAYER-NAME-LENGTH(TEMP-INT32)
                     *> spawn a player entity
-                    IF ERRNO = 0
-                        CALL "SendPacket-SpawnEntity" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
-                        PERFORM HandleClientError
-                    END-IF
+                    CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                 END-IF
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
@@ -965,8 +902,7 @@ HandlePlay SECTION.
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                    CALL "SendPacket-PlayerChat" USING CLIENT-HNDL(CLIENT-ID) ERRNO PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) BUFFER BYTE-COUNT
-                    PERFORM HandleClientError
+                    CALL "SendPacket-PlayerChat" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) BUFFER BYTE-COUNT
                 END-IF
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
@@ -1023,11 +959,7 @@ HandlePlay SECTION.
                     IF TEMP-INT8 = 0
                         *> acknowledge the action
                         CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-                        CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
-                        IF ERRNO NOT = 0
-                            PERFORM HandleClientError
-                            EXIT SECTION
-                        END-IF
+                        CALL "SendPacket-AckBlockChange" USING CLIENT-ID TEMP-INT32
                         *> update the block
                         MOVE 0 TO TEMP-INT32
                         CALL "World-SetBlock" USING TEMP-POSITION TEMP-INT32
@@ -1035,8 +967,7 @@ HandlePlay SECTION.
                         MOVE CLIENT-ID TO TEMP-INT16
                         PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                             IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                                CALL "SendPacket-BlockUpdate" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-POSITION TEMP-INT32
-                                PERFORM HandleClientError
+                                CALL "SendPacket-BlockUpdate" USING CLIENT-ID TEMP-POSITION TEMP-INT32
                             END-IF
                         END-PERFORM
                         MOVE TEMP-INT16 TO CLIENT-ID
@@ -1101,8 +1032,7 @@ HandlePlay SECTION.
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND CLIENT-ID NOT = TEMP-INT16
-                    CALL "SendPacket-EntityAnimation" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32 TEMP-INT8
-                    PERFORM HandleClientError
+                    CALL "SendPacket-EntityAnimation" USING CLIENT-ID TEMP-INT32 TEMP-INT8
                 END-IF
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
@@ -1127,11 +1057,7 @@ HandlePlay SECTION.
             ADD 1 TO PACKET-POSITION
             *> acknowledge the action
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-            CALL "SendPacket-AckBlockChange" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-INT32
-            IF ERRNO NOT = 0
-                PERFORM HandleClientError
-                EXIT SECTION
-            END-IF
+            CALL "SendPacket-AckBlockChange" USING CLIENT-ID TEMP-INT32
             *> determine the item in the inventory slot and find its "use" callback
             MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
             CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-IDENTIFIER
@@ -1149,8 +1075,7 @@ HandlePlay SECTION.
                 MOVE CLIENT-ID TO TEMP-INT16
                 PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                     IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                        CALL "SendPacket-BlockUpdate" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-POSITION TEMP-INT32
-                        PERFORM HandleClientError
+                        CALL "SendPacket-BlockUpdate" USING CLIENT-ID TEMP-POSITION TEMP-INT32
                     END-IF
                 END-PERFORM
                 MOVE TEMP-INT16 TO CLIENT-ID
@@ -1163,8 +1088,7 @@ HandlePlay SECTION.
                 MOVE CLIENT-ID TO TEMP-INT16
                 PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                     IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                        CALL "SendPacket-BlockUpdate" USING CLIENT-HNDL(CLIENT-ID) ERRNO TEMP-POSITION TEMP-INT32
-                        PERFORM HandleClientError
+                        CALL "SendPacket-BlockUpdate" USING CLIENT-ID TEMP-POSITION TEMP-INT32
                     END-IF
                 END-PERFORM
                 MOVE TEMP-INT16 TO CLIENT-ID
@@ -1251,13 +1175,8 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
         MOVE CLIENT-PLAYER(LK-CLIENT-ID) TO PLAYER-ID
         PERFORM VARYING OTHER-CLIENT-ID FROM 1 BY 1 UNTIL OTHER-CLIENT-ID > MAX-CLIENTS
             IF CLIENT-PRESENT(OTHER-CLIENT-ID) = 1 AND CLIENT-STATE(OTHER-CLIENT-ID) = CLIENT-STATE-PLAY AND OTHER-CLIENT-ID NOT = LK-CLIENT-ID
-                CALL "SendPacket-RemovePlayer" USING CLIENT-HNDL(OTHER-CLIENT-ID) ERRNO PLAYER-UUID(PLAYER-ID)
-                IF ERRNO = 0
-                    CALL "SendPacket-RemoveEntity" USING CLIENT-HNDL(OTHER-CLIENT-ID) ERRNO PLAYER-ID
-                END-IF
-                *> Note: We intentionally ignore errors here to prevent this program from becoming recursive.
-                *> While not ideal in theory, there are no downsides to waiting for the next packet send to trigger
-                *> the error handling for this client.
+                CALL "SendPacket-RemovePlayer" USING OTHER-CLIENT-ID PLAYER-UUID(PLAYER-ID)
+                CALL "SendPacket-RemoveEntity" USING OTHER-CLIENT-ID PLAYER-ID
             END-IF
         END-PERFORM
     END-IF

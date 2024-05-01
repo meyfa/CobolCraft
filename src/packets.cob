@@ -5,40 +5,50 @@ PROGRAM-ID. SendPacket.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-CLIENTS.
     01 BUFFER                   PIC X(8).
-    01 PACKET-LENGTH            BINARY-LONG UNSIGNED.
+    01 TOTAL-LENGTH             BINARY-LONG UNSIGNED.
+    01 HNDL                     PIC X(4).
+    01 ERRNO                    PIC 9(3).
 LOCAL-STORAGE SECTION.
     01 NUM-BYTES                BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    01 LK-HNDL                  PIC X(4).
+    01 LK-CLIENT                BINARY-LONG UNSIGNED.
     01 LK-PACKET-ID             BINARY-LONG.
     01 LK-PAYLOAD               PIC X ANY LENGTH.
     01 LK-PAYLOAD-LENGTH        BINARY-LONG UNSIGNED.
-    01 LK-ERRNO                 PIC 9(3).
 
-PROCEDURE DIVISION USING LK-HNDL LK-PACKET-ID LK-PAYLOAD LK-PAYLOAD-LENGTH LK-ERRNO.
+PROCEDURE DIVISION USING LK-CLIENT LK-PACKET-ID LK-PAYLOAD LK-PAYLOAD-LENGTH.
+    *> Don't send packet if the client is already in an error state. It will be disconnected on the next tick.
+    IF CLIENT-ERRNO-SEND(LK-CLIENT) NOT = 0
+        EXIT PROGRAM
+    END-IF
+    MOVE CLIENT-HNDL(LK-CLIENT) TO HNDL
+
     *> Add length of packet ID to payload length
     CALL "Encode-GetVarIntLength" USING LK-PACKET-ID NUM-BYTES
-    COMPUTE PACKET-LENGTH = NUM-BYTES + LK-PAYLOAD-LENGTH
+    COMPUTE TOTAL-LENGTH = NUM-BYTES + LK-PAYLOAD-LENGTH
 
     *> Send payload length
-    CALL "Encode-VarInt" USING PACKET-LENGTH BUFFER NUM-BYTES
-    CALL "Socket-Write" USING LK-HNDL LK-ERRNO NUM-BYTES BUFFER
+    CALL "Encode-VarInt" USING TOTAL-LENGTH BUFFER NUM-BYTES
+    CALL "Socket-Write" USING HNDL ERRNO NUM-BYTES BUFFER
     PERFORM HandleError
 
     *> Send packet ID
     CALL "Encode-VarInt" USING LK-PACKET-ID BUFFER NUM-BYTES
-    CALL "Socket-Write" USING LK-HNDL LK-ERRNO NUM-BYTES BUFFER
+    CALL "Socket-Write" USING HNDL ERRNO NUM-BYTES BUFFER
     PERFORM HandleError
 
     *> Send packet data
-    CALL "Socket-Write" USING LK-HNDL LK-ERRNO LK-PAYLOAD-LENGTH LK-PAYLOAD
+    CALL "Socket-Write" USING HNDL ERRNO LK-PAYLOAD-LENGTH LK-PAYLOAD
     PERFORM HandleError
 
     GOBACK.
 
 HandleError SECTION.
-    IF LK-ERRNO NOT = 0
+    IF ERRNO NOT = 0
+        *> Mark the client as errored
+        MOVE ERRNO TO CLIENT-ERRNO-SEND(LK-CLIENT)
         EXIT PROGRAM
     END-IF
 

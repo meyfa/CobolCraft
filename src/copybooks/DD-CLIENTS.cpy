@@ -11,6 +11,8 @@
     02 CLIENT OCCURS MAX-CLIENTS TIMES.
         03 CLIENT-PRESENT       BINARY-CHAR.
         03 CLIENT-HNDL          PIC X(4).
+        *> Any error that occured during a send operation. If non-zero, the client is disconnected on the next tick.
+        03 CLIENT-ERRNO-SEND    PIC 9(3).
         *> State of the player (see DD-CLIENT-STATES for possible values)
         03 CLIENT-STATE         BINARY-CHAR.
         03 CONFIG-FINISH        BINARY-CHAR.
