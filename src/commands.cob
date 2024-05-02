@@ -44,11 +44,11 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
     MOVE LK-INPUT-LENGTH TO INPUT-LENGTH
 
     *> Ignore leading forward slash and terminating newline
-    IF LK-INPUT(1:1) = "/"
+    IF INPUT-LENGTH > 0 AND LK-INPUT(1:1) = "/"
         ADD 1 TO OFFSET
         SUBTRACT 1 FROM INPUT-LENGTH
     END-IF
-    IF LK-INPUT(OFFSET + INPUT-LENGTH:1) = X"0A"
+    IF INPUT-LENGTH > 0 AND LK-INPUT(OFFSET + INPUT-LENGTH:1) = X"0A"
         SUBTRACT 1 FROM INPUT-LENGTH
     END-IF
 
@@ -96,6 +96,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
             END-PERFORM
 
         WHEN "say"
+            *> TODO handle empty message
             *> sender prefix
             IF LK-CLIENT-ID = 0
                 MOVE "[Server]" TO BUFFER
@@ -116,15 +117,15 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
             *> broadcast it
             CALL "BroadcastChatMessage" USING BUFFER BYTE-COUNT C-COLOR-WHITE
 
-        WHEN "stop"
-            CALL "Server-Stop"
-
         WHEN "save"
             MOVE "Saving world" TO BUFFER
             CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
             CALL "Server-Save"
             MOVE "World saved" TO BUFFER
             CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+
+        WHEN "stop"
+            CALL "Server-Stop"
 
         WHEN "time"
             IF PART-COUNT NOT = 3 OR PART-VALUE(2) NOT = "set"
@@ -183,3 +184,164 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
         GOBACK.
 
 END PROGRAM HandleCommand.
+
+*> --- SendCommandData ---
+*> Send a data structure describing the available commands and how to parse them to a client.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. SendCommandData.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> Constants - node types
+    78 TYPE-ROOT                GLOBAL                  VALUE 0.
+    78 TYPE-LITERAL             GLOBAL                  VALUE 1.
+    78 TYPE-ARGUMENT            GLOBAL                  VALUE 2.
+    *> Constants - argument parser types
+    01 PARSER-STRING            BINARY-LONG UNSIGNED    VALUE 5.
+    *> Constants - properties
+    01 PROPERTIES-STRING-SINGLE PIC X(1)                VALUE X"00".
+    01 PROPERTIES-STRING-GREEDY PIC X(1)                VALUE X"02".
+    *> The structure is initialized on first use.
+    COPY DD-COMMAND-NODES REPLACING
+        ==PREFIX-NODES== BY ==COMMAND-NODES GLOBAL==
+        LEADING ==PREFIX== BY ==COMMAND==.
+    01 IS-INITIALIZED           BINARY-CHAR UNSIGNED.
+    *> temporary variables
+    01 EXECUTABLE               BINARY-CHAR UNSIGNED.
+    01 NODE-NAME                PIC X(256).
+    01 PROPERTIES-LENGTH        BINARY-LONG UNSIGNED.
+    01 PROPERTIES-VALUE         PIC X(256).
+LINKAGE SECTION.
+    01 LK-CLIENT-ID             BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-CLIENT-ID.
+    IF IS-INITIALIZED = 0
+        MOVE 1 TO IS-INITIALIZED
+
+        *> root node
+        MOVE 1 TO COMMAND-NODE-COUNT
+        MOVE TYPE-ROOT TO COMMAND-NODE-TYPE(1)
+
+        *> "/help"
+        MOVE "help" to NODE-NAME
+        MOVE 1 TO EXECUTABLE
+        CALL "AddCommandNode" USING NODE-NAME EXECUTABLE
+
+        *> "/say <message>"
+        MOVE "say" to NODE-NAME
+        MOVE 0 TO EXECUTABLE
+        CALL "AddCommandNode" USING NODE-NAME EXECUTABLE
+        *> argument
+        MOVE "message" to NODE-NAME
+        MOVE 1 TO EXECUTABLE
+        MOVE LENGTH OF PROPERTIES-STRING-GREEDY TO PROPERTIES-LENGTH
+        MOVE PROPERTIES-STRING-GREEDY TO PROPERTIES-VALUE
+        CALL "AddArgumentNode" USING NODE-NAME EXECUTABLE PARSER-STRING PROPERTIES-LENGTH PROPERTIES-VALUE
+
+        *> "/save"
+        MOVE "save" to NODE-NAME
+        MOVE 1 TO EXECUTABLE
+        CALL "AddCommandNode" USING NODE-NAME EXECUTABLE
+
+        *> "/stop"
+        MOVE "stop" to NODE-NAME
+        MOVE 1 TO EXECUTABLE
+        CALL "AddCommandNode" USING NODE-NAME EXECUTABLE
+
+        *> "/time set (day|noon|night|midnight|<time>)"
+        MOVE "time" to NODE-NAME
+        MOVE 0 TO EXECUTABLE
+        CALL "AddCommandNode" USING NODE-NAME EXECUTABLE
+        *> "set"
+        MOVE "set" to NODE-NAME
+        MOVE 0 TO EXECUTABLE
+        CALL "AddLiteralNode" USING NODE-NAME EXECUTABLE
+        *> argument
+        *> TODO: differentiate between the literals and <time>
+        MOVE "time" to NODE-NAME
+        MOVE 1 TO EXECUTABLE
+        MOVE LENGTH OF PROPERTIES-STRING-SINGLE TO PROPERTIES-LENGTH
+        MOVE PROPERTIES-STRING-SINGLE TO PROPERTIES-VALUE
+        CALL "AddArgumentNode" USING NODE-NAME EXECUTABLE PARSER-STRING PROPERTIES-LENGTH PROPERTIES-VALUE
+    END-IF
+
+    CALL "SendPacket-Commands" USING LK-CLIENT-ID COMMAND-NODES
+    GOBACK.
+
+    *> --- AddCommandNode ---
+    *> Add a command node to the structure.
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. AddCommandNode.
+
+    DATA DIVISION.
+    LINKAGE SECTION.
+        01 LK-NAME              PIC X ANY LENGTH.
+        01 LK-EXECUTABLE        BINARY-CHAR UNSIGNED.
+
+    PROCEDURE DIVISION USING LK-NAME LK-EXECUTABLE.
+        *> add a new child to the root node
+        ADD 1 TO COMMAND-NODE-CHILD-COUNT(1)
+        MOVE COMMAND-NODE-COUNT TO COMMAND-NODE-CHILD-INDEX(1, COMMAND-NODE-CHILD-COUNT(1))
+        ADD 1 TO COMMAND-NODE-COUNT
+        MOVE TYPE-LITERAL TO COMMAND-NODE-TYPE(COMMAND-NODE-COUNT)
+        MOVE LK-NAME TO COMMAND-NODE-NAME(COMMAND-NODE-COUNT)
+        MOVE LK-EXECUTABLE TO COMMAND-NODE-EXECUTABLE(COMMAND-NODE-COUNT)
+        GOBACK.
+
+    END PROGRAM AddCommandNode.
+
+    *> --- AddLiteralNode ---
+    *> Add a literal node to an existing node. This means that the literal must follow the existing node.
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. AddLiteralNode.
+
+    DATA DIVISION.
+    LINKAGE SECTION.
+        01 LK-NAME              PIC X ANY LENGTH.
+        01 LK-EXECUTABLE        BINARY-CHAR UNSIGNED.
+
+    PROCEDURE DIVISION USING LK-NAME LK-EXECUTABLE.
+        *> add a new child to the last node
+        ADD 1 TO COMMAND-NODE-CHILD-COUNT(COMMAND-NODE-COUNT)
+        MOVE COMMAND-NODE-COUNT TO COMMAND-NODE-CHILD-INDEX(COMMAND-NODE-COUNT, COMMAND-NODE-CHILD-COUNT(COMMAND-NODE-COUNT))
+        ADD 1 TO COMMAND-NODE-COUNT
+        *> add the literal node
+        MOVE TYPE-LITERAL TO COMMAND-NODE-TYPE(COMMAND-NODE-COUNT)
+        MOVE LK-NAME TO COMMAND-NODE-NAME(COMMAND-NODE-COUNT)
+        MOVE LK-EXECUTABLE TO COMMAND-NODE-EXECUTABLE(COMMAND-NODE-COUNT)
+        GOBACK.
+
+    END PROGRAM AddLiteralNode.
+
+    *> --- AddArgumentNode ---
+    *> Add an argument node to an existing node. This means that the argument may (or must) follow the existing node.
+    *> If multiple arguments are added to a node, they are treated as alternatives.
+    *> To add multiple arguments that must be given in sequence, add each argument to its predecessor.
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. AddArgumentNode.
+
+    DATA DIVISION.
+    LINKAGE SECTION.
+        01 LK-NAME              PIC X ANY LENGTH.
+        01 LK-EXECUTABLE        BINARY-CHAR UNSIGNED.
+        01 LK-PARSER            BINARY-LONG UNSIGNED.
+        01 LK-PROPERTIES-LENGTH BINARY-LONG UNSIGNED.
+        01 LK-PROPERTIES        PIC X ANY LENGTH.
+
+    PROCEDURE DIVISION USING LK-NAME LK-EXECUTABLE LK-PARSER LK-PROPERTIES-LENGTH LK-PROPERTIES.
+        *> add a new child to the last node
+        ADD 1 TO COMMAND-NODE-CHILD-COUNT(COMMAND-NODE-COUNT)
+        MOVE COMMAND-NODE-COUNT TO COMMAND-NODE-CHILD-INDEX(COMMAND-NODE-COUNT, COMMAND-NODE-CHILD-COUNT(COMMAND-NODE-COUNT))
+        ADD 1 TO COMMAND-NODE-COUNT
+        *> add the argument node
+        MOVE TYPE-ARGUMENT TO COMMAND-NODE-TYPE(COMMAND-NODE-COUNT)
+        MOVE LK-NAME TO COMMAND-NODE-NAME(COMMAND-NODE-COUNT)
+        MOVE LK-EXECUTABLE TO COMMAND-NODE-EXECUTABLE(COMMAND-NODE-COUNT)
+        MOVE LK-PARSER TO COMMAND-NODE-PARSER(COMMAND-NODE-COUNT)
+        MOVE LK-PROPERTIES-LENGTH TO COMMAND-NODE-PROPERTIES-LENGTH(COMMAND-NODE-COUNT)
+        MOVE LK-PROPERTIES(1:LK-PROPERTIES-LENGTH) TO COMMAND-NODE-PROPERTIES(COMMAND-NODE-COUNT)
+        GOBACK.
+
+    END PROGRAM AddArgumentNode.
+
+END PROGRAM SendCommandData.
