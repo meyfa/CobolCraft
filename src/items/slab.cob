@@ -33,6 +33,7 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
         01 C-TYPE                   PIC X(4)                VALUE "type".
         *> Block state description for the block currently in the world.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CURRENT==.
@@ -109,7 +110,7 @@ PROCEDURE DIVISION.
         *> Allow replacing air or the same slab type
         IF CURRENT-NAME = C-MINECRAFT-AIR OR CURRENT-NAME = SLAB-NAME
             CALL "Blocks-Get-StateId" USING SLAB-DESCRIPTION BLOCK-ID
-            CALL "World-SetBlock" USING BLOCK-POSITION BLOCK-ID
+            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
         END-IF
 
         GOBACK.
