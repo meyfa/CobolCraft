@@ -840,6 +840,9 @@ HandleConfiguration SECTION.
             ADD 1 TO TELEPORT-SENT(CLIENT-ID)
             CALL "SendPacket-SetPlayerPosition" USING CLIENT-ID PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID)) TELEPORT-SENT(CLIENT-ID)
 
+            *> Send available commands list
+            CALL "SendCommandData" USING CLIENT-ID
+
             *> send the new player to all other players
             MOVE CLIENT-ID TO TEMP-INT16
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
