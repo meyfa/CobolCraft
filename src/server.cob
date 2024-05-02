@@ -963,14 +963,6 @@ HandlePlay SECTION.
                         *> update the block
                         MOVE 0 TO TEMP-INT32
                         CALL "World-SetBlock" USING TEMP-POSITION TEMP-INT32
-                        *> send the block update to all players
-                        MOVE CLIENT-ID TO TEMP-INT16
-                        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-                            IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                                CALL "SendPacket-BlockUpdate" USING CLIENT-ID TEMP-POSITION TEMP-INT32
-                            END-IF
-                        END-PERFORM
-                        MOVE TEMP-INT16 TO CLIENT-ID
                     END-IF
             END-EVALUATE
         *> Player command
@@ -1058,40 +1050,12 @@ HandlePlay SECTION.
             *> acknowledge the action
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             CALL "SendPacket-AckBlockChange" USING CLIENT-ID TEMP-INT32
-            *> determine the item in the inventory slot and find its "use" callback
+            *> determine the item in the inventory slot and execute its "use" callback
             MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
             CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-IDENTIFIER
             CALL "GetCallback-ItemUse" USING TEMP-IDENTIFIER CALLBACK-PTR
-            IF CALLBACK-PTR = NULL
-                EXIT SECTION
-            END-IF
-            CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
-            *> HACK: Send updates to the clients for the affected blocks.
-            *> TODO Improve the factoring of networking code so the callbacks can handle this themselves.
-            *> First, for the clicked block.
-            CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
-            IF TEMP-INT8 = 0
-                CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
-                MOVE CLIENT-ID TO TEMP-INT16
-                PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-                    IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                        CALL "SendPacket-BlockUpdate" USING CLIENT-ID TEMP-POSITION TEMP-INT32
-                    END-IF
-                END-PERFORM
-                MOVE TEMP-INT16 TO CLIENT-ID
-            END-IF
-            *> Second, for the block next to it.
-            CALL "Facing-GetRelative" USING TEMP-BLOCK-FACE TEMP-POSITION
-            CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
-            IF TEMP-INT8 = 0
-                CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
-                MOVE CLIENT-ID TO TEMP-INT16
-                PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-                    IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                        CALL "SendPacket-BlockUpdate" USING CLIENT-ID TEMP-POSITION TEMP-INT32
-                    END-IF
-                END-PERFORM
-                MOVE TEMP-INT16 TO CLIENT-ID
+            IF CALLBACK-PTR NOT = NULL
+                CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
             END-IF
     END-EVALUATE
 
