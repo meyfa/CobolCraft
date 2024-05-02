@@ -98,14 +98,11 @@ PROCEDURE DIVISION.
             CALL "Blocks-Get-StateDescription" USING BLOCK-ID CURRENT-DESCRIPTION
             IF CURRENT-NAME = SLAB-NAME
                 CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION C-TYPE CURRENT-TYPE
-                EVALUATE SLAB-PROPERTY-VALUE(1) ALSO CURRENT-TYPE
-                    WHEN "top" ALSO "bottom"
-                        MOVE "double" TO SLAB-PROPERTY-VALUE(1)
-                    WHEN "bottom" ALSO "top"
-                        MOVE "double" TO SLAB-PROPERTY-VALUE(1)
-                    WHEN OTHER
-                        GOBACK
-                END-EVALUATE
+                *> Counter-intuitively, Minecraft does not care about the slab type here, only that it is a single slab
+                IF CURRENT-TYPE = "double"
+                    GOBACK
+                END-IF
+                MOVE "double" TO SLAB-PROPERTY-VALUE(1)
             END-IF
         END-IF
 
