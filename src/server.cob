@@ -975,7 +975,7 @@ HandlePlay SECTION.
                         CALL "SendPacket-AckBlockChange" USING CLIENT-ID TEMP-INT32
                         *> update the block
                         MOVE 0 TO TEMP-INT32
-                        CALL "World-SetBlock" USING TEMP-POSITION TEMP-INT32
+                        CALL "World-SetBlock" USING CLIENT-ID TEMP-POSITION TEMP-INT32
                     END-IF
             END-EVALUATE
 

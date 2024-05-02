@@ -25,6 +25,7 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
         *> Block state description for the wall torch variant.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==WALL_TORCH==.
         01 BLOCK-POSITION.
@@ -61,7 +62,7 @@ PROCEDURE DIVISION.
 
         IF FACING = "up" OR FACING = "down"
             CALL "Blocks-Get-DefaultStateId" USING LK-ITEM-NAME BLOCK-ID
-            CALL "World-SetBlock" USING BLOCK-POSITION BLOCK-ID
+            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
         ELSE
             *> use the correct wall torch type
             EVALUATE LK-ITEM-NAME
@@ -78,7 +79,7 @@ PROCEDURE DIVISION.
             MOVE FACING TO WALL_TORCH-PROPERTY-VALUE(1)
 
             CALL "Blocks-Get-StateId" USING WALL_TORCH-DESCRIPTION BLOCK-ID
-            CALL "World-SetBlock" USING BLOCK-POSITION BLOCK-ID
+            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
         END-IF
 
         GOBACK.

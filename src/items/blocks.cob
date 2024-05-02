@@ -20,6 +20,7 @@ PROCEDURE DIVISION USING LK-ITEM-NAME.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
         01 BLOCK-POSITION.
             02 BLOCK-X              BINARY-LONG.
             02 BLOCK-Y              BINARY-LONG.
@@ -49,7 +50,7 @@ PROCEDURE DIVISION USING LK-ITEM-NAME.
         *> Place the block. For this default handler, we assume the block has the same name as the item.
         CALL "Blocks-Get-DefaultStateId" USING LK-ITEM-NAME BLOCK-ID
         IF BLOCK-ID > 0
-            CALL "World-SetBlock" USING BLOCK-POSITION BLOCK-ID
+            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
         END-IF
 
         GOBACK.
