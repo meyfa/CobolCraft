@@ -7,6 +7,8 @@ PROCEDURE DIVISION.
     CALL "Test-Decode-Byte"
     CALL "Test-Decode-UnsignedShort"
     CALL "Test-Decode-Short"
+    CALL "Test-Decode-UnsignedInt"
+    CALL "Test-Decode-Int"
     CALL "Test-Decode-VarInt"
     CALL "Test-Decode-UnsignedLong"
     CALL "Test-Decode-Long"
@@ -175,6 +177,120 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Decode-Short.
+
+    *> --- Test: Decode-UnsignedInt ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-UnsignedInt.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(10).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 RESULT       BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-UnsignedInt".
+    Int0.
+        DISPLAY "    Case: 0x00 0x00 0x00 0x00 - " WITH NO ADVANCING
+        MOVE X"00000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-UnsignedInt" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 0 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int1.
+        DISPLAY "    Case: 0x00 0x00 0x00 0x01 = 1 - " WITH NO ADVANCING
+        MOVE X"00000001" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-UnsignedInt" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 1 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntMax.
+        DISPLAY "    Case: 0xFF 0xFF 0xFF 0xFF = 4294967295 - " WITH NO ADVANCING
+        MOVE X"FFFFFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-UnsignedInt" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 4294967295 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Decode-UnsignedInt.
+
+    *> --- Test: Decode-Int ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-Int.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(10).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 RESULT       BINARY-LONG.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-Int".
+    Int0.
+        DISPLAY "    Case: 0x00 0x00 0x00 0x00 - " WITH NO ADVANCING
+        MOVE X"00000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Int" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 0 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Int1.
+        DISPLAY "    Case: 0x00 0x00 0x00 0x01 = 1 - " WITH NO ADVANCING
+        MOVE X"00000001" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Int" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 1 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    IntMax.
+        DISPLAY "    Case: 0x7F 0xFF 0xFF 0xFF = 2147483647 - " WITH NO ADVANCING
+        MOVE X"7FFFFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Int" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 2147483647 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Negative1.
+        DISPLAY "    Case: 0xFF 0xFF 0xFF 0xFF = -1 - " WITH NO ADVANCING
+        MOVE X"FFFFFFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Int" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -1 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NegativeMax.
+        DISPLAY "    Case: 0x80 0x00 0x00 0x00 = -2147483648 - " WITH NO ADVANCING
+        MOVE X"80000000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-Int" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = -2147483648 AND BUFFERPOS = 5
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Decode-Int.
 
     *> --- Test: Decode-VarInt ---
     IDENTIFICATION DIVISION.

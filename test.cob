@@ -6,6 +6,8 @@ PROCEDURE DIVISION.
     DISPLAY "Running tests..."
     CALL "Test-Decode"
     CALL "Test-Encode"
+    CALL "Test-NbtEncode"
+    CALL "Test-NbtDecode"
     CALL "Test-JsonParse"
     CALL "Test-World"
     STOP RUN.
