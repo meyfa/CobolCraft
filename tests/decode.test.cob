@@ -5,6 +5,7 @@ PROGRAM-ID. Test-Decode.
 PROCEDURE DIVISION.
     DISPLAY "Test: decode.cob"
     CALL "Test-Decode-Byte"
+    CALL "Test-Decode-UnsignedShort"
     CALL "Test-Decode-Short"
     CALL "Test-Decode-VarInt"
     CALL "Test-Decode-UnsignedLong"
@@ -70,6 +71,53 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Decode-Byte.
+
+    *> --- Test: Decode-UnsignedShort ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-UnsignedShort.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(10).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 RESULT       BINARY-SHORT UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-UnsignedShort".
+    Short0.
+        DISPLAY "    Case: 0x00 0x00 - " WITH NO ADVANCING
+        MOVE X"0000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-UnsignedShort" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 0 AND BUFFERPOS = 3
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Short1.
+        DISPLAY "    Case: 0x00 0x01 = 1 - " WITH NO ADVANCING
+        MOVE X"0001" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-UnsignedShort" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 1 AND BUFFERPOS = 3
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    ShortMax.
+        DISPLAY "    Case: 0xFF 0xFF = 65536 - " WITH NO ADVANCING
+        MOVE X"FFFF" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-UnsignedShort" USING BUFFER BUFFERPOS RESULT
+        IF RESULT = 65535 AND BUFFERPOS = 3
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Decode-UnsignedShort.
 
     *> --- Test: Decode-Short ---
     IDENTIFICATION DIVISION.
