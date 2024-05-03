@@ -24,7 +24,7 @@ The following features are already working:
 
 Note that blocks with multiple states and/or orientations require large amounts of specialized code to make them
 behave properly, which is way beyond the scope of this project.
-Some are supported, however (currently: all torch variants, slabs, buttons).
+Some are supported, however (currently: torches, slabs, rotated pillars such as logs or basalt, buttons).
 
 ## How-to
 

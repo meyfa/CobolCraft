@@ -1,0 +1,89 @@
+*> --- RegisterItem-RotatedPillar ---
+*> This is responsible for all rotated pillars, such as logs, basalt, bone blocks, etc.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. RegisterItem-RotatedPillar.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 C-MINECRAFT-ROTATED_PILLAR       PIC X(32) GLOBAL    VALUE "minecraft:rotated_pillar".
+    01 USE-PTR                          PROGRAM-POINTER.
+    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
+    01 BLOCK-NAME                       PIC X(64).
+    01 BLOCK-TYPE                       PIC X(64).
+
+PROCEDURE DIVISION.
+    SET USE-PTR TO ENTRY "Callback-Use"
+
+    *> Loop over all blocks and register the callback for each rotated pillar
+    CALL "Blocks-GetCount" USING BLOCK-COUNT
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
+        CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
+        IF BLOCK-TYPE = C-MINECRAFT-ROTATED_PILLAR
+            CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
+            CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
+        END-IF
+    END-PERFORM
+
+    GOBACK.
+
+    *> --- Callback-Use ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-Use.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
+        *> Block state description for the pillar variant.
+        COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PLACE==.
+        01 BLOCK-POSITION.
+            02 BLOCK-X              BINARY-LONG.
+            02 BLOCK-Y              BINARY-LONG.
+            02 BLOCK-Z              BINARY-LONG.
+        01 FACING                   PIC X(5).
+        01 BOUNDS-CHECK             BINARY-CHAR UNSIGNED.
+        01 BLOCK-ID                 BINARY-LONG.
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-ITEM-USE.
+
+    PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
+        *> TODO reduce duplication with other callbacks
+
+        *> Compute the position of the block to be affected
+        MOVE LK-POSITION TO BLOCK-POSITION
+        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
+        CALL "Facing-ToString" USING LK-FACE FACING
+
+        *> Ensure the position is not outside the world
+        CALL "World-CheckBounds" USING BLOCK-POSITION BOUNDS-CHECK
+        IF BOUNDS-CHECK NOT = 0
+            GOBACK
+        END-IF
+
+        *> Ensure the block was previously air
+        *> TODO: allow replacing some non-air blocks (e.g. tall grass, vines, water, ...)
+        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
+        IF BLOCK-ID NOT = 0
+            GOBACK
+        END-IF
+
+        MOVE LK-ITEM-NAME TO PLACE-NAME
+        MOVE 1 TO PLACE-PROPERTY-COUNT
+        MOVE "axis" TO PLACE-PROPERTY-NAME(1)
+        EVALUATE TRUE
+            WHEN FACING = "up" OR FACING = "down"
+                MOVE "y" TO PLACE-PROPERTY-VALUE(1)
+            WHEN FACING = "north" OR FACING = "south"
+                MOVE "z" TO PLACE-PROPERTY-VALUE(1)
+            WHEN FACING = "east" OR FACING = "west"
+                MOVE "x" TO PLACE-PROPERTY-VALUE(1)
+        END-EVALUATE
+
+        CALL "Blocks-Get-StateId" USING PLACE-DESCRIPTION BLOCK-ID
+        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+
+        GOBACK.
+
+    END PROGRAM Callback-Use.
+
+END PROGRAM RegisterItem-RotatedPillar.
