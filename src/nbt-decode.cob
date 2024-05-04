@@ -383,23 +383,64 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
 
 END PROGRAM NbtDecode-EndList.
 
-*> --- NbtDecode-Compound ---
+*> --- NbtDecode-ByteBuffer ---
+*> A utility subroutine to read a byte array with contents directly into a buffer.
 IDENTIFICATION DIVISION.
-PROGRAM-ID. NbtDecode-Compound.
+PROGRAM-ID. NbtDecode-ByteBuffer.
 
 DATA DIVISION.
 LINKAGE SECTION.
     COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
     01 LK-BUFFER        PIC X ANY LENGTH.
     01 LK-OFFSET        BINARY-LONG UNSIGNED.
+    01 LK-DATA          PIC X ANY LENGTH.
+    01 LK-DATA-LENGTH   BINARY-LONG UNSIGNED.
 
-PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
-    *> Read the tag
-    IF LK-OFFSET > LENGTH OF LK-BUFFER OR LK-BUFFER(LK-OFFSET:1) NOT = X"0A"
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-DATA LK-DATA-LENGTH.
+    CALL "NbtDecode-List" USING LK-STATE LK-BUFFER LK-OFFSET LK-DATA-LENGTH
+    IF LK-DATA-LENGTH > LENGTH OF LK-DATA
         *> TODO handle error
         GOBACK
     END-IF
-    ADD 1 TO LK-OFFSET
+    IF (LK-STACK-TYPE(LK-LEVEL) = X"09" AND LK-STACK-LIST-TYPE(LK-LEVEL) = X"01") OR LK-STACK-TYPE(LK-LEVEL) = X"07"
+        MOVE LK-BUFFER(LK-OFFSET:LK-DATA-LENGTH) TO LK-DATA
+        ADD LK-DATA-LENGTH TO LK-OFFSET
+    ELSE
+        *> TODO handle error
+        GOBACK
+    END-IF
+    CALL "NbtDecode-EndList" USING LK-STATE LK-BUFFER LK-OFFSET
+    GOBACK.
+
+END PROGRAM NbtDecode-ByteBuffer.
+
+*> --- NbtDecode-Compound ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-Compound.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 TAG              PIC X.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER        PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
+    EVALUATE TRUE
+        *> If this tag is contained in a list, get its type from the stack
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"09"
+            MOVE LK-STACK-LIST-TYPE(LK-LEVEL) TO TAG
+        *> In all other cases, read the tag type from the buffer
+        WHEN OTHER
+            MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
+            ADD 1 TO LK-OFFSET
+    END-EVALUATE
+
+    IF TAG NOT = X"0A"
+        *> TODO handle error
+        GOBACK
+    END-IF
 
     *> If in a compound, skip the name
     IF LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0A"
