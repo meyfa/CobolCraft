@@ -4,6 +4,7 @@ PROGRAM-ID. Test-Encode.
 
 PROCEDURE DIVISION.
     DISPLAY "Test: encode.cob"
+    CALL "Test-Encode-Byte"
     CALL "Test-Encode-UnsignedShort"
     CALL "Test-Encode-UnsignedInt"
     CALL "Test-Encode-VarInt"
@@ -14,6 +15,50 @@ PROCEDURE DIVISION.
     CALL "Test-Encode-Angle"
     CALL "Test-Encode-Position"
     GOBACK.
+
+    *> --- Test: Encode-Byte ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-Byte.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 VALUE-IN     BINARY-CHAR.
+        01 BUFFER       PIC X(10).
+        01 BUFFERLEN    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-Byte".
+    Byte0.
+        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        MOVE 0 TO VALUE-IN
+        CALL "Encode-Byte" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"00" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    ByteMax.
+        DISPLAY "    Case: 127 - " WITH NO ADVANCING
+        MOVE 127 TO VALUE-IN
+        CALL "Encode-Byte" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"7F" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    ByteMin.
+        DISPLAY "    Case: -128 - " WITH NO ADVANCING
+        MOVE -128 TO VALUE-IN
+        CALL "Encode-Byte" USING VALUE-IN BUFFER BUFFERLEN
+        IF BUFFER = X"80" AND BUFFERLEN = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-Byte.
 
     *> --- Test: Encode-UnsignedShort ---
     IDENTIFICATION DIVISION.

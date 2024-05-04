@@ -426,7 +426,7 @@ PROCEDURE DIVISION.
         IF OFFSET = 13 AND NBT-DECODER-LEVEL = 0
             DISPLAY "PASS"
         ELSE
-            DISPLAY "FAIL, offset: " OFFSET
+            DISPLAY "FAIL"
         END-IF.
     EmptyList.
         DISPLAY "    Case: empty list - " WITH NO ADVANCING
