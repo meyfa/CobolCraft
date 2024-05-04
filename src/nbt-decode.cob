@@ -38,30 +38,6 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET.
 
 END PROGRAM NbtDecode-SkipString.
 
-*> --- NbtDecode-End ---
-IDENTIFICATION DIVISION.
-PROGRAM-ID. NbtDecode-End.
-
-DATA DIVISION.
-LINKAGE SECTION.
-    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
-    01 LK-BUFFER        PIC X ANY LENGTH.
-    01 LK-OFFSET        BINARY-LONG UNSIGNED.
-
-PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
-    IF LK-OFFSET > LENGTH OF LK-BUFFER OR LK-BUFFER(LK-OFFSET:1) NOT = X"00"
-        *> TODO handle error
-        GOBACK
-    END-IF
-    ADD 1 TO LK-OFFSET
-
-    *> Pop the stack
-    SUBTRACT 1 FROM LK-LEVEL
-
-    GOBACK.
-
-END PROGRAM NbtDecode-End.
-
 *> --- NbtDecode-Long ---
 IDENTIFICATION DIVISION.
 PROGRAM-ID. NbtDecode-Long.
@@ -85,9 +61,24 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-VALUE.
         GOBACK
     END-IF
 
-    *> Read the tag type
-    MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
-    ADD 1 TO LK-OFFSET
+    EVALUATE TRUE
+        *> Decoding from a byte array
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"07"
+            MOVE X"01" TO TAG
+        *> Decoding from a list
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"09"
+            MOVE LK-STACK-LIST-TYPE(LK-LEVEL) TO TAG
+        *> Decoding from an int array
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0B"
+            MOVE X"03" TO TAG
+        *> Decoding from a long array
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0C"
+            MOVE X"04" TO TAG
+        *> In all other cases, read the tag type from the buffer
+        WHEN OTHER
+            MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
+            ADD 1 TO LK-OFFSET
+    END-EVALUATE
 
     *> If in a compound, skip the name. The caller will have gotten this using NbtDecode-Peek.
     IF LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0A"
@@ -115,6 +106,97 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-VALUE.
     GOBACK.
 
 END PROGRAM NbtDecode-Long.
+
+*> --- NbtDecode-List ---
+*> Decode a list or array, returning the number of elements.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-List.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 TAG              PIC X.
+    01 INT32            BINARY-LONG.
+    01 LIST-TAG         PIC X.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER        PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+    01 LK-LIST-LENGTH   BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-LIST-LENGTH.
+    IF LK-OFFSET > LENGTH OF LK-BUFFER
+        GOBACK
+    END-IF
+
+    EVALUATE TRUE
+        *> This tag is contained in another list, so get its type from the stack
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"09"
+            MOVE LK-STACK-LIST-TYPE(LK-LEVEL) TO TAG
+        *> In all other cases, read the tag type from the buffer
+        WHEN OTHER
+            MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
+            ADD 1 TO LK-OFFSET
+    END-EVALUATE
+
+    *> If in a compound, skip the name. The caller will have gotten this using NbtDecode-Peek.
+    IF LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0A"
+        CALL "NbtDecode-SkipString" USING LK-BUFFER LK-OFFSET
+    END-IF
+
+    *> Determine the type of the list elements
+    EVALUATE TAG
+        WHEN X"07" *> byte array
+            MOVE X"01" TO LIST-TAG
+        WHEN X"09" *> list
+            MOVE LK-BUFFER(LK-OFFSET:1) TO LIST-TAG
+            ADD 1 TO LK-OFFSET
+        WHEN X"0B" *> int array
+            MOVE X"03" TO LIST-TAG
+        WHEN X"0C" *> long array
+            MOVE X"04" TO LIST-TAG
+        WHEN OTHER
+            *> TODO handle error
+            GOBACK
+    END-EVALUATE
+
+    *> Read the length of the list or array
+    CALL "Decode-Int" USING LK-BUFFER LK-OFFSET INT32
+    IF INT32 <= 0
+        MOVE 0 TO LK-LIST-LENGTH
+    ELSE
+        MOVE INT32 TO LK-LIST-LENGTH
+    END-IF
+
+    *> Push the container onto the stack
+    ADD 1 TO LK-LEVEL
+    MOVE TAG TO LK-STACK-TYPE(LK-LEVEL)
+    MOVE LIST-TAG TO LK-STACK-LIST-TYPE(LK-LEVEL)
+    MOVE LK-LIST-LENGTH TO LK-STACK-LIST-COUNT(LK-LEVEL)
+
+    GOBACK.
+
+END PROGRAM NbtDecode-List.
+
+*> --- NbtDecode-EndList ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-EndList.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER        PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
+    IF LK-LEVEL < 1 OR LK-STACK-TYPE(LK-LEVEL) = X"0A"
+        DISPLAY "ERROR: EndList called without a matching list or array"
+        STOP RUN
+    END-IF
+    *> Pop the stack
+    SUBTRACT 1 FROM LK-LEVEL
+    GOBACK.
+
+END PROGRAM NbtDecode-EndList.
 
 *> --- NbtDecode-Compound ---
 IDENTIFICATION DIVISION.
@@ -180,6 +262,35 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
 
 END PROGRAM NbtDecode-RootCompound.
 
+*> --- NbtDecode-EndCompound ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-EndCompound.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER        PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
+    IF LK-LEVEL < 1 OR LK-STACK-TYPE(LK-LEVEL) NOT = X"0A"
+        DISPLAY "ERROR: EndCompound called without a matching Compound"
+        STOP RUN
+    END-IF
+
+    IF LK-OFFSET > LENGTH OF LK-BUFFER OR LK-BUFFER(LK-OFFSET:1) NOT = X"00"
+        *> TODO handle error
+        GOBACK
+    END-IF
+    ADD 1 TO LK-OFFSET
+
+    *> Pop the stack
+    SUBTRACT 1 FROM LK-LEVEL
+
+    GOBACK.
+
+END PROGRAM NbtDecode-EndCompound.
+
 *> --- NbtDecode-Peek ---
 *> Peek at the name of the next tag in the buffer, without advancing the offset.
 *> In case the end tag is reached, a flag is set to indicate this.
@@ -227,13 +338,34 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
         GOBACK
     END-IF
 
-    *> Read the tag type
-    MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
-    ADD 1 TO LK-OFFSET
-
-    *> If in a compound, skip the tag name
-    IF LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0A"
-        CALL "NbtDecode-SkipString" USING LK-BUFFER LK-OFFSET
+    *> Determine the tag type based on the container, or read it from the buffer.
+    IF LK-LEVEL > 0
+        EVALUATE LK-STACK-TYPE(LK-LEVEL)
+            *> Byte arrays have fixed type 0x01 (byte)
+            WHEN X"07"
+                MOVE X"01" TO TAG
+            *> Lists store the type in their stack entry
+            WHEN X"09"
+                MOVE LK-STACK-LIST-TYPE(LK-LEVEL) TO TAG
+            *> Int arrays have fixed type 0x03 (int)
+            WHEN X"0B"
+                MOVE X"03" TO TAG
+            *> Long arrays have fixed type 0x04 (long)
+            WHEN X"0C"
+                MOVE X"04" TO TAG
+            *> We must be in a compound, so read the tag type from the buffer
+            WHEN OTHER
+                MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
+                ADD 1 TO LK-OFFSET
+                *> Skip the tag name
+                IF LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0A"
+                    CALL "NbtDecode-SkipString" USING LK-BUFFER LK-OFFSET
+                END-IF
+        END-EVALUATE
+    ELSE
+        *> Read the tag type without a name
+        MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
+        ADD 1 TO LK-OFFSET
     END-IF
 
     *> Skip the value
@@ -284,8 +416,11 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-TAG.
             ADD 8 TO LK-OFFSET
 
         WHEN X"07" *> byte array
+            *> Read the length, and skip as many bytes
             CALL "Decode-Int" USING LK-BUFFER LK-OFFSET INT32
-            ADD INT32 TO LK-OFFSET
+            IF INT32 > 0
+                ADD INT32 TO LK-OFFSET
+            END-IF
 
         WHEN X"08" *> string
             CALL "NbtDecode-SkipString" USING LK-BUFFER LK-OFFSET
@@ -302,6 +437,8 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-TAG.
             *> Push the list onto the stack
             ADD 1 TO LK-LEVEL
             MOVE LK-TAG TO LK-STACK-TYPE(LK-LEVEL)
+            MOVE LIST-TAG TO LK-STACK-LIST-TYPE(LK-LEVEL)
+            MOVE INT32 TO LK-STACK-LIST-COUNT(LK-LEVEL)
 
             *> Skip the elements
             PERFORM INT32 TIMES
@@ -317,15 +454,21 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-TAG.
             PERFORM UNTIL LK-BUFFER(LK-OFFSET:1) = X"00"
                 CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER LK-OFFSET
             END-PERFORM
-            CALL "NbtDecode-End" USING LK-STATE LK-BUFFER LK-OFFSET
+            CALL "NbtDecode-EndCompound" USING LK-STATE LK-BUFFER LK-OFFSET
 
         WHEN X"0B" *> int array
+            *> Read the length, and skip as many ints
             CALL "Decode-Int" USING LK-BUFFER LK-OFFSET INT32
-            COMPUTE LK-OFFSET = LK-OFFSET + INT32 * 4
+            IF INT32 > 0
+                COMPUTE LK-OFFSET = LK-OFFSET + INT32 * 4
+            END-IF
 
         WHEN X"0C" *> long array
+            *> Read the length, and skip as many longs
             CALL "Decode-Int" USING LK-BUFFER LK-OFFSET INT32
-            COMPUTE LK-OFFSET = LK-OFFSET + INT32 * 8
+            IF INT32 > 0
+                COMPUTE LK-OFFSET = LK-OFFSET + INT32 * 8
+            END-IF
 
         WHEN OTHER
             *> TODO handle error
