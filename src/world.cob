@@ -421,7 +421,7 @@ WORKING-STORAGE SECTION.
     01 CHUNK-Z              BINARY-LONG.
     01 CHUNK-BLOCK-X        BINARY-LONG.
     01 CHUNK-BLOCK-Z        BINARY-LONG.
-    01 MAX-DISTANCE         BINARY-LONG.
+    01 MIN-DISTANCE         BINARY-LONG.
     01 PLAYER-INDEX         BINARY-LONG UNSIGNED.
     *> World data
     COPY DD-WORLD.
@@ -439,17 +439,17 @@ PROCEDURE DIVISION USING LK-VIEW-DISTANCE LK-FAILURE.
             MOVE WORLD-CHUNK-Z(CHUNK-INDEX) TO CHUNK-Z
             COMPUTE CHUNK-BLOCK-X = CHUNK-X * 16 + 8
             COMPUTE CHUNK-BLOCK-Z = CHUNK-Z * 16 + 8
-            *> Compute the maximum distance to any player on any axis
-            MOVE 0 TO MAX-DISTANCE
+            *> Compute the minimum distance to any player on any axis
+            MOVE 1000000 TO MIN-DISTANCE
             PERFORM VARYING PLAYER-INDEX FROM 1 BY 1 UNTIL PLAYER-INDEX > MAX-PLAYERS
                 IF PLAYER-CLIENT(PLAYER-INDEX) > 0
-                    COMPUTE MAX-DISTANCE = FUNCTION MAX(MAX-DISTANCE, FUNCTION ABS(CHUNK-BLOCK-X - PLAYER-X(PLAYER-INDEX)))
-                    COMPUTE MAX-DISTANCE = FUNCTION MAX(MAX-DISTANCE, FUNCTION ABS(CHUNK-BLOCK-Z - PLAYER-Z(PLAYER-INDEX)))
+                    COMPUTE MIN-DISTANCE = FUNCTION MIN(MIN-DISTANCE, FUNCTION ABS(CHUNK-BLOCK-X - PLAYER-X(PLAYER-INDEX)))
+                    COMPUTE MIN-DISTANCE = FUNCTION MIN(MIN-DISTANCE, FUNCTION ABS(CHUNK-BLOCK-Z - PLAYER-Z(PLAYER-INDEX)))
                 END-IF
             END-PERFORM
             *> If the chunk is outside the view distance + 2 (for tolerance against thrashing), unload it
-            COMPUTE MAX-DISTANCE = MAX-DISTANCE / 16 - LK-VIEW-DISTANCE
-            IF MAX-DISTANCE > 2
+            COMPUTE MIN-DISTANCE = MIN-DISTANCE / 16 - LK-VIEW-DISTANCE
+            IF MIN-DISTANCE > 2
                 IF WORLD-CHUNK-DIRTY(CHUNK-INDEX) > 0
                     CALL "World-SaveChunk" USING CHUNK-X CHUNK-Z LK-FAILURE
                 END-IF
