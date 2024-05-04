@@ -167,6 +167,19 @@ PROCEDURE DIVISION USING LK-PLAYER-ID.
     END-PERFORM
     CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
 
+    *> abilities
+    MOVE "abilities" TO TAG-NAME
+    MOVE 9 TO NAME-LEN
+    CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
+
+    *> flying
+    MOVE "flying" TO TAG-NAME
+    MOVE 6 TO NAME-LEN
+    CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN PLAYER-FLYING(LK-PLAYER-ID)
+
+    *> end abilities
+    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+
     *> end root tag
     CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
 
@@ -328,6 +341,24 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                 END-PERFORM
                 CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
 
+            WHEN "abilities"
+                *> Start of abilities compound
+                CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+                PERFORM UNTIL EXIT
+                    CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER OFFSET AT-END TAG-NAME NAME-LEN
+                    IF AT-END = 1
+                        EXIT PERFORM
+                    END-IF
+                    EVALUATE TAG-NAME(1:NAME-LEN)
+                        WHEN "flying"
+                            CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER OFFSET PLAYER-FLYING(LK-PLAYER-ID)
+                        WHEN OTHER
+                            CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+                    END-EVALUATE
+                END-PERFORM
+                *> End of abilities compound
+                CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+
             WHEN OTHER
                 CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
         END-EVALUATE
@@ -415,6 +446,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-PLAYER-UUID LK-PLAYER-NAME LK-PLAYER-NA
             MOVE 0 TO PLAYER-YAW(LK-PLAYER-ID)
             MOVE 0 TO PLAYER-PITCH(LK-PLAYER-ID)
             MOVE 0 TO PLAYER-SNEAKING(LK-PLAYER-ID)
+            MOVE 0 TO PLAYER-FLYING(LK-PLAYER-ID)
             MOVE 0 TO PLAYER-HOTBAR(LK-PLAYER-ID)
             PERFORM VARYING PLAYER-INVENTORY-INDEX FROM 1 BY 1 UNTIL PLAYER-INVENTORY-INDEX > 46
                 MOVE 0 TO PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, PLAYER-INVENTORY-INDEX)
