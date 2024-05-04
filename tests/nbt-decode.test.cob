@@ -4,6 +4,8 @@ PROGRAM-ID. Test-NbtDecode.
 
 PROCEDURE DIVISION.
     DISPLAY "Test: nbt-decode.cob"
+    CALL "Test-NbtDecode-Byte"
+    CALL "Test-NbtDecode-Int"
     CALL "Test-NbtDecode-Long"
     CALL "Test-NbtDecode-Float"
     CALL "Test-NbtDecode-Double"
@@ -15,6 +17,130 @@ PROCEDURE DIVISION.
     CALL "Test-NbtDecode-Skip"
     GOBACK.
 
+    *> --- Test: Test-NbtDecode-Byte ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtDecode-Byte.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-DECODER.
+        01 BUFFER       PIC X(16).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 RESULT       BINARY-CHAR.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: NbtDecode-Byte".
+    TagByte.
+        DISPLAY "    Case: from byte tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"0000012AFFFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Byte" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 5 AND RESULT = 42
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    TagShort.
+        DISPLAY "    Case: from short tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"000002002AFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Byte" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 6 AND RESULT = 42
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    TagInt.
+        DISPLAY "    Case: from int tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"0000030000002AFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Byte" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 8 AND RESULT = 42
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    TagLong.
+        DISPLAY "    Case: from long tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"000004000000000000002AFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Byte" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 12 AND RESULT = 42
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtDecode-Byte.
+
+    *> --- Test: Test-NbtDecode-Int ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtDecode-Int.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-DECODER.
+        01 BUFFER       PIC X(16).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 RESULT       BINARY-LONG.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: NbtDecode-Int".
+    TagByte.
+        DISPLAY "    Case: from byte tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"0000012AFFFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Int" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 5 AND RESULT = 42
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    TagShort.
+        DISPLAY "    Case: from short tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"000002002AFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Int" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 6 AND RESULT = 42
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    TagInt.
+        DISPLAY "    Case: from int tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"0000030000002AFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Int" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 8 AND RESULT = 42
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    TagLong.
+        DISPLAY "    Case: from long tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"000004000000000000002AFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Int" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 12 AND RESULT = 42
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtDecode-Int.
+
     *> --- Test: Test-NbtDecode-Long ---
     IDENTIFICATION DIVISION.
     PROGRAM-ID. Test-NbtDecode-Long.
@@ -24,7 +150,7 @@ PROCEDURE DIVISION.
         COPY DD-NBT-DECODER.
         01 BUFFER       PIC X(16).
         01 OFFSET       BINARY-LONG UNSIGNED.
-        01 RESULT       BINARY-LONG-LONG UNSIGNED.
+        01 RESULT       BINARY-LONG-LONG.
 
     PROCEDURE DIVISION.
         DISPLAY "  Test: NbtDecode-Long".
