@@ -251,6 +251,47 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-VALUE.
 
 END PROGRAM NbtDecode-Double.
 
+*> --- NbtDecode-String ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-String.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 TAG              PIC X.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER        PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+    01 LK-STRING-VALUE  PIC X ANY LENGTH.
+    01 LK-STRING-LENGTH BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-STRING-VALUE LK-STRING-LENGTH.
+    EVALUATE TRUE
+        *> This tag is contained in another list, so get its type from the stack
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"09"
+            MOVE LK-STACK-LIST-TYPE(LK-LEVEL) TO TAG
+        *> In all other cases, read the tag type from the buffer
+        WHEN OTHER
+            MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
+            ADD 1 TO LK-OFFSET
+    END-EVALUATE
+
+    IF TAG NOT = X"08"
+        *> TODO handle error
+        GOBACK
+    END-IF
+
+    *> If in a compound, skip the name. The caller will have gotten this using NbtDecode-Peek.
+    IF LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0A"
+        CALL "NbtDecode-SkipString" USING LK-BUFFER LK-OFFSET
+    END-IF
+
+    CALL "NbtDecode-ReadString" USING LK-BUFFER LK-OFFSET LK-STRING-VALUE LK-STRING-LENGTH
+
+    GOBACK.
+
+END PROGRAM NbtDecode-String.
+
 *> --- NbtDecode-List ---
 *> Decode a list or array, returning the number of elements.
 IDENTIFICATION DIVISION.
