@@ -9,6 +9,7 @@ PROCEDURE DIVISION.
     CALL "Test-NbtEncode-Long"
     CALL "Test-NbtEncode-Float"
     CALL "Test-NbtEncode-Double"
+    CALL "Test-NbtEncode-String"
     CALL "Test-NbtEncode-ByteArray"
     CALL "Test-NbtEncode-List"
     CALL "Test-NbtEncode-Compound"
@@ -247,6 +248,54 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-NbtEncode-Double.
+
+    *> --- Test: NbtEncode-String ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtEncode-String.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-ENCODER.
+        01 BUFFER       PIC X(24).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 NAME-VALUE   PIC X(10).
+        01 NAME-LEN     BINARY-LONG UNSIGNED.
+        01 STR          PIC X(10).
+        01 STR-LEN      BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Test-NbtEncode-String".
+    UnnamedEmptyString.
+        DISPLAY "    Case: unnamed empty string - " WITH NO ADVANCING
+        INITIALIZE NBT-ENCODER-STATE
+        MOVE X"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        MOVE 0 TO STR-LEN
+        CALL "NbtEncode-String" USING NBT-ENCODER-STATE BUFFER OFFSET OMITTED OMITTED STR STR-LEN
+        IF BUFFER = X"FFFF080000FFFFFFFFFFFFFFFFFFFFFF" AND OFFSET = 6
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NamedString.
+        DISPLAY "    Case: named non-empty string - " WITH NO ADVANCING
+        INITIALIZE NBT-ENCODER-STATE
+        MOVE X"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        MOVE "Hello" TO STR
+        MOVE 5 TO STR-LEN
+        MOVE "Time" TO NAME-VALUE
+        MOVE 4 TO NAME-LEN
+        CALL "NbtEncode-String" USING NBT-ENCODER-STATE BUFFER OFFSET NAME-VALUE NAME-LEN STR STR-LEN
+        IF BUFFER = X"FFFF08000454696D65000548656C6C6F" AND OFFSET = 17
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtEncode-String.
 
     *> --- Test: NbtEncode-ByteArray ---
     IDENTIFICATION DIVISION.

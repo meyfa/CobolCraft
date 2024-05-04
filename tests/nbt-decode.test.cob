@@ -9,6 +9,7 @@ PROCEDURE DIVISION.
     CALL "Test-NbtDecode-Long"
     CALL "Test-NbtDecode-Float"
     CALL "Test-NbtDecode-Double"
+    CALL "Test-NbtDecode-String"
     CALL "Test-NbtDecode-List"
     CALL "Test-NbtDecode-Compound"
     CALL "Test-NbtDecode-RootCompound"
@@ -294,6 +295,47 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-NbtDecode-Double.
+
+    *> --- Test: Test-NbtDecode-String ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtDecode-String.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-DECODER.
+        01 BUFFER       PIC X(16).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 STR          PIC X(12).
+        01 STR-LEN      BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: NbtDecode-String".
+    EmptyString.
+        DISPLAY "    Case: empty string - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"0000080000FFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-String" USING NBT-DECODER-STATE BUFFER OFFSET STR STR-LEN
+        IF OFFSET = 6 AND STR-LEN = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NonEmptyString.
+        DISPLAY "    Case: non-empty string - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"000008000454657374FFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-String" USING NBT-DECODER-STATE BUFFER OFFSET STR STR-LEN
+        IF OFFSET = 10 AND STR-LEN = 4 AND STR = "Test"
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtDecode-String.
 
     *> --- Test: Test-NbtDecode-List ---
     IDENTIFICATION DIVISION.
