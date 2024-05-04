@@ -5,6 +5,8 @@ PROGRAM-ID. Test-NbtDecode.
 PROCEDURE DIVISION.
     DISPLAY "Test: nbt-decode.cob"
     CALL "Test-NbtDecode-Long"
+    CALL "Test-NbtDecode-Float"
+    CALL "Test-NbtDecode-Double"
     CALL "Test-NbtDecode-List"
     CALL "Test-NbtDecode-Compound"
     CALL "Test-NbtDecode-RootCompound"
@@ -86,6 +88,86 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-NbtDecode-Long.
+
+    *> --- Test: Test-NbtDecode-Float ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtDecode-Float.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-DECODER.
+        01 BUFFER       PIC X(16).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 RESULT       FLOAT-SHORT.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: NbtDecode-Float".
+    FromFloat.
+        DISPLAY "    Case: from float tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"00000541420000FFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Float" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 8 AND RESULT = 12.125
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    FromDouble.
+        DISPLAY "    Case: from double tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"0000064028400000000000FFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Float" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 12 AND RESULT = 12.125
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtDecode-Float.
+
+    *> --- Test: Test-NbtDecode-Double ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtDecode-Double.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-DECODER.
+        01 BUFFER       PIC X(16).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 RESULT       FLOAT-LONG.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: NbtDecode-Double".
+    FromFloat.
+        DISPLAY "    Case: from float tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"00000541420000FFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Double" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 8 AND RESULT = 12.125
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    FromDouble.
+        DISPLAY "    Case: from double tag - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE X"0000064028400000000000FFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        CALL "NbtDecode-Double" USING NBT-DECODER-STATE BUFFER OFFSET RESULT
+        IF OFFSET = 12 AND RESULT = 12.125
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtDecode-Double.
 
     *> --- Test: Test-NbtDecode-List ---
     IDENTIFICATION DIVISION.

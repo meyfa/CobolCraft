@@ -107,6 +107,110 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-VALUE.
 
 END PROGRAM NbtDecode-Long.
 
+*> --- NbtDecode-Float ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-Float.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 TAG              PIC X.
+    01 FLOAT32          FLOAT-SHORT.
+    01 FLOAT64          FLOAT-LONG.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER        PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+    01 LK-VALUE         FLOAT-SHORT.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-VALUE.
+    *> Accept any floating-point type in the NBT data, and return it as a 32-bit floating-point number
+    IF LK-OFFSET > LENGTH OF LK-BUFFER
+        GOBACK
+    END-IF
+
+    EVALUATE TRUE
+        *> Decoding from a list
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"09"
+            MOVE LK-STACK-LIST-TYPE(LK-LEVEL) TO TAG
+        *> Read the tag type from the buffer
+        WHEN OTHER
+            MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
+            ADD 1 TO LK-OFFSET
+    END-EVALUATE
+
+    *> If in a compound, skip the name. The caller will have gotten this using NbtDecode-Peek.
+    IF LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0A"
+        CALL "NbtDecode-SkipString" USING LK-BUFFER LK-OFFSET
+    END-IF
+
+    EVALUATE TAG
+        WHEN X"05" *> float
+            CALL "Decode-Float" USING LK-BUFFER LK-OFFSET FLOAT32
+            MOVE FLOAT32 TO LK-VALUE
+        WHEN X"06" *> double
+            CALL "Decode-Double" USING LK-BUFFER LK-OFFSET FLOAT64
+            MOVE FLOAT64 TO LK-VALUE
+        WHEN OTHER
+            *> TODO handle error
+            GOBACK
+    END-EVALUATE
+
+    GOBACK.
+
+END PROGRAM NbtDecode-Float.
+
+*> --- NbtDecode-Double ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-Double.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 TAG              PIC X.
+    01 FLOAT32          FLOAT-SHORT.
+    01 FLOAT64          FLOAT-LONG.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER        PIC X ANY LENGTH.
+    01 LK-OFFSET        BINARY-LONG UNSIGNED.
+    01 LK-VALUE         FLOAT-LONG.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-VALUE.
+    *> Accept any floating-point type in the NBT data, and return it as a 64-bit floating-point number
+    IF LK-OFFSET > LENGTH OF LK-BUFFER
+        GOBACK
+    END-IF
+
+    EVALUATE TRUE
+        *> Decoding from a list
+        WHEN LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"09"
+            MOVE LK-STACK-LIST-TYPE(LK-LEVEL) TO TAG
+        *> Read the tag type from the buffer
+        WHEN OTHER
+            MOVE LK-BUFFER(LK-OFFSET:1) TO TAG
+            ADD 1 TO LK-OFFSET
+    END-EVALUATE
+
+    *> If in a compound, skip the name. The caller will have gotten this using NbtDecode-Peek.
+    IF LK-LEVEL > 0 AND LK-STACK-TYPE(LK-LEVEL) = X"0A"
+        CALL "NbtDecode-SkipString" USING LK-BUFFER LK-OFFSET
+    END-IF
+
+    EVALUATE TAG
+        WHEN X"05" *> float
+            CALL "Decode-Float" USING LK-BUFFER LK-OFFSET FLOAT32
+            MOVE FLOAT32 TO LK-VALUE
+        WHEN X"06" *> double
+            CALL "Decode-Double" USING LK-BUFFER LK-OFFSET FLOAT64
+            MOVE FLOAT64 TO LK-VALUE
+        WHEN OTHER
+            *> TODO handle error
+            GOBACK
+    END-EVALUATE
+
+    GOBACK.
+
+END PROGRAM NbtDecode-Double.
+
 *> --- NbtDecode-List ---
 *> Decode a list or array, returning the number of elements.
 IDENTIFICATION DIVISION.

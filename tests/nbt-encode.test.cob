@@ -7,6 +7,8 @@ PROCEDURE DIVISION.
     CALL "Test-NbtEncode-Byte"
     CALL "Test-NbtEncode-Int"
     CALL "Test-NbtEncode-Long"
+    CALL "Test-NbtEncode-Float"
+    CALL "Test-NbtEncode-Double"
     CALL "Test-NbtEncode-ByteArray"
     CALL "Test-NbtEncode-List"
     CALL "Test-NbtEncode-Compound"
@@ -153,6 +155,98 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-NbtEncode-Long.
+
+    *> --- Test: NbtEncode-Float ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtEncode-Float.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-ENCODER.
+        01 BUFFER       PIC X(16).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 NAME-VALUE   PIC X(10).
+        01 NAME-LEN     BINARY-LONG UNSIGNED.
+        01 VALUE-IN     FLOAT-SHORT.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Test-NbtEncode-Float".
+    UnnamedFloat.
+        DISPLAY "    Case: unnamed float (+12.125) - " WITH NO ADVANCING
+        INITIALIZE NBT-ENCODER-STATE
+        MOVE X"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        MOVE 12.125 TO VALUE-IN
+        CALL "NbtEncode-Float" USING NBT-ENCODER-STATE BUFFER OFFSET OMITTED OMITTED VALUE-IN
+        IF BUFFER = X"FFFF0541420000FFFFFFFFFFFFFFFFFF" AND OFFSET = 8
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NamedFloat.
+        DISPLAY "    Case: named float (-12.125) - " WITH NO ADVANCING
+        INITIALIZE NBT-ENCODER-STATE
+        MOVE X"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        MOVE -12.125 TO VALUE-IN
+        MOVE "Time" TO NAME-VALUE
+        MOVE 4 TO NAME-LEN
+        CALL "NbtEncode-Float" USING NBT-ENCODER-STATE BUFFER OFFSET NAME-VALUE NAME-LEN VALUE-IN
+        IF BUFFER = X"FFFF05000454696D65C1420000FFFFFF" AND OFFSET = 14
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtEncode-Float.
+
+    *> --- Test: NbtEncode-Double ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtEncode-Double.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-ENCODER.
+        01 BUFFER       PIC X(16).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 NAME-VALUE   PIC X(10).
+        01 NAME-LEN     BINARY-LONG UNSIGNED.
+        01 VALUE-IN     FLOAT-LONG.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Test-NbtEncode-Double".
+    UnnamedDouble.
+        DISPLAY "    Case: unnamed double (+12.125) - " WITH NO ADVANCING
+        INITIALIZE NBT-ENCODER-STATE
+        MOVE X"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 3 TO OFFSET
+        MOVE 12.125 TO VALUE-IN
+        CALL "NbtEncode-Double" USING NBT-ENCODER-STATE BUFFER OFFSET OMITTED OMITTED VALUE-IN
+        IF BUFFER = X"FFFF064028400000000000FFFFFFFFFF" AND OFFSET = 12
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NamedDouble.
+        DISPLAY "    Case: named double (-12.125) - " WITH NO ADVANCING
+        INITIALIZE NBT-ENCODER-STATE
+        MOVE X"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE 2 TO OFFSET
+        MOVE -12.125 TO VALUE-IN
+        MOVE "Time" TO NAME-VALUE
+        MOVE 4 TO NAME-LEN
+        CALL "NbtEncode-Double" USING NBT-ENCODER-STATE BUFFER OFFSET NAME-VALUE NAME-LEN VALUE-IN
+        IF BUFFER = X"FF06000454696D65C028400000000000" AND OFFSET = 17
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtEncode-Double.
 
     *> --- Test: NbtEncode-ByteArray ---
     IDENTIFICATION DIVISION.
