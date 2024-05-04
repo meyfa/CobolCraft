@@ -1,3 +1,29 @@
+*> --- Encode-Byte ---
+*> Encode a signed byte and store it in a buffer.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Encode-Byte.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 BYTE-ALPHA.
+        02 BYTE-VALUE           BINARY-CHAR UNSIGNED.
+LINKAGE SECTION.
+    01 LK-VALUE-IN          BINARY-CHAR.
+    01 LK-VALUE-OUT         PIC X ANY LENGTH.
+    01 LK-OUT-LENGTH        BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-VALUE-IN LK-VALUE-OUT LK-OUT-LENGTH.
+    IF LK-VALUE-IN < 0
+        COMPUTE BYTE-VALUE = 256 + LK-VALUE-IN
+    ELSE
+        MOVE LK-VALUE-IN TO BYTE-VALUE
+    END-IF
+    MOVE BYTE-ALPHA TO LK-VALUE-OUT
+    MOVE 1 TO LK-OUT-LENGTH
+    GOBACK.
+
+END PROGRAM Encode-Byte.
+
 *> --- Encode-UnsignedShort ---
 *> Encode a 16-bit unsigned integer and store it in a buffer (big-endian).
 IDENTIFICATION DIVISION.
