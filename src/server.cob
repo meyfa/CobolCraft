@@ -838,6 +838,9 @@ HandleConfiguration SECTION.
                 END-IF
             END-PERFORM
 
+            *> Send abilities (flying, etc.)
+            CALL "SendPacket-PlayerAbilities" USING CLIENT-ID PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID))
+
             *> Send position ("Synchronize Player Position"). The client must confirm the teleportation.
             ADD 1 TO TELEPORT-SENT(CLIENT-ID)
             CALL "SendPacket-SetPlayerPosition" USING CLIENT-ID PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID)) TELEPORT-SENT(CLIENT-ID)
@@ -958,6 +961,13 @@ HandlePlay SECTION.
                 EXIT SECTION
             END-IF
             *> TODO: "on ground" flag
+
+        *> Player abilities
+        WHEN H'23'
+            CALL "Decode-Byte" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT8
+            *> flying = bitmask & 0x02
+            COMPUTE TEMP-INT8 = TEMP-INT8 / 2
+            COMPUTE PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID)) = FUNCTION MOD(TEMP-INT8, 2)
 
         *> Player action
         WHEN H'24'
