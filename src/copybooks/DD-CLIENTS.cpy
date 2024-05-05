@@ -36,7 +36,7 @@
         03 CHUNK-QUEUE OCCURS CHUNK-QUEUE-LENGTH TIMES.
             04 CHUNK-QUEUE-X        BINARY-LONG.
             04 CHUNK-QUEUE-Z        BINARY-LONG.
-        *> Packet reading: expected packet length (-1 if not yet known), packet buffer, amount of received bytes
+        *> Packet reading: expected packet length (0 if not yet known), packet buffer, amount of received bytes
         *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
         03 PACKET-LENGTH        BINARY-LONG.
         03 PACKET-BUFFER        PIC X(2100000).
