@@ -175,6 +175,28 @@ static int console_read(char *p1, char *p2)
     return 0;
 }
 
+static int leading_zero_bits_uint32(char *p1, char *p2)
+{
+    if (!p1 || !p2)
+    {
+        return ERRNO_PARAMS;
+    }
+
+    unsigned int value = *((unsigned int *)p1);
+    unsigned int *out = (unsigned int *)p2;
+
+    // input of 0 has undefined behavior in __builtin_clz
+    if (value == 0)
+    {
+        *out = 32;
+        return 0;
+    }
+
+    *out = __builtin_clz(value);
+
+    return 0;
+}
+
 extern "C" int COBOLCRAFT_UTIL(char *p_code, char *p1, char *p2)
 {
     if (!p_code)
@@ -220,6 +242,12 @@ extern "C" int COBOLCRAFT_UTIL(char *p_code, char *p1, char *p2)
     // p2: BINARY-LONG - input: max length / output: actual length
     case 7:
         return console_read(p1, p2);
+
+    // Count number of leading zero bits in a 32-bit integer.
+    // p1: BINARY-LONG UNSIGNED - input
+    // p2: BINARY-LONG [UNSIGNED] - output
+    case 8:
+        return leading_zero_bits_uint32(p1, p2);
     }
 
     return ERRNO_PARAMS;
