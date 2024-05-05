@@ -172,29 +172,46 @@ FILE-CONTROL.
 DATA DIVISION.
 FILE SECTION.
 FD FD-CHUNK-FILE-OUT.
-    COPY DD-CHUNK-FILE.
+    01 CHUNK-FILE-BUFFER        PIC X(4096).
 WORKING-STORAGE SECTION.
+    01 NBT-BUFFER               PIC X(1048576).
+    01 CHUNK-SECTION-MIN-Y      BINARY-LONG             VALUE -4.
     *> File name
-    01 CHUNK-FILE-NAME      PIC X(255).
+    01 CHUNK-FILE-NAME          PIC X(255).
     *> Temporary variables
-    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
-    01 SECTION-INDEX        BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
-    01 FORCE-FIRST-SECTION  BINARY-CHAR UNSIGNED.
-    01 CURRENT-BLOCK-ID     BINARY-LONG UNSIGNED.
-    01 PALETTE-VALUE        BINARY-SHORT UNSIGNED.
-    01 PALETTE-INDEX        BINARY-LONG UNSIGNED.
+    01 OFFSET                   BINARY-LONG UNSIGNED.
+    01 TAG-NAME                 PIC X(256).
+    01 NAME-LEN                 BINARY-LONG UNSIGNED.
+    01 STR                      PIC X(256).
+    01 STR-LEN                  BINARY-LONG UNSIGNED.
+    01 INT8                     BINARY-CHAR.
+    01 INT32                    BINARY-LONG.
+    01 CHUNK-INDEX              BINARY-LONG UNSIGNED.
+    01 SECTION-INDEX            BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 CURRENT-BLOCK-ID         BINARY-LONG UNSIGNED.
+    01 PALETTE-LENGTH           BINARY-LONG UNSIGNED.
+    01 PALETTE-VALUE            BINARY-SHORT UNSIGNED.
+    01 PALETTE-BITS             BINARY-LONG UNSIGNED.
+    01 BLOCKS-PER-LONG          BINARY-LONG UNSIGNED.
+    01 LONG-ARRAY-LENGTH        BINARY-LONG UNSIGNED.
+    01 LONG-ARRAY-ENTRY         BINARY-LONG-LONG UNSIGNED.
+    01 LONG-ARRAY-ENTRY-SIGNED  REDEFINES LONG-ARRAY-ENTRY BINARY-LONG-LONG.
+    01 LONG-ARRAY-MULTIPLIER    BINARY-LONG-LONG UNSIGNED.
+    COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PALETTE-BLOCK==.
+    01 PROPERTY-INDEX           BINARY-LONG UNSIGNED.
     *> World data
     COPY DD-WORLD.
 LOCAL-STORAGE SECTION.
+    COPY DD-NBT-ENCODER.
     *> A map of block state indices to palette indices
-    78 BLOCK-PALETTE-LENGTH VALUE 100000.
-    01 BLOCK-PALETTE-ITEM OCCURS BLOCK-PALETTE-LENGTH TIMES.
-        02 BLOCK-PALETTE-INDEX  BINARY-SHORT UNSIGNED.
+    78 BLOCK-PALETTE-CAPACITY VALUE 100000.
+    01 BLOCK-PALETTE-ITEM OCCURS BLOCK-PALETTE-CAPACITY TIMES.
+        02 BLOCK-PALETTE-INDEX      BINARY-SHORT UNSIGNED.
 LINKAGE SECTION.
-    01 LK-CHUNK-X           BINARY-LONG.
-    01 LK-CHUNK-Z           BINARY-LONG.
-    01 LK-FAILURE           BINARY-CHAR UNSIGNED.
+    01 LK-CHUNK-X               BINARY-LONG.
+    01 LK-CHUNK-Z               BINARY-LONG.
+    01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
     MOVE 0 TO LK-FAILURE
@@ -205,52 +222,124 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
         GOBACK
     END-IF
 
-    *> open the file
-    CALL "World-ChunkFileName" USING LK-CHUNK-X LK-CHUNK-Z CHUNK-FILE-NAME
-    OPEN OUTPUT FD-CHUNK-FILE-OUT
+    *> start root tag
+    MOVE 1 TO OFFSET
+    CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
 
-    *> store data applicable to the entire chunk
-    MOVE LK-CHUNK-X TO CHUNK-X
-    MOVE LK-CHUNK-Z TO CHUNK-Z
-    MOVE -4 TO CHUNK-Y
+    *> chunk position
+    MOVE 4 TO NAME-LEN
+    MOVE "xPos" TO TAG-NAME
+    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN LK-CHUNK-X
+    MOVE "zPos" TO TAG-NAME
+    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN LK-CHUNK-Z
+    MOVE "yPos" TO TAG-NAME
+    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN CHUNK-SECTION-MIN-Y
 
-    *> count non-air sections
-    MOVE 0 TO CHUNK-SECTION-COUNT
+    *> start chunk sections
+    MOVE "sections" TO TAG-NAME
+    MOVE 8 TO NAME-LEN
+    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
+
     PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > WORLD-SECTION-COUNT
+        *> only write sections that are not entirely air
+        *> Note: The official format stores all sections, but it seems unnecessary, so we don't.
         IF WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX) > 0
-            ADD 1 TO CHUNK-SECTION-COUNT
-        END-IF
-    END-PERFORM
+            *> start section
+            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET OMITTED OMITTED
 
-    *> need to write at least one section
-    MOVE 0 TO FORCE-FIRST-SECTION
-    IF CHUNK-SECTION-COUNT = 0
-        ADD 1 TO CHUNK-SECTION-COUNT
-        MOVE 1 TO FORCE-FIRST-SECTION
-    END-IF
+            *> section position
+            MOVE "Y" TO TAG-NAME
+            MOVE 1 TO NAME-LEN
+            COMPUTE INT8 = SECTION-INDEX - 1 + CHUNK-SECTION-MIN-Y
+            CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN INT8
 
-    *> write the chunk sections
-    PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > WORLD-SECTION-COUNT
-        IF WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX) > 0 OR (SECTION-INDEX = 1 AND FORCE-FIRST-SECTION > 0)
-            MOVE 0 TO CHUNK-PALETTE-LENGTH
+            *> block states - palette and data
+            MOVE "block_states" TO TAG-NAME
+            MOVE 12 TO NAME-LEN
+            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
 
-            COMPUTE CHUNK-SECTION-Y = SECTION-INDEX - 1 + CHUNK-Y
+            *> palette
+            MOVE "palette" TO TAG-NAME
+            MOVE 7 TO NAME-LEN
+            CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
 
+            MOVE 0 TO PALETTE-LENGTH
             PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > 4096
                 *> If the block is not in the palette, add it
                 MOVE WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX) TO CURRENT-BLOCK-ID
                 MOVE BLOCK-PALETTE-INDEX(CURRENT-BLOCK-ID + 1) TO PALETTE-VALUE
                 IF PALETTE-VALUE = 0
-                    ADD 1 TO CHUNK-PALETTE-LENGTH
-                    MOVE CHUNK-PALETTE-LENGTH TO PALETTE-VALUE
+                    ADD 1 TO PALETTE-LENGTH
+                    MOVE PALETTE-LENGTH TO PALETTE-VALUE
                     MOVE PALETTE-VALUE TO BLOCK-PALETTE-INDEX(CURRENT-BLOCK-ID + 1)
-                    CALL "Blocks-Get-StateDescription" USING CURRENT-BLOCK-ID CHUNK-PALETTE-ENTRY(CHUNK-PALETTE-LENGTH)
+                    CALL "Blocks-Get-StateDescription" USING CURRENT-BLOCK-ID PALETTE-BLOCK-DESCRIPTION
+
+                    *> start palette entry
+                    CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET OMITTED OMITTED
+
+                    *> name
+                    MOVE "Name" TO TAG-NAME
+                    MOVE 4 TO NAME-LEN
+                    MOVE FUNCTION STORED-CHAR-LENGTH(PALETTE-BLOCK-NAME) TO STR-LEN
+                    CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN PALETTE-BLOCK-NAME STR-LEN
+
+                    IF PALETTE-BLOCK-PROPERTY-COUNT > 0
+                        *> start properties
+                        MOVE "Properties" TO TAG-NAME
+                        MOVE 10 TO NAME-LEN
+                        CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
+
+                        PERFORM VARYING PROPERTY-INDEX FROM 1 BY 1 UNTIL PROPERTY-INDEX > PALETTE-BLOCK-PROPERTY-COUNT
+                            MOVE PALETTE-BLOCK-PROPERTY-NAME(PROPERTY-INDEX) TO TAG-NAME
+                            MOVE FUNCTION STORED-CHAR-LENGTH(TAG-NAME) TO NAME-LEN
+                            MOVE PALETTE-BLOCK-PROPERTY-VALUE(PROPERTY-INDEX) TO STR
+                            MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
+                            CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN STR STR-LEN
+                        END-PERFORM
+
+                        *> end properties
+                        CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+                    END-IF
+
+                    *> end palette entry
+                    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
                 END-IF
-                *> Store the palette index
-                COMPUTE CHUNK-SECTION-DATA(BLOCK-INDEX) = PALETTE-VALUE - 1
             END-PERFORM
 
-            WRITE CHUNK-FILE-RECORD
+            *> end palette
+            CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+
+            *> Note: We only need to encode data if the palette length is greater than 1
+            IF PALETTE-LENGTH > 1
+                *> number of bits needed = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
+                COMPUTE INT32 = PALETTE-LENGTH - 1
+                CALL "Util-LeadingZeros32" USING INT32 PALETTE-BITS
+                *> However, Minecraft uses a minimum of 4 bits
+                COMPUTE PALETTE-BITS = FUNCTION MAX(32 - PALETTE-BITS, 4)
+
+                *> length of packed long array
+                DIVIDE 64 BY PALETTE-BITS GIVING BLOCKS-PER-LONG
+                DIVIDE 4096 BY BLOCKS-PER-LONG GIVING LONG-ARRAY-LENGTH ROUNDED MODE IS TOWARD-GREATER
+
+                *> data (packed long array)
+                MOVE "data" TO TAG-NAME
+                MOVE 4 TO NAME-LEN
+                CALL "NbtEncode-LongArray" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN LONG-ARRAY-LENGTH
+
+                MOVE 1 TO BLOCK-INDEX
+                PERFORM LONG-ARRAY-LENGTH TIMES
+                    MOVE 0 TO LONG-ARRAY-ENTRY
+                    MOVE 1 TO LONG-ARRAY-MULTIPLIER
+                    COMPUTE INT32 = FUNCTION MIN(BLOCKS-PER-LONG, 4096 - BLOCK-INDEX + 1)
+                    PERFORM INT32 TIMES
+                        MOVE WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX) TO CURRENT-BLOCK-ID
+                        COMPUTE LONG-ARRAY-ENTRY = LONG-ARRAY-ENTRY + LONG-ARRAY-MULTIPLIER * (BLOCK-PALETTE-INDEX(CURRENT-BLOCK-ID + 1) - 1)
+                        COMPUTE LONG-ARRAY-MULTIPLIER = LONG-ARRAY-MULTIPLIER * (2 ** PALETTE-BITS)
+                        ADD 1 TO BLOCK-INDEX
+                    END-PERFORM
+                    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET OMITTED OMITTED LONG-ARRAY-ENTRY-SIGNED
+                END-PERFORM
+            END-IF
 
             *> Reset the palette for the next section. Doing this for the specific IDs used is much faster than
             *> resetting the entire palette.
@@ -259,10 +348,29 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
                     MOVE 0 TO BLOCK-PALETTE-INDEX(WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX) + 1)
                 END-PERFORM
             END-IF
+
+            *> end block states
+            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+
+            *> end section
+            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
         END-IF
     END-PERFORM
 
-    *> finish
+    *> end chunk sections
+    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+
+    *> end root tag
+    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+
+    *> Write the NBT data to the file. This is done in a loop with smaller segments to reduce the file size.
+    *> It would be nice if COBOL supported WRITE NBT-BUFFER(1:OFFSET - 1).
+    CALL "World-ChunkFileName" USING LK-CHUNK-X LK-CHUNK-Z CHUNK-FILE-NAME
+    OPEN OUTPUT FD-CHUNK-FILE-OUT
+    PERFORM VARYING INT32 FROM 1 BY 4096 UNTIL INT32 > OFFSET
+        MOVE NBT-BUFFER(INT32:4096) TO CHUNK-FILE-BUFFER
+        WRITE CHUNK-FILE-BUFFER
+    END-PERFORM
     CLOSE FD-CHUNK-FILE-OUT
 
     MOVE 0 TO WORLD-CHUNK-DIRTY(CHUNK-INDEX)
@@ -286,86 +394,332 @@ FILE-CONTROL.
 DATA DIVISION.
 FILE SECTION.
 FD FD-CHUNK-FILE-IN.
-    COPY DD-CHUNK-FILE.
+    01 NBT-BUFFER               PIC X(1048576).
 WORKING-STORAGE SECTION.
     *> File name
-    01 CHUNK-FILE-NAME      PIC X(255).
-    *> A map of palette indices to block state IDs
-    01 BLOCK-STATE-IDS      BINARY-SHORT UNSIGNED OCCURS 4096 TIMES.
+    01 CHUNK-FILE-NAME          PIC X(255).
     *> Temporary variables
-    01 PALETTE-INDEX        BINARY-SHORT UNSIGNED.
-    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
-    01 RECORD-INDEX         BINARY-LONG UNSIGNED.
-    01 SECTION-INDEX        BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
-    01 CURRENT-BLOCK-ID     BINARY-LONG UNSIGNED.
+    01 OFFSET                   BINARY-LONG UNSIGNED.
+    01 SEEK-FOUND               BINARY-LONG UNSIGNED.
+    01 SEEK-OFFSET              BINARY-LONG UNSIGNED.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-SEEK==.
+    01 EXPECTED-TAG             PIC X(256).
+    01 AT-END                   BINARY-CHAR UNSIGNED.
+    01 TAG-NAME                 PIC X(256).
+    01 NAME-LEN                 BINARY-LONG UNSIGNED.
+    01 STR                      PIC X(256).
+    01 STR-LEN                  BINARY-LONG UNSIGNED.
+    01 INT8                     BINARY-CHAR.
+    01 INT32                    BINARY-LONG.
+    01 CHUNK-X                  BINARY-LONG.
+    01 CHUNK-Z                  BINARY-LONG.
+    01 CHUNK-SECTION-MIN-Y      BINARY-LONG.
+    01 CHUNK-INDEX              BINARY-LONG UNSIGNED.
+    01 LOADED-SECTION-COUNT     BINARY-LONG UNSIGNED.
+    01 SECTION-INDEX            BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 CURRENT-BLOCK-ID         BINARY-LONG UNSIGNED.
+    01 PALETTE-LENGTH           BINARY-LONG UNSIGNED.
+    01 PALETTE-INDEX            BINARY-SHORT UNSIGNED.
+    01 PALETTE-BITS             BINARY-LONG UNSIGNED.
+    01 BLOCKS-PER-LONG          BINARY-LONG UNSIGNED.
+    01 LONG-ARRAY-LENGTH        BINARY-LONG UNSIGNED.
+    01 LONG-ARRAY-INDEX         BINARY-LONG UNSIGNED.
+    01 LONG-ARRAY-ENTRY         BINARY-LONG-LONG UNSIGNED.
+    01 LONG-ARRAY-ENTRY-SIGNED  REDEFINES LONG-ARRAY-ENTRY BINARY-LONG-LONG.
+    COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PALETTE-BLOCK==.
+    *> A map of palette indices to block state IDs
+    01 BLOCK-STATE-IDS          BINARY-SHORT UNSIGNED OCCURS 4096 TIMES.
     *> World data
     COPY DD-WORLD.
+LOCAL-STORAGE SECTION.
+    COPY DD-NBT-DECODER.
 LINKAGE SECTION.
-    01 LK-CHUNK-X           BINARY-LONG.
-    01 LK-CHUNK-Z           BINARY-LONG.
-    01 LK-FAILURE           BINARY-CHAR UNSIGNED.
+    01 LK-CHUNK-X               BINARY-LONG.
+    01 LK-CHUNK-Z               BINARY-LONG.
+    01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
     MOVE 0 TO LK-FAILURE
 
-    *> open the file
+    *> Read the file into the buffer
     CALL "World-ChunkFileName" USING LK-CHUNK-X LK-CHUNK-Z CHUNK-FILE-NAME
     OPEN INPUT FD-CHUNK-FILE-IN
-
-    *> read the chunk sections
-    MOVE 0 TO CHUNK-INDEX
-    MOVE 1 TO RECORD-INDEX
-    PERFORM UNTIL RECORD-INDEX = 0
-        READ FD-CHUNK-FILE-IN
+    READ FD-CHUNK-FILE-IN
         AT END
-            MOVE 0 TO RECORD-INDEX
-        NOT AT END
-            *> For the first section, read the data that applies to the entire chunk, and find a chunk slot in memory.
-            IF RECORD-INDEX = 1
-                CALL "World-AllocateChunk" USING LK-CHUNK-X LK-CHUNK-Z CHUNK-INDEX
-                IF CHUNK-INDEX = 0
-                    MOVE 1 TO LK-FAILURE
-                    CLOSE FD-CHUNK-FILE-IN
-                    GOBACK
-                END-IF
-                MOVE CHUNK-X TO WORLD-CHUNK-X(CHUNK-INDEX)
-                MOVE CHUNK-Z TO WORLD-CHUNK-Z(CHUNK-INDEX)
-            END-IF
-
-            *> load the block palette
-            PERFORM VARYING PALETTE-INDEX FROM 1 BY 1 UNTIL PALETTE-INDEX > CHUNK-PALETTE-LENGTH
-                CALL "Blocks-Get-StateId" USING CHUNK-PALETTE-ENTRY(PALETTE-INDEX) BLOCK-STATE-IDS(PALETTE-INDEX)
-            END-PERFORM
-
-            *> load the section data
-            COMPUTE SECTION-INDEX = CHUNK-SECTION-Y - CHUNK-Y + 1
-            PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > 4096
-                MOVE BLOCK-STATE-IDS(CHUNK-SECTION-DATA(BLOCK-INDEX) + 1) TO CURRENT-BLOCK-ID
-                IF CURRENT-BLOCK-ID > 0
-                    MOVE CURRENT-BLOCK-ID TO WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX)
-                    ADD 1 TO WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX)
-                END-IF
-            END-PERFORM
-
-            ADD 1 TO RECORD-INDEX
-        END-READ
-    END-PERFORM
-
-    *> finish
+            CLOSE FD-CHUNK-FILE-IN
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+    END-READ
     CLOSE FD-CHUNK-FILE-IN
 
-    *> check for failure - if CHUNK-INDEX is 0, there was no initial section
+    *> start root tag
+    MOVE 1 TO OFFSET
+    CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+
+    *> Do a first pass to get the chunk X, Z, and Y values.
+    *> The way we write NBT, they should come before any larger pieces of data, but this is not strictly guaranteed.
+    MOVE OFFSET TO SEEK-OFFSET
+    MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
+    MOVE 0 TO SEEK-FOUND
+    PERFORM UNTIL EXIT
+        CALL "NbtDecode-Peek" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET AT-END TAG-NAME NAME-LEN
+        IF AT-END > 0
+            EXIT PERFORM
+        END-IF
+        EVALUATE TAG-NAME(1:NAME-LEN)
+            WHEN "xPos"
+                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET CHUNK-X
+                ADD 1 TO SEEK-FOUND
+            WHEN "zPos"
+                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET CHUNK-Z
+                ADD 1 TO SEEK-FOUND
+            WHEN "yPos"
+                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET CHUNK-SECTION-MIN-Y
+                ADD 1 TO SEEK-FOUND
+            WHEN OTHER
+                CALL "NbtDecode-Skip" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET
+        END-EVALUATE
+        IF SEEK-FOUND = 3
+            EXIT PERFORM
+        END-IF
+    END-PERFORM
+
+    *> Allocate a chunk slot
+    CALL "World-AllocateChunk" USING CHUNK-X CHUNK-Z CHUNK-INDEX
     IF CHUNK-INDEX = 0
         MOVE 1 TO LK-FAILURE
         GOBACK
     END-IF
+
+    *> The following code is order-dependent.
+    *> We assume that the Y value comes first. We also assume that the block palette comes before the block data.
+    *> While not strictly guaranteed, this is how we write NBT, and it greatly simplifies the code and
+    *> improves performance.
+
+    *> Skip ahead until we find the sections tag.
+    MOVE "sections" TO EXPECTED-TAG
+    CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+    IF AT-END > 0
+        MOVE 1 TO LK-FAILURE
+        GOBACK
+    END-IF
+
+    *> start sections
+    CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER OFFSET LOADED-SECTION-COUNT
+
+    PERFORM LOADED-SECTION-COUNT TIMES
+        *> start section
+        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+
+        *> Skip to the Y value
+        MOVE "Y" TO EXPECTED-TAG
+        CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+        IF AT-END > 0
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+
+        CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER OFFSET INT8
+        COMPUTE SECTION-INDEX = INT8 + 1 - CHUNK-SECTION-MIN-Y
+
+        *> Skip to the block states
+        MOVE "block_states" TO EXPECTED-TAG
+        CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+        IF AT-END > 0
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+
+        *> start block states
+        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+
+        *> Skip to the palette
+        MOVE "palette" TO EXPECTED-TAG
+        CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+        IF AT-END > 0
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+
+        *> start palette
+        CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER OFFSET PALETTE-LENGTH
+
+        PERFORM VARYING PALETTE-INDEX FROM 1 BY 1 UNTIL PALETTE-INDEX > PALETTE-LENGTH
+            *> start palette entry
+            CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+            MOVE 0 TO PALETTE-BLOCK-PROPERTY-COUNT
+
+            PERFORM UNTIL EXIT
+                CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER OFFSET AT-END TAG-NAME NAME-LEN
+                IF AT-END > 0
+                    EXIT PERFORM
+                END-IF
+                EVALUATE TAG-NAME(1:NAME-LEN)
+                    WHEN "Name"
+                        CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER OFFSET STR STR-LEN
+                        MOVE STR(1:STR-LEN) TO PALETTE-BLOCK-NAME
+
+                    WHEN "Properties"
+                        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+                        PERFORM UNTIL EXIT
+                            CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER OFFSET AT-END TAG-NAME NAME-LEN
+                            IF AT-END > 0
+                                EXIT PERFORM
+                            END-IF
+                            ADD 1 TO PALETTE-BLOCK-PROPERTY-COUNT
+                            CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER OFFSET STR STR-LEN
+                            MOVE TAG-NAME(1:NAME-LEN) TO PALETTE-BLOCK-PROPERTY-NAME(PALETTE-BLOCK-PROPERTY-COUNT)
+                            MOVE STR(1:STR-LEN) TO PALETTE-BLOCK-PROPERTY-VALUE(PALETTE-BLOCK-PROPERTY-COUNT)
+                        END-PERFORM
+                        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+
+                    WHEN OTHER
+                        CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+                END-EVALUATE
+            END-PERFORM
+
+            *> end palette entry
+            CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+            CALL "Blocks-Get-StateId" USING PALETTE-BLOCK-DESCRIPTION BLOCK-STATE-IDS(PALETTE-INDEX)
+        END-PERFORM
+
+        *> end palette
+        CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+
+        *> number of bits per block = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
+        COMPUTE INT32 = PALETTE-LENGTH - 1
+        CALL "Util-LeadingZeros32" USING INT32 PALETTE-BITS
+        *> However, Minecraft uses a minimum of 4 bits
+        COMPUTE PALETTE-BITS = FUNCTION MAX(32 - PALETTE-BITS, 4)
+        DIVIDE 64 BY PALETTE-BITS GIVING BLOCKS-PER-LONG
+
+        *> If the palette has length 1, we don't care about the data. In fact, it might not be there.
+        IF PALETTE-LENGTH = 1
+            *> Fill the section with the singular block state (unless it is air).
+            IF BLOCK-STATE-IDS(1) > 0
+                MOVE BLOCK-STATE-IDS(1) TO CURRENT-BLOCK-ID
+                PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > 4096
+                    MOVE CURRENT-BLOCK-ID TO WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX)
+                END-PERFORM
+                MOVE 4096 TO WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX)
+            END-IF
+
+            *> Skip any remaining tags in the compound
+            CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        ELSE
+            *> Skip to the data
+            MOVE "data" TO EXPECTED-TAG
+            CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+            IF AT-END > 0
+                MOVE 1 TO LK-FAILURE
+                GOBACK
+            END-IF
+
+            *> read packed long array
+            CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER OFFSET LONG-ARRAY-LENGTH
+
+            MOVE 1 TO BLOCK-INDEX
+            PERFORM VARYING LONG-ARRAY-INDEX FROM 1 BY 1 UNTIL LONG-ARRAY-INDEX > LONG-ARRAY-LENGTH
+                CALL "NbtDecode-Long" USING NBT-DECODER-STATE NBT-BUFFER OFFSET LONG-ARRAY-ENTRY-SIGNED
+                COMPUTE INT32 = FUNCTION MIN(BLOCKS-PER-LONG, 4096 - BLOCK-INDEX + 1)
+                PERFORM INT32 TIMES
+                    COMPUTE PALETTE-INDEX = FUNCTION MOD(LONG-ARRAY-ENTRY, 2 ** PALETTE-BITS) + 1
+                    MOVE BLOCK-STATE-IDS(PALETTE-INDEX) TO CURRENT-BLOCK-ID
+                    IF CURRENT-BLOCK-ID > 0
+                        MOVE CURRENT-BLOCK-ID TO WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX)
+                        ADD 1 TO WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX)
+                    END-IF
+                    COMPUTE LONG-ARRAY-ENTRY = LONG-ARRAY-ENTRY / (2 ** PALETTE-BITS)
+                    ADD 1 TO BLOCK-INDEX
+                END-PERFORM
+            END-PERFORM
+
+            *> end data
+            CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        END-IF
+
+        *> end block states
+        CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+
+        *> end section
+        CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+    END-PERFORM
+
+    *> end sections
+    CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+
+    *> end root tag
+    CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
 
     *> mark the chunk as present and clean (i.e., not needing to be saved)
     MOVE 1 TO WORLD-CHUNK-PRESENT(CHUNK-INDEX)
     MOVE 0 TO WORLD-CHUNK-DIRTY(CHUNK-INDEX)
 
     GOBACK.
+
+    *> --- SkipUntilTag ---
+    *> A utility procedure to skip until a tag with a given name is found. If found, the offset will be set to the
+    *> start of the tag. Otherwise, the offset will be at the end of the compound, and the "at end" flag will be set.
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. SkipUntilTag.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 TAG-NAME             PIC X(256).
+        01 NAME-LEN             BINARY-LONG UNSIGNED.
+    LINKAGE SECTION.
+        COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+        01 LK-BUFFER            PIC X ANY LENGTH.
+        01 LK-OFFSET            BINARY-LONG UNSIGNED.
+        01 LK-TAG-NAME          PIC X ANY LENGTH.
+        01 LK-AT-END            BINARY-CHAR UNSIGNED.
+
+    PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-TAG-NAME LK-AT-END.
+        PERFORM UNTIL EXIT
+            CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER LK-OFFSET LK-AT-END TAG-NAME NAME-LEN
+            IF LK-AT-END > 0
+                GOBACK
+            END-IF
+            IF TAG-NAME(1:NAME-LEN) = LK-TAG-NAME
+                EXIT PERFORM
+            END-IF
+            CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER LK-OFFSET
+        END-PERFORM
+        MOVE 0 TO LK-AT-END
+        GOBACK.
+
+    END PROGRAM SkipUntilTag.
+
+    *> --- SkipRemainingTags ---
+    *> A utility procedure to skip all remaining tags in a compound.
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. SkipRemainingTags.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 AT-END               BINARY-CHAR UNSIGNED.
+        01 TAG-NAME             PIC X(256).
+        01 NAME-LEN             BINARY-LONG UNSIGNED.
+    LINKAGE SECTION.
+        COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+        01 LK-BUFFER            PIC X ANY LENGTH.
+        01 LK-OFFSET            BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
+        PERFORM UNTIL EXIT
+            CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER LK-OFFSET AT-END TAG-NAME NAME-LEN
+            IF AT-END > 0
+                GOBACK
+            END-IF
+            CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER LK-OFFSET
+        END-PERFORM
+        GOBACK.
+
+    END PROGRAM SkipRemainingTags.
 
 END PROGRAM World-LoadChunk.
 
