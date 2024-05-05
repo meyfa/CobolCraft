@@ -27,7 +27,7 @@ END PROGRAM World-FindChunkIndex.
 
 *> --- World-AllocateChunk ---
 *> Find a free chunk slot. If a chunk with the given coordinates is present, it is freed first.
-*> All blocks in the chunk are set to air.
+*> All blocks in the chunk are set to air, and the coordinates are set. The chunk is, however, not marked as present.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. World-AllocateChunk.
 
@@ -52,14 +52,9 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX.
         MOVE 0 TO LK-CHUNK-INDEX
         GOBACK
     END-IF
-    MOVE 0 TO WORLD-CHUNK-PRESENT(LK-CHUNK-INDEX)
-    MOVE 0 TO WORLD-CHUNK-DIRTY(LK-CHUNK-INDEX)
-    PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > WORLD-SECTION-COUNT
-        MOVE 0 TO WORLD-SECTION-NON-AIR(LK-CHUNK-INDEX, SECTION-INDEX)
-        PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > 4096
-            MOVE 0 TO WORLD-BLOCK-ID(LK-CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX)
-        END-PERFORM
-    END-PERFORM
+    INITIALIZE WORLD-CHUNK(LK-CHUNK-INDEX)
+    MOVE LK-CHUNK-X TO WORLD-CHUNK-X(LK-CHUNK-INDEX)
+    MOVE LK-CHUNK-Z TO WORLD-CHUNK-Z(LK-CHUNK-INDEX)
     GOBACK.
 
 END PROGRAM World-AllocateChunk.
@@ -91,9 +86,6 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z.
         *> TODO handle this case
         GOBACK
     END-IF
-
-    MOVE LK-CHUNK-X TO WORLD-CHUNK-X(CHUNK-INDEX)
-    MOVE LK-CHUNK-Z TO WORLD-CHUNK-Z(CHUNK-INDEX)
 
     *> turn all blocks with Y <= 63 (= the bottom 128 blocks = the bottom 8 sections) into stone
     CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-STONE TEMP-INT32
