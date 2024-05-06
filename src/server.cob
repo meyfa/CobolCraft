@@ -722,9 +722,10 @@ HandleConfiguration SECTION.
             *> Send brand
             MOVE "minecraft:brand" TO TEMP-IDENTIFIER
             MOVE 10 TO TEMP-INT32 *> length of the brand string
+            MOVE 1 TO BYTE-COUNT
             CALL "Encode-VarInt" USING TEMP-INT32 BUFFER BYTE-COUNT
-            MOVE "CobolCraft" TO BUFFER(BYTE-COUNT + 1:TEMP-INT32)
-            ADD TEMP-INT32 TO BYTE-COUNT
+            MOVE "CobolCraft" TO BUFFER(BYTE-COUNT:TEMP-INT32)
+            COMPUTE BYTE-COUNT = BYTE-COUNT + TEMP-INT32 - 1
             CALL "SendPacket-PluginMessage" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) TEMP-IDENTIFIER BYTE-COUNT BUFFER
 
             *> Send configuration packets

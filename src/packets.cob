@@ -6,8 +6,9 @@ PROGRAM-ID. SendPacket.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-CLIENTS.
-    01 BUFFER                   PIC X(8).
     01 NUM-BYTES                BINARY-LONG UNSIGNED.
+    01 HEADER                   PIC X(10).
+    01 HEADER-OFFSET            BINARY-LONG UNSIGNED.
     01 TOTAL-LENGTH             BINARY-LONG UNSIGNED.
     01 HNDL                     PIC X(4).
     01 ERRNO                    PIC 9(3).
@@ -24,18 +25,16 @@ PROCEDURE DIVISION USING LK-CLIENT LK-PACKET-ID LK-PAYLOAD LK-PAYLOAD-LENGTH.
     END-IF
     MOVE CLIENT-HNDL(LK-CLIENT) TO HNDL
 
-    *> Add length of packet ID to payload length
+    *> Packet length = length of packet ID + length of payload
     CALL "Encode-GetVarIntLength" USING LK-PACKET-ID NUM-BYTES
     COMPUTE TOTAL-LENGTH = NUM-BYTES + LK-PAYLOAD-LENGTH
 
-    *> Send payload length
-    CALL "Encode-VarInt" USING TOTAL-LENGTH BUFFER NUM-BYTES
-    CALL "Socket-Write" USING HNDL ERRNO NUM-BYTES BUFFER
-    PERFORM HandleError
-
-    *> Send packet ID
-    CALL "Encode-VarInt" USING LK-PACKET-ID BUFFER NUM-BYTES
-    CALL "Socket-Write" USING HNDL ERRNO NUM-BYTES BUFFER
+    *> Send header: payload length, packet ID
+    MOVE 1 TO HEADER-OFFSET
+    CALL "Encode-VarInt" USING TOTAL-LENGTH HEADER HEADER-OFFSET
+    CALL "Encode-VarInt" USING LK-PACKET-ID HEADER HEADER-OFFSET
+    COMPUTE NUM-BYTES = HEADER-OFFSET - 1
+    CALL "Socket-Write" USING HNDL ERRNO NUM-BYTES HEADER
     PERFORM HandleError
 
     *> Send packet data
