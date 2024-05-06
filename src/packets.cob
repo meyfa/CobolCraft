@@ -7,11 +7,10 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-CLIENTS.
     01 BUFFER                   PIC X(8).
+    01 NUM-BYTES                BINARY-LONG UNSIGNED.
     01 TOTAL-LENGTH             BINARY-LONG UNSIGNED.
     01 HNDL                     PIC X(4).
     01 ERRNO                    PIC 9(3).
-LOCAL-STORAGE SECTION.
-    01 NUM-BYTES                BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-CLIENT                BINARY-LONG UNSIGNED.
     01 LK-PACKET-ID             BINARY-LONG.
