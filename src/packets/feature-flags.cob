@@ -3,15 +3,17 @@ PROGRAM-ID. SendPacket-FeatureFlags.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'0C'.
+    01 PACKET-ID                BINARY-LONG             VALUE H'0C'.
+    *> constants
+    01 C-MINECRAFT-VANILLA      PIC X(17) VALUE "minecraft:vanilla".
     *> buffer used to store the packet data
-    01 PAYLOAD          PIC X(64).
-    01 PAYLOADPOS       BINARY-LONG UNSIGNED.
-    01 PAYLOADLEN       BINARY-LONG UNSIGNED.
+    01 PAYLOAD                  PIC X(64).
+    01 PAYLOADPOS               BINARY-LONG UNSIGNED.
+    01 PAYLOADLEN               BINARY-LONG UNSIGNED.
     *> temporary data
-    01 INT32            BINARY-LONG.
+    01 INT32                    BINARY-LONG.
 LINKAGE SECTION.
-    01 LK-CLIENT        BINARY-LONG UNSIGNED.
+    01 LK-CLIENT                BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT.
     MOVE 1 TO PAYLOADPOS
@@ -21,10 +23,8 @@ PROCEDURE DIVISION USING LK-CLIENT.
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 
     *> feature flag: "minecraft:vanilla"
-    MOVE FUNCTION CHAR(17 + 1) TO PAYLOAD(PAYLOADPOS:1)
-    ADD 1 TO PAYLOADPOS
-    MOVE "minecraft:vanilla" TO PAYLOAD(PAYLOADPOS:17)
-    ADD 17 TO PAYLOADPOS
+    MOVE LENGTH OF C-MINECRAFT-VANILLA TO INT32
+    CALL "Encode-String" USING C-MINECRAFT-VANILLA INT32 PAYLOAD PAYLOADPOS
 
     *> send packet
     COMPUTE PAYLOADLEN = PAYLOADPOS - 1

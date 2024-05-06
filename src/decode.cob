@@ -258,7 +258,7 @@ PROCEDURE DIVISION USING LK-BUFFER LK-BUFFERPOS LK-VALUE.
 END PROGRAM Decode-Float.
 
 *> --- Decode-String ---
-*> Decode a string from a buffer. The string is prefixed with a VarInt length.
+*> Decode a string from a buffer. The string is prefixed with its length as a VarInt.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Decode-String.
 

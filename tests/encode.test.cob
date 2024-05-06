@@ -12,6 +12,7 @@ PROCEDURE DIVISION.
     CALL "Test-Encode-UnsignedLong"
     CALL "Test-Encode-Double"
     CALL "Test-Encode-Float"
+    CALL "Test-Encode-String"
     CALL "Test-Encode-Angle"
     CALL "Test-Encode-Position"
     GOBACK.
@@ -647,6 +648,48 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Encode-Float.
+
+    *> --- Test: Encode-String ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-String.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 STR          PIC X(16).
+        01 STR-LEN      BINARY-LONG UNSIGNED.
+        01 BUFFER       PIC X(16).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-String".
+    Empty.
+        DISPLAY "    Case: '' - " WITH NO ADVANCING
+        MOVE SPACES TO STR
+        MOVE 0 TO STR-LEN
+        MOVE ALL X"FF" TO BUFFER
+        MOVE 2 TO BUFFERPOS
+        CALL "Encode-String" USING STR STR-LEN BUFFER BUFFERPOS
+        IF BUFFER = X"FF00FFFFFFFFFFFFFFFFFFFFFFFFFFFF" AND BUFFERPOS = 3
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    HelloWorld.
+        DISPLAY "    Case: 'Hello, World!' - " WITH NO ADVANCING
+        MOVE "Hello, World!" TO STR
+        MOVE 13 TO STR-LEN
+        MOVE ALL X"FF" TO BUFFER
+        MOVE 2 TO BUFFERPOS
+        CALL "Encode-String" USING STR STR-LEN BUFFER BUFFERPOS
+        IF BUFFER = X"FF0D48656C6C6F2C20576F726C6421FF" AND BUFFERPOS = 16
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-String.
 
     *> --- Test: Encode-Angle ---
     IDENTIFICATION DIVISION.
