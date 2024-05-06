@@ -14,6 +14,7 @@ PROCEDURE DIVISION.
     CALL "Test-Decode-Long"
     CALL "Test-Decode-Double"
     CALL "Test-Decode-Float"
+    CALL "Test-Decode-String"
     CALL "Test-Decode-Position"
     GOBACK.
 
@@ -670,6 +671,44 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Decode-Float.
+
+    *> --- Test: Decode-String ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-String.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(20).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 STR-LEN      BINARY-LONG UNSIGNED.
+        01 STR          PIC X(20).
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-String".
+    Empty.
+        DISPLAY "    Case: '' - " WITH NO ADVANCING
+        MOVE X"0041414141414141" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Decode-String" USING BUFFER BUFFERPOS STR-LEN STR
+        IF STR-LEN = 0 AND STR = SPACES AND BUFFERPOS = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    HelloWorld.
+        DISPLAY "    Case: 'Hello, World!' - " WITH NO ADVANCING
+        MOVE X"00000D48656C6C6F2C20576F726C6421FFFFFFFF" TO BUFFER
+        MOVE 3 TO BUFFERPOS
+        CALL "Decode-String" USING BUFFER BUFFERPOS STR-LEN STR
+        IF STR-LEN = 13 AND STR = "Hello, World!" AND BUFFERPOS = 17
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Decode-String.
 
     *> --- Test: Decode-Position ---
     IDENTIFICATION DIVISION.
