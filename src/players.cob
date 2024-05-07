@@ -40,24 +40,14 @@ END PROGRAM Players-PlayerFileName.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Players-SavePlayer.
 
-ENVIRONMENT DIVISION.
-INPUT-OUTPUT SECTION.
-FILE-CONTROL.
-    SELECT OPTIONAL FD-PLAYER-FILE-OUT
-        ASSIGN TO PLAYER-FILE-NAME
-        ORGANIZATION IS SEQUENTIAL
-        ACCESS MODE IS SEQUENTIAL.
-
 DATA DIVISION.
-FILE SECTION.
-FD FD-PLAYER-FILE-OUT.
-    01 NBT-BUFFER               PIC X(64000).
 WORKING-STORAGE SECTION.
     *> Constants
     01 C-MINECRAFT-ITEM         PIC X(16) VALUE "minecraft:item".
     01 C-MINECRAFT-AIR          PIC X(16) VALUE "minecraft:air".
-    *> File name
+    *> File name and data
     01 PLAYER-FILE-NAME         PIC X(64).
+    01 NBT-BUFFER               PIC X(64000).
     *> shared data
     COPY DD-PLAYERS.
     *> temporary data
@@ -76,12 +66,6 @@ LINKAGE SECTION.
     01 LK-PLAYER-ID             BINARY-CHAR.
 
 PROCEDURE DIVISION USING LK-PLAYER-ID.
-    *> Create directories. Ignore errors, as they are likely to be caused by the directories already existing.
-    CALL "CBL_CREATE_DIR" USING "save"
-    CALL "CBL_CREATE_DIR" USING "save/playerdata"
-
-    CALL "Players-PlayerFileName" USING PLAYER-UUID(LK-PLAYER-ID) PLAYER-FILE-NAME
-
     *> root tag
     MOVE 1 TO OFFSET
     CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
@@ -175,10 +159,14 @@ PROCEDURE DIVISION USING LK-PLAYER-ID.
     *> end root tag
     CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
 
-    *> write the buffer to the file
-    OPEN OUTPUT FD-PLAYER-FILE-OUT
-    WRITE NBT-BUFFER
-    CLOSE FD-PLAYER-FILE-OUT
+    *> Create directories. Ignore errors, as they are likely to be caused by the directories already existing.
+    CALL "CBL_CREATE_DIR" USING "save"
+    CALL "CBL_CREATE_DIR" USING "save/playerdata"
+
+    *> write the file to disk
+    SUBTRACT 1 FROM OFFSET
+    CALL "Players-PlayerFileName" USING PLAYER-UUID(LK-PLAYER-ID) PLAYER-FILE-NAME
+    CALL "Files-WriteAll" USING PLAYER-FILE-NAME NBT-BUFFER OFFSET
 
     GOBACK.
 
@@ -188,23 +176,14 @@ END PROGRAM Players-SavePlayer.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Players-LoadPlayer.
 
-ENVIRONMENT DIVISION.
-INPUT-OUTPUT SECTION.
-FILE-CONTROL.
-    SELECT OPTIONAL FD-PLAYER-FILE-IN
-        ASSIGN TO PLAYER-FILE-NAME
-        ORGANIZATION IS SEQUENTIAL
-        ACCESS MODE IS SEQUENTIAL.
-
 DATA DIVISION.
-FILE SECTION.
-FD FD-PLAYER-FILE-IN.
-    01 NBT-BUFFER               PIC X(64000).
 WORKING-STORAGE SECTION.
     *> Constants
     01 C-MINECRAFT-ITEM         PIC X(16) VALUE "minecraft:item".
-    *> File name
-    01 PLAYER-FILE-NAME         PIC X(64).
+    *> File name and data
+    01 PLAYER-FILE-NAME         PIC X(255).
+    01 NBT-BUFFER               PIC X(64000).
+    01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
     *> shared data
     COPY DD-PLAYERS.
     *> temporary data
@@ -232,16 +211,13 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
     MOVE 0 TO LK-FAILURE
 
-    *> Read the NBT data from the file
+    *> Read the NBT file
     CALL "Players-PlayerFileName" USING LK-PLAYER-UUID PLAYER-FILE-NAME
-    OPEN INPUT FD-PLAYER-FILE-IN
-    READ FD-PLAYER-FILE-IN
-        AT END
-            CLOSE FD-PLAYER-FILE-IN
-            MOVE 1 TO LK-FAILURE
-            GOBACK
-    END-READ
-    CLOSE FD-PLAYER-FILE-IN
+    CALL "Files-ReadAll" USING PLAYER-FILE-NAME NBT-BUFFER NBT-BUFFER-LENGTH
+    IF NBT-BUFFER-LENGTH = 0
+        MOVE 1 TO LK-FAILURE
+        GOBACK
+    END-IF
 
     *> root tag
     MOVE 1 TO OFFSET

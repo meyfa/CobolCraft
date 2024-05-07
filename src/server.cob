@@ -3,26 +3,14 @@
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Server.
 
-ENVIRONMENT DIVISION.
-INPUT-OUTPUT SECTION.
-FILE-CONTROL.
-    SELECT FD-REGISTRIES-FILE ASSIGN TO "data/generated/reports/registries.json"
-        ORGANIZATION IS LINE SEQUENTIAL.
-    SELECT FD-BLOCKS-FILE ASSIGN TO "data/generated/reports/blocks.json"
-        ORGANIZATION IS LINE SEQUENTIAL.
-
 DATA DIVISION.
-FILE SECTION.
-    FD FD-REGISTRIES-FILE.
-        01 REGISTRIES-LINE PIC X(255).
-    FD FD-BLOCKS-FILE.
-        01 BLOCKS-LINE PIC X(255).
-
 WORKING-STORAGE SECTION.
+    *> File names
+    01 FILE-REGISTRIES              PIC X(255)              VALUE "data/generated/reports/registries.json".
+    01 FILE-BLOCKS                  PIC X(255)              VALUE "data/generated/reports/blocks.json".
     *> Constants
     COPY DD-CLIENT-STATES.
     01 C-MINECRAFT-ITEM             PIC X(50)               VALUE "minecraft:item".
-    01 C-COLOR-WHITE                PIC X(16)               VALUE "white".
     01 C-COLOR-YELLOW               PIC X(16)               VALUE "yellow".
     *> The server sends (2 * VIEW-DISTANCE + 1) * (2 * VIEW-DISTANCE + 1) chunks around the player.
     *> TODO: Improve performance so this can be increased to a reasonable value.
@@ -101,23 +89,7 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING SERVER-CONFIG.
 LoadRegistries.
     DISPLAY "Loading registries"
-    *> read the entire registries.json file into memory
-    MOVE 0 TO DATA-BUFFER-LEN
-    OPEN INPUT FD-REGISTRIES-FILE
-    MOVE 1 TO BYTE-COUNT
-    PERFORM UNTIL BYTE-COUNT = 0
-        READ FD-REGISTRIES-FILE
-            AT END
-                MOVE 0 TO BYTE-COUNT
-            NOT AT END
-                *> Note: This swallows the newline, which is fine for JSON data.
-                MOVE FUNCTION STORED-CHAR-LENGTH(REGISTRIES-LINE) TO TEMP-INT32
-                MOVE REGISTRIES-LINE(1:TEMP-INT32) TO DATA-BUFFER(DATA-BUFFER-LEN + 1:TEMP-INT32)
-                ADD TEMP-INT32 TO DATA-BUFFER-LEN
-        END-READ
-    END-PERFORM
-    CLOSE FD-REGISTRIES-FILE
-    *> parse the JSON data
+    CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN
     CALL "Registries-Parse" USING DATA-BUFFER DATA-BUFFER-LEN TEMP-INT8
     IF TEMP-INT8 NOT = 0
         DISPLAY "Failed to parse registries"
@@ -127,23 +99,7 @@ LoadRegistries.
 
 LoadBlocks.
     DISPLAY "Loading blocks"
-    *> read the entire blocks.json file into memory
-    MOVE 0 TO DATA-BUFFER-LEN
-    OPEN INPUT FD-BLOCKS-FILE
-    MOVE 1 TO BYTE-COUNT
-    PERFORM UNTIL BYTE-COUNT = 0
-        READ FD-BLOCKS-FILE
-            AT END
-                MOVE 0 TO BYTE-COUNT
-            NOT AT END
-                *> Note: This swallows the newline, which is fine for JSON data.
-                MOVE FUNCTION STORED-CHAR-LENGTH(BLOCKS-LINE) TO TEMP-INT32
-                MOVE BLOCKS-LINE(1:TEMP-INT32) TO DATA-BUFFER(DATA-BUFFER-LEN + 1:TEMP-INT32)
-                ADD TEMP-INT32 TO DATA-BUFFER-LEN
-        END-READ
-    END-PERFORM
-    CLOSE FD-BLOCKS-FILE
-    *> parse the JSON data
+    CALL "Files-ReadAll" USING FILE-BLOCKS DATA-BUFFER DATA-BUFFER-LEN
     CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN TEMP-INT8
     IF TEMP-INT8 NOT = 0
         DISPLAY "Failed to parse blocks"
