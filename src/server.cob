@@ -479,8 +479,6 @@ ReceivePacket SECTION.
             PERFORM HandleClientError
             EXIT SECTION
         END-IF
-
-        *> If nothing was read, we can try again later.
         IF BYTE-COUNT = 0
             EXIT SECTION
         END-IF
@@ -488,22 +486,27 @@ ReceivePacket SECTION.
         ADD 1 TO PACKET-BUFFERLEN(CLIENT-ID)
         MOVE BUFFER(1:1) TO PACKET-BUFFER(CLIENT-ID)(PACKET-BUFFERLEN(CLIENT-ID):1)
 
-        *> This is the last VarInt byte if the most significant bit is not set.
-        *> Note: ORD(...) returns the ASCII code of the character + 1, meaning we need to check for <= 128.
-        IF FUNCTION ORD(BUFFER) <= 128
-            MOVE 1 TO PACKET-POSITION
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
+        *> If the most significant bit is set, we need to read more bytes (later).
+        *> Note: ORD(...) returns the ASCII code of the character + 1.
+        IF FUNCTION ORD(BUFFER) > 128
+            *> A VarInt can be at most 5 bytes long.
+            IF PACKET-BUFFERLEN(CLIENT-ID) >= 5
+                DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length."
+                PERFORM DisconnectClient
+            END-IF
+            EXIT SECTION
         END-IF
 
-        *> Validate packet length - note that it must be at least 1 due to the packet ID
+        *> Otherwise, we can decode the packet length now.
+        MOVE 1 TO PACKET-POSITION
+        CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
         IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length: " PACKET-LENGTH(CLIENT-ID)
             PERFORM DisconnectClient
             EXIT SECTION
         END-IF
 
-        *> The expected packet data length is now known and can be read in later invocations.
-        *> We don't read it now to avoid allotting too much time to a single client.
+        *> Postpone reading the remaining bytes to avoid allotting too much time to a single client.
         MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
         EXIT SECTION
     END-IF
