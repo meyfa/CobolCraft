@@ -57,6 +57,7 @@ WORKING-STORAGE SECTION.
     01 TEMP-PLAYER-NAME-LEN         BINARY-LONG UNSIGNED.
     01 TEMP-IDENTIFIER              PIC X(100).
     01 CALLBACK-PTR                 PROGRAM-POINTER.
+    01 SEQUENCE-ID                  BINARY-LONG.
     *> Time measurement
     01 CURRENT-TIME                 BINARY-LONG-LONG.
     01 TICK-ENDTIME                 BINARY-LONG-LONG.
@@ -921,18 +922,18 @@ HandlePlay SECTION.
             EVALUATE TRUE
                 *> started digging
                 WHEN TEMP-INT32 = 0
-                    *> ignore face
+                    *> face (ignored)
                     CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-                    *> ensure the position is not outside the world
+                    *> sequence ID
+                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION SEQUENCE-ID
+                    *> update the block (if inside the world bounds)
                     CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
                     IF TEMP-INT8 = 0
-                        *> acknowledge the action
-                        CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-                        CALL "SendPacket-AckBlockChange" USING CLIENT-ID TEMP-INT32
-                        *> update the block
                         MOVE 0 TO TEMP-INT32
                         CALL "World-SetBlock" USING CLIENT-ID TEMP-POSITION TEMP-INT32
                     END-IF
+                    *> acknowledge the action
+                    CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
             END-EVALUATE
 
         *> Player command
@@ -1014,16 +1015,15 @@ HandlePlay SECTION.
             END-IF
             *> block position
             CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
-            *>  face enum (0-5): -Y, +Y, -Z, +Z, -X, +X
+            *> face enum (0-5): -Y, +Y, -Z, +Z, -X, +X
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-BLOCK-FACE
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-X
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-Y
             CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-Z
             *> TODO: "inside block" flag
             ADD 1 TO PACKET-POSITION
-            *> acknowledge the action
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-            CALL "SendPacket-AckBlockChange" USING CLIENT-ID TEMP-INT32
+            *> sequence ID
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION SEQUENCE-ID
             *> determine the item in the inventory slot and execute its "use" callback
             MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
             CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-IDENTIFIER
@@ -1031,6 +1031,8 @@ HandlePlay SECTION.
             IF CALLBACK-PTR NOT = NULL
                 CALL CALLBACK-PTR USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
             END-IF
+            *> acknowledge the action
+            CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
     END-EVALUATE
 
     EXIT SECTION.
