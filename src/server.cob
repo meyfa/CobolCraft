@@ -511,17 +511,17 @@ ReceivePacket SECTION.
         EXIT SECTION
     END-IF
 
-    *> Read more bytes if necessary
+    *> Read more bytes if necessary.
     IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID)
-        COMPUTE BYTE-COUNT = PACKET-LENGTH(CLIENT-ID) - PACKET-BUFFERLEN(CLIENT-ID)
-        COMPUTE BYTE-COUNT = FUNCTION MIN(BYTE-COUNT, 64000)
+        *> The socket library can only read up to 64 kB at a time.
+        COMPUTE BYTE-COUNT = FUNCTION MIN(PACKET-LENGTH(CLIENT-ID) - PACKET-BUFFERLEN(CLIENT-ID), 64000)
         MOVE 1 TO TIMEOUT-MS
-        CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
+        CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT
+            PACKET-BUFFER(CLIENT-ID)(PACKET-BUFFERLEN(CLIENT-ID) + 1:) TIMEOUT-MS
         IF ERRNO NOT = 0
             PERFORM HandleClientError
             EXIT SECTION
         END-IF
-        MOVE BUFFER(1:BYTE-COUNT) TO PACKET-BUFFER(CLIENT-ID)(PACKET-BUFFERLEN(CLIENT-ID) + 1:BYTE-COUNT)
         ADD BYTE-COUNT TO PACKET-BUFFERLEN(CLIENT-ID)
     END-IF
 
@@ -530,7 +530,7 @@ ReceivePacket SECTION.
         EXIT SECTION
     END-IF
 
-    *> Start decoding the packet by decoding the packet ID
+    *> Start decoding the packet by decoding the packet ID.
     MOVE 1 TO PACKET-POSITION
     CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PACKET-ID
 
