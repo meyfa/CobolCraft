@@ -273,7 +273,7 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
             IF PALETTE-LENGTH > 1
                 *> number of bits needed = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
                 COMPUTE INT32 = PALETTE-LENGTH - 1
-                CALL "Util-LeadingZeros32" USING INT32 PALETTE-BITS
+                CALL "LeadingZeros32" USING INT32 PALETTE-BITS
                 *> However, Minecraft uses a minimum of 4 bits
                 COMPUTE PALETTE-BITS = FUNCTION MAX(32 - PALETTE-BITS, 4)
 
@@ -536,7 +536,7 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
 
         *> number of bits per block = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
         COMPUTE INT32 = PALETTE-LENGTH - 1
-        CALL "Util-LeadingZeros32" USING INT32 PALETTE-BITS
+        CALL "LeadingZeros32" USING INT32 PALETTE-BITS
         *> However, Minecraft uses a minimum of 4 bits
         COMPUTE PALETTE-BITS = FUNCTION MAX(32 - PALETTE-BITS, 4)
         DIVIDE 64 BY PALETTE-BITS GIVING BLOCKS-PER-LONG

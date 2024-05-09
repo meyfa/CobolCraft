@@ -144,14 +144,18 @@ GenerateWorld.
     *> prepare player data
     CALL "Players-Init"
     *> don't autosave immediately
-    CALL "Util-SystemTimeMillis" USING LAST-AUTOSAVE
+    CALL "SystemTimeMillis" USING LAST-AUTOSAVE
     .
 
 StartServer.
     DISPLAY "Starting server"
 
-    CALL "Util-IgnoreSIGPIPE"
-    CALL "Util-SetConsoleNonBlocking"
+    CALL "IgnoreSIGPIPE"
+    CALL "SetConsoleNonBlocking" GIVING ERRNO
+    IF ERRNO NOT = 0
+        DISPLAY "Could not set console to non-blocking mode."
+        STOP RUN
+    END-IF
 
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
@@ -167,7 +171,7 @@ StartServer.
 ServerLoop.
     *> Loop forever - each iteration is one game tick (1/20th of a second).
     PERFORM UNTIL EXIT
-        CALL "Util-SystemTimeMillis" USING CURRENT-TIME
+        CALL "SystemTimeMillis" USING CURRENT-TIME
         COMPUTE TICK-ENDTIME = CURRENT-TIME + (1000 / 20)
 
         COMPUTE TEMP-INT64 = CURRENT-TIME - LAST-AUTOSAVE
@@ -252,7 +256,7 @@ ServerLoop.
         *> The remaining time of this tick can be used for accepting connections and receiving packets.
         PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME
             PERFORM NetworkRead
-            CALL "Util-SystemTimeMillis" USING CURRENT-TIME
+            CALL "SystemTimeMillis" USING CURRENT-TIME
         END-PERFORM
 
         MOVE X"00000000" TO TEMP-HNDL
@@ -269,7 +273,7 @@ GameLoop SECTION.
 ConsoleInput SECTION.
     *> Read from the console (configured as non-blocking). Note that this will only return full lines.
     MOVE LENGTH OF BUFFER TO BYTE-COUNT
-    CALL "Util-ReadConsole" USING BUFFER BYTE-COUNT
+    CALL "ReadConsole" USING BUFFER BYTE-COUNT
     IF BYTE-COUNT > 0
         *> client id = 0 means the console
         MOVE 0 TO TEMP-INT32
