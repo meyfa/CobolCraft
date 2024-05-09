@@ -37,6 +37,7 @@ To deploy on Linux, make sure all prerequisites are installed:
 * `cobc` (e.g. from the `gnucobol` APT package on Debian)
 * `make`
 * `g++`
+* `zlib` (e.g. `zlib1g-dev` on Debian)
 * `curl` (needed to download the official server .jar)
 * a recent version of Java (needed to extract data from the server .jar)
 

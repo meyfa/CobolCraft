@@ -27,7 +27,7 @@ $(SOCKET_LIB):
 	mv CBL_GC_SOCKET/CBL_GC_SOCKET.so .
 
 $(UTIL_LIB): cpp/cobolcraft_util.cpp
-	g++ -shared -Wall -O2 -fPIC -o $@ $<
+	g++ -shared -Wall -O2 -fPIC -lz -o $@ $<
 
 $(JSON_DATA):
 	mkdir -p data
