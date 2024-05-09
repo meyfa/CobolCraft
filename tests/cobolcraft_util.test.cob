@@ -1,15 +1,15 @@
-*> --- Test: util.cob ---
+*> --- Test: cobolcraft_util.cpp ---
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Test-Util.
 
 PROCEDURE DIVISION.
-    DISPLAY "Test: util.cob"
-    CALL "Test-Util-LeadingZeros32"
+    DISPLAY "Test: cobolcraft_util.cpp"
+    CALL "Test-LeadingZeros32"
     GOBACK.
 
-    *> --- Test: Util-LeadingZeros32 ---
+    *> --- Test: Test-LeadingZeros32 ---
     IDENTIFICATION DIVISION.
-    PROGRAM-ID. Test-Util-LeadingZeros32.
+    PROGRAM-ID. Test-LeadingZeros32.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
@@ -17,11 +17,11 @@ PROCEDURE DIVISION.
         01 RESULT       BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Util-LeadingZeros32".
+        DISPLAY "  Test: Test-LeadingZeros32".
     Int0.
         DISPLAY "    Case: 0 - " WITH NO ADVANCING
         MOVE 0 TO VALUE-IN
-        CALL "Util-LeadingZeros32" USING VALUE-IN RESULT
+        CALL "LeadingZeros32" USING VALUE-IN RESULT
         IF RESULT = 32
             DISPLAY "PASS"
         ELSE
@@ -30,7 +30,7 @@ PROCEDURE DIVISION.
     Int1.
         DISPLAY "    Case: 1 - " WITH NO ADVANCING
         MOVE 1 TO VALUE-IN
-        CALL "Util-LeadingZeros32" USING VALUE-IN RESULT
+        CALL "LeadingZeros32" USING VALUE-IN RESULT
         IF RESULT = 31
             DISPLAY "PASS"
         ELSE
@@ -39,7 +39,7 @@ PROCEDURE DIVISION.
     Int2.
         DISPLAY "    Case: 2 - " WITH NO ADVANCING
         MOVE 2 TO VALUE-IN
-        CALL "Util-LeadingZeros32" USING VALUE-IN RESULT
+        CALL "LeadingZeros32" USING VALUE-IN RESULT
         IF RESULT = 30
             DISPLAY "PASS"
         ELSE
@@ -48,7 +48,7 @@ PROCEDURE DIVISION.
     Int3.
         DISPLAY "    Case: 3 - " WITH NO ADVANCING
         MOVE 3 TO VALUE-IN
-        CALL "Util-LeadingZeros32" USING VALUE-IN RESULT
+        CALL "LeadingZeros32" USING VALUE-IN RESULT
         IF RESULT = 30
             DISPLAY "PASS"
         ELSE
@@ -57,7 +57,7 @@ PROCEDURE DIVISION.
     IntMax.
         DISPLAY "    Case: 2^32-1 - " WITH NO ADVANCING
         MOVE 4294967295 TO VALUE-IN
-        CALL "Util-LeadingZeros32" USING VALUE-IN RESULT
+        CALL "LeadingZeros32" USING VALUE-IN RESULT
         IF RESULT = 0
             DISPLAY "PASS"
         ELSE
@@ -66,6 +66,6 @@ PROCEDURE DIVISION.
 
         GOBACK.
 
-    END PROGRAM Test-Util-LeadingZeros32.
+    END PROGRAM Test-LeadingZeros32.
 
 END PROGRAM Test-Util.
