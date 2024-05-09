@@ -21,6 +21,7 @@ WORKING-STORAGE SECTION.
     *> A large buffer to hold JSON data before parsing.
     01 DATA-BUFFER                  PIC X(10000000).
     01 DATA-BUFFER-LEN              BINARY-LONG UNSIGNED.
+    01 DATA-FAILURE                 BINARY-CHAR UNSIGNED.
     *> Socket variables (server socket handle, error number from last operation)
     01 SERVER-HNDL                  PIC X(4)                EXTERNAL.
     01 ERRNO                        PIC 9(3).
@@ -90,9 +91,13 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING SERVER-CONFIG.
 LoadRegistries.
     DISPLAY "Loading registries"
-    CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN
-    CALL "Registries-Parse" USING DATA-BUFFER DATA-BUFFER-LEN TEMP-INT8
-    IF TEMP-INT8 NOT = 0
+    CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-REGISTRIES)
+        STOP RUN
+    END-IF
+    CALL "Registries-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to parse registries"
         STOP RUN
     END-IF
@@ -100,9 +105,13 @@ LoadRegistries.
 
 LoadBlocks.
     DISPLAY "Loading blocks"
-    CALL "Files-ReadAll" USING FILE-BLOCKS DATA-BUFFER DATA-BUFFER-LEN
-    CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN TEMP-INT8
-    IF TEMP-INT8 NOT = 0
+    CALL "Files-ReadAll" USING FILE-BLOCKS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-BLOCKS)
+        STOP RUN
+    END-IF
+    CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to parse blocks"
         STOP RUN
     END-IF
