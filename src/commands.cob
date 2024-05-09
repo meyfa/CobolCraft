@@ -21,14 +21,24 @@ WORKING-STORAGE SECTION.
     01 PLAYER-ID                BINARY-LONG UNSIGNED.
     01 BUFFER                   PIC X(256).
     01 BYTE-COUNT               BINARY-LONG UNSIGNED.
+    01 TEMP-INT8                BINARY-CHAR.
     01 TEMP-INT64               BINARY-LONG-LONG.
     01 TEMP-INT64-PIC           PIC -(19)9.
+    01 TEMP-FLOAT               FLOAT-SHORT.
     *> shared data
     COPY DD-CLIENTS.
     COPY DD-PLAYERS.
     *> help text
     01 HELP-TEXT-COUNT          BINARY-LONG UNSIGNED.
     01 HELP-TEXT                PIC X(256) OCCURS 16 TIMES.
+    *> game mode enum to string
+    01 GAMEMODE-STRING-ENUM.
+        02 SURVIVAL-MODE        PIC X(16) VALUE "Survival Mode".
+        02 CREATIVE-MODE        PIC X(16) VALUE "Creative Mode".
+        02 ADVENTURE-MODE       PIC X(16) VALUE "Adventure Mode".
+        02 SPECTATOR-MODE       PIC X(16) VALUE "Spectator Mode".
+    01 GAMEMODE-STRINGS         REDEFINES GAMEMODE-STRING-ENUM.
+        02 GAMEMODE-STRING      PIC X(16) OCCURS 4 TIMES.
 LINKAGE SECTION.
     01 LK-CLIENT-ID             BINARY-LONG UNSIGNED.
     01 LK-INPUT                 PIC X(256).
@@ -37,6 +47,13 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
     *> TODO: Implement a permission system to restrict commands.
     *>       Make sure to double-check which commands are admin-only - e.g., "/say" is, while it may not seem like it.
+
+    EVALUATE LK-CLIENT-ID
+        WHEN 0
+            MOVE 0 TO PLAYER-ID
+        WHEN OTHER
+            MOVE CLIENT-PLAYER(LK-CLIENT-ID) TO PLAYER-ID
+    END-EVALUATE
 
     *> TODO: Log admin commands
 
@@ -83,14 +100,41 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
 
     *> Handle the command
     EVALUATE PART-VALUE(1)
+        WHEN "gamemode"
+            EVALUATE PART-VALUE(2)
+                WHEN "survival"
+                    MOVE 0 TO PLAYER-GAMEMODE(PLAYER-ID)
+                    MOVE 0 TO PLAYER-FLYING(PLAYER-ID)
+                WHEN "creative"
+                    MOVE 1 TO PLAYER-GAMEMODE(PLAYER-ID)
+                WHEN "adventure"
+                    MOVE 2 TO PLAYER-GAMEMODE(PLAYER-ID)
+                    MOVE 0 TO PLAYER-FLYING(PLAYER-ID)
+                WHEN "spectator"
+                    MOVE 3 TO PLAYER-GAMEMODE(PLAYER-ID)
+                WHEN OTHER
+                    MOVE "Usage: /gamemode <gamemode>" TO BUFFER
+                    CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                    EXIT SECTION
+            END-EVALUATE
+            INITIALIZE BUFFER
+            STRING "Set own game mode to " FUNCTION TRIM(GAMEMODE-STRING(PLAYER-GAMEMODE(PLAYER-ID) + 1)) INTO BUFFER
+            CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            *> game event 3: change game mode
+            MOVE 3 TO TEMP-INT8
+            MOVE PLAYER-GAMEMODE(PLAYER-ID) TO TEMP-FLOAT
+            CALL "SendPacket-GameEvent" USING LK-CLIENT-ID TEMP-INT8 TEMP-FLOAT
+            CALL "SendPacket-PlayerAbilities" USING LK-CLIENT-ID PLAYER-GAMEMODE(PLAYER-ID) PLAYER-FLYING(PLAYER-ID)
+
         WHEN "help"
             MOVE "Available commands:" TO HELP-TEXT(1)
-            MOVE "  /help - show this help" TO HELP-TEXT(2)
-            MOVE "  /say <message> - broadcast a message" TO HELP-TEXT(3)
-            MOVE "  /save - save the world" TO HELP-TEXT(4)
-            MOVE "  /stop - stop the server" TO HELP-TEXT(5)
-            MOVE "  /time set (day|noon|night|midnight|<time>) - change the time" TO HELP-TEXT(6)
-            MOVE 6 TO HELP-TEXT-COUNT
+            MOVE "/gamemode <gamemode> - change your game mode" TO HELP-TEXT(2)
+            MOVE "/help - show this help" TO HELP-TEXT(3)
+            MOVE "/say <message> - broadcast a message" TO HELP-TEXT(4)
+            MOVE "/save - save the world" TO HELP-TEXT(5)
+            MOVE "/stop - stop the server" TO HELP-TEXT(6)
+            MOVE "/time set (day|noon|night|midnight|<time>) - change the time" TO HELP-TEXT(7)
+            MOVE 7 TO HELP-TEXT-COUNT
             PERFORM VARYING TEMP-INT64 FROM 1 BY 1 UNTIL TEMP-INT64 > HELP-TEXT-COUNT
                 CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID HELP-TEXT(TEMP-INT64) C-COLOR-WHITE
             END-PERFORM
@@ -102,7 +146,6 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
                 MOVE "[Server]" TO BUFFER
                 MOVE 8 TO BYTE-COUNT
             ELSE
-                MOVE CLIENT-PLAYER(LK-CLIENT-ID) TO PLAYER-ID
                 INITIALIZE BUFFER
                 STRING "[" PLAYER-NAME(PLAYER-ID)(1:PLAYER-NAME-LENGTH(PLAYER-ID)) "]" INTO BUFFER
                 MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BYTE-COUNT
@@ -221,6 +264,17 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
         *> root node
         MOVE 1 TO COMMAND-NODE-COUNT
         MOVE TYPE-ROOT TO COMMAND-NODE-TYPE(1)
+
+        *> "/gamemode"
+        MOVE "gamemode" to NODE-NAME
+        MOVE 0 TO EXECUTABLE
+        CALL "AddCommandNode" USING NODE-NAME EXECUTABLE
+        *> argument
+        MOVE "gamemode" to NODE-NAME
+        MOVE 1 TO EXECUTABLE
+        MOVE LENGTH OF PROPERTIES-STRING-SINGLE TO PROPERTIES-LENGTH
+        MOVE PROPERTIES-STRING-SINGLE TO PROPERTIES-VALUE
+        CALL "AddArgumentNode" USING NODE-NAME EXECUTABLE PARSER-STRING PROPERTIES-LENGTH PROPERTIES-VALUE
 
         *> "/help"
         MOVE "help" to NODE-NAME
