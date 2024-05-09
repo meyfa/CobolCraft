@@ -717,7 +717,7 @@ HandleConfiguration SECTION.
 
             *> send "Login (play)" with player index as entity ID
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE
+            CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE PLAYER-GAMEMODE(TEMP-INT32)
 
             *> send world time
             CALL "World-GetAge" USING TEMP-INT64
@@ -784,7 +784,7 @@ HandleConfiguration SECTION.
             END-PERFORM
 
             *> Send abilities (flying, etc.)
-            CALL "SendPacket-PlayerAbilities" USING CLIENT-ID PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID))
+            CALL "SendPacket-PlayerAbilities" USING CLIENT-ID PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID))
 
             *> Send position ("Synchronize Player Position"). The client must confirm the teleportation.
             ADD 1 TO TELEPORT-SENT(CLIENT-ID)
