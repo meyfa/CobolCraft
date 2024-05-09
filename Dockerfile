@@ -5,7 +5,7 @@ FROM ubuntu:jammy AS build
 # Install packages required for building
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
-    apt-get install -y gcc g++ make gnucobol curl openjdk-21-jre-headless && \
+    apt-get install -y gcc g++ make gnucobol zlib1g-dev curl openjdk-21-jre-headless && \
     rm -rf /var/lib/apt/lists/*
 
 # Perform data extraction first to allow Docker to cache this layer
@@ -26,7 +26,7 @@ FROM ubuntu:jammy
 # Install runtime packages
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
-    apt-get install -y gnucobol tini && \
+    apt-get install -y gnucobol zlib1g tini && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy the build results
