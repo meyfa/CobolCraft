@@ -65,12 +65,11 @@ Well, there are quite a lot of rumors and stigma surrounding COBOL.
 This intrigued me to find out more about this language, which is best done with some sort of project, in my opinion.
 You heard right - I had no prior COBOL experience going into this.
 
-Writing a Minecraft server was perhaps not the best idea for a first COBOL project, since COBOL offers basically
-no functionality regarding low-level data manipulation (bits and bytes) which the Minecraft protocol needs lots of.
-But remember: I didn't know this starting out, and quitting before having a working prototype was not on the table!
-A lot of this functionality had to be implemented completely from scratch.
-For large, complex data, I opted for recording packets from a "real" server via Wireshark (see `blobs/` directory) and
-playing them back to clients.
+Writing a Minecraft server was perhaps not the best idea for a first COBOL project, since COBOL is intended for
+business applications, not low-level data manipulation (bits and bytes) which the Minecraft protocol needs lots of.
+However, quitting before having a working prototype was not on the table! A lot of this functionality had to be
+implemented completely from scratch, but with some clever programming, data encoding and decoding is not just fully
+working, but also quite performant.
 
 If you too have never written COBOL before but are interested in CobolCraft, I recommend reading the GnuCOBOL
 Programmer's Guide:
@@ -89,15 +88,13 @@ The program entrypoint is `main.cob`.
 The remaining COBOL sources are located in the `src/` directory, including `src/server.cob`, which contains the bulk
 of CobolCraft.
 
-Some functions had to be implemented in C++, such as process signal handling, retrieving accurate timestamps, or
-conversion of IEEE-754 floating-point numbers.
 These sources are located in the `cpp/` directory and get compiled into a shared library (`.so` on Linux).
 
 TCP sockets are managed by the CBL_GC_SOCKET socket library located in the `CBL_GC_SOCKET/` directory.
 
 ### Packet Blobs
 
-CobolCraft makes use of network data captured from an instance of the official server application.
+CobolCraft makes use of network data captured from an instance of the official server application via Wireshark.
 This data is located in the `blobs/` directory and is decoded at run-time.
 
 ### Data Extraction
