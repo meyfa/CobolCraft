@@ -5,6 +5,8 @@ PROGRAM-ID. Test-Util.
 PROCEDURE DIVISION.
     DISPLAY "Test: cobolcraft_util.cpp"
     CALL "Test-LeadingZeros32"
+    CALL "Test-ZlibCompress"
+    CALL "Test-ZlibDecompress"
     CALL "Test-GzipCompress"
     CALL "Test-GzipDecompress"
     GOBACK.
@@ -69,6 +71,68 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-LeadingZeros32.
+
+    *> --- Test: Test-ZlibCompress ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-ZlibCompress.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 INPUT-BUFFER         PIC X(100).
+        01 OUTPUT-BUFFER        PIC X(100).
+        01 INPUT-LENGTH         BINARY-LONG UNSIGNED.
+        01 OUTPUT-LENGTH        BINARY-LONG UNSIGNED.
+        01 ERRNO                BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Test-ZlibCompress".
+    Basic.
+        DISPLAY "    Case: Basic - " WITH NO ADVANCING
+        MOVE "Hello, World!" TO INPUT-BUFFER
+        MOVE 13 TO INPUT-LENGTH
+        MOVE SPACES TO OUTPUT-BUFFER
+        MOVE LENGTH OF OUTPUT-BUFFER TO OUTPUT-LENGTH
+        CALL "ZlibCompress" USING INPUT-BUFFER INPUT-LENGTH OUTPUT-BUFFER OUTPUT-LENGTH GIVING ERRNO
+        IF ERRNO = 0 AND OUTPUT-LENGTH = 21 AND OUTPUT-BUFFER(1:21) = X"789CF348CDC9C9D75108CF2FCA495104001F9E046A"
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-ZlibCompress.
+
+    *> --- Test: Test-ZlibDecompress ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-ZlibDecompress.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 INPUT-BUFFER         PIC X(100).
+        01 OUTPUT-BUFFER        PIC X(100).
+        01 INPUT-LENGTH         BINARY-LONG UNSIGNED.
+        01 OUTPUT-LENGTH        BINARY-LONG UNSIGNED.
+        01 ERRNO                BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Test-ZlibDecompress".
+    Basic.
+        DISPLAY "    Case: Basic - " WITH NO ADVANCING
+        MOVE X"789CF348CDC9C9D75108CF2FCA495104001F9E046A" TO INPUT-BUFFER
+        MOVE 21 TO INPUT-LENGTH
+        MOVE SPACES TO OUTPUT-BUFFER
+        MOVE LENGTH OF OUTPUT-BUFFER TO OUTPUT-LENGTH
+        CALL "ZlibDecompress" USING INPUT-BUFFER INPUT-LENGTH OUTPUT-BUFFER OUTPUT-LENGTH GIVING ERRNO
+        IF ERRNO = 0 AND OUTPUT-LENGTH = 13 AND OUTPUT-BUFFER(1:13) = "Hello, World!"
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-ZlibDecompress.
 
     *> --- Test: Test-GzipCompress ---
     IDENTIFICATION DIVISION.

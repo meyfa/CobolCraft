@@ -27,6 +27,18 @@ EXTERN_DECL int ReadConsole(char *buffer, unsigned long *count);
 EXTERN_DECL int LeadingZeros32(unsigned long *value, unsigned long *count);
 
 /**
+ * Compress a buffer using zlib (deflate). The compressed length indicates the size of the compressed buffer; after compression,
+ * it contains the actual size of the compressed data.
+ */
+EXTERN_DECL int ZlibCompress(char *decompressed, unsigned long *decompressed_length, char *compressed, unsigned long *compressed_length);
+
+/**
+ * Decompress a zlib-compressed buffer. The decompressed length indicates the size of the decompressed buffer; after
+ * decompression, it contains the actual size of the decompressed data.
+ */
+EXTERN_DECL int ZlibDecompress(char *compressed, unsigned long *compressed_length, char *decompressed, unsigned long *decompressed_length);
+
+/**
  * Compress a buffer using gzip. The compressed length indicates the size of the compressed buffer; after compression,
  * it contains the actual size of the compressed data.
  */
