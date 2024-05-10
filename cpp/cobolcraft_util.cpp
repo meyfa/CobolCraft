@@ -90,6 +90,88 @@ EXTERN_DECL int LeadingZeros32(unsigned long *value, unsigned long *count)
     return 0;
 }
 
+EXTERN_DECL int ZlibCompress(char *decompressed, unsigned long *decompressed_length, char *compressed, unsigned long *compressed_length)
+{
+    if (!decompressed || !decompressed_length || !compressed || !compressed_length)
+    {
+        return ERRNO_PARAMS;
+    }
+
+    if (*decompressed_length == 0)
+    {
+        *compressed_length = 0;
+        return 0;
+    }
+
+    z_stream stream;
+    stream.zalloc = Z_NULL;
+    stream.zfree = Z_NULL;
+    stream.opaque = Z_NULL;
+    stream.avail_in = *decompressed_length;
+    stream.next_in = (Bytef *)decompressed;
+    stream.avail_out = *compressed_length;
+    stream.next_out = (Bytef *)compressed;
+
+    int result = deflateInit(&stream, Z_DEFAULT_COMPRESSION);
+    if (result != Z_OK)
+    {
+        return ERRNO_SYSTEM;
+    }
+
+    result = deflate(&stream, Z_FINISH);
+    if (result != Z_STREAM_END)
+    {
+        deflateEnd(&stream);
+        return ERRNO_SYSTEM;
+    }
+
+    *compressed_length = stream.total_out;
+    deflateEnd(&stream);
+
+    return 0;
+}
+
+EXTERN_DECL int ZlibDecompress(char *compressed, unsigned long *compressed_length, char *decompressed, unsigned long *decompressed_length)
+{
+    if (!compressed || !compressed_length || !decompressed || !decompressed_length)
+    {
+        return ERRNO_PARAMS;
+    }
+
+    if (*compressed_length == 0)
+    {
+        *decompressed_length = 0;
+        return 0;
+    }
+
+    z_stream stream;
+    stream.zalloc = Z_NULL;
+    stream.zfree = Z_NULL;
+    stream.opaque = Z_NULL;
+    stream.avail_in = *compressed_length;
+    stream.next_in = (Bytef *)compressed;
+    stream.avail_out = *decompressed_length;
+    stream.next_out = (Bytef *)decompressed;
+
+    int result = inflateInit(&stream);
+    if (result != Z_OK)
+    {
+        return ERRNO_SYSTEM;
+    }
+
+    result = inflate(&stream, Z_FINISH);
+    if (result != Z_STREAM_END)
+    {
+        inflateEnd(&stream);
+        return ERRNO_SYSTEM;
+    }
+
+    *decompressed_length = stream.total_out;
+    inflateEnd(&stream);
+
+    return 0;
+}
+
 EXTERN_DECL int GzipCompress(char *decompressed, unsigned long *decompressed_length, char *compressed, unsigned long *compressed_length)
 {
     if (!decompressed || !decompressed_length || !compressed || !compressed_length)
