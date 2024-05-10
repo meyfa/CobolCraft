@@ -351,8 +351,10 @@ WORKING-STORAGE SECTION.
     *> Temporary variables
     01 OFFSET                   BINARY-LONG UNSIGNED.
     01 SEEK-FOUND               BINARY-LONG UNSIGNED.
-    01 SEEK-OFFSET              BINARY-LONG UNSIGNED.
     COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-SEEK==.
+    01 SEEK-OFFSET              BINARY-LONG UNSIGNED.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-BLOCK-STATES==.
+    01 BLOCK-STATES-OFFSET      BINARY-LONG UNSIGNED.
     01 EXPECTED-TAG             PIC X(256).
     01 AT-END                   BINARY-CHAR UNSIGNED.
     01 TAG-NAME                 PIC X(256).
@@ -439,11 +441,6 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
         GOBACK
     END-IF
 
-    *> The following code is order-dependent.
-    *> We assume that the Y value comes first. We also assume that the block palette comes before the block data.
-    *> While not strictly guaranteed, this is how we write NBT, and it greatly simplifies the code and
-    *> improves performance.
-
     *> Skip ahead until we find the sections tag.
     MOVE "sections" TO EXPECTED-TAG
     CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
@@ -459,18 +456,19 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
         *> start section
         CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
 
-        *> Skip to the Y value
+        *> Do a first pass to get the Y value
+        MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
+        MOVE OFFSET TO SEEK-OFFSET
         MOVE "Y" TO EXPECTED-TAG
-        CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+        CALL "SkipUntilTag" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET EXPECTED-TAG AT-END
         IF AT-END > 0
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
-
-        CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER OFFSET INT8
+        CALL "NbtDecode-Byte" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET INT8
         COMPUTE SECTION-INDEX = INT8 + 1 - CHUNK-SECTION-MIN-Y
 
-        *> Skip to the block states
+        *> Decode the block states
         MOVE "block_states" TO EXPECTED-TAG
         CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
         IF AT-END > 0
@@ -480,6 +478,8 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
 
         *> start block states
         CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        MOVE NBT-DECODER-STATE TO NBT-BLOCK-STATES-STATE
+        MOVE OFFSET TO BLOCK-STATES-OFFSET
 
         *> Skip to the palette
         MOVE "palette" TO EXPECTED-TAG
@@ -555,6 +555,11 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
             *> Skip any remaining tags in the compound
             CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
         ELSE
+            *> Reset the state to the beginning of the block states compound, since "data" may come before "palette".
+            *> We don't write NBT this way, but Minecraft does.
+            MOVE NBT-BLOCK-STATES-STATE TO NBT-DECODER-STATE
+            MOVE BLOCK-STATES-OFFSET TO OFFSET
+
             *> Skip to the data
             MOVE "data" TO EXPECTED-TAG
             CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
