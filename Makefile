@@ -35,7 +35,7 @@ $(JSON_DATA):
 	cd data && java -DbundlerMainClass="net.minecraft.data.Main" -jar server.jar --reports
 
 $(BIN): $(SOCKET_LIB) $(UTIL_LIB) $(SRC) $(CPY)
-	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -I $(CPY_DIR) -o $@ $(SRC)
+	$(COBC) -x -O2 -debug -Wall -fnotrunc --free -lstdc++ -I $(CPY_DIR) -o $@ $(SRC)
 
 clean:
 	rm -f $(BIN)
