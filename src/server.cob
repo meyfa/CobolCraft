@@ -1189,6 +1189,7 @@ WORKING-STORAGE SECTION.
     01 CLIENT-ID                BINARY-LONG UNSIGNED.
     01 BUFFER                   PIC X(256).
     01 BYTE-COUNT               BINARY-LONG UNSIGNED.
+    01 FAILURE                  BINARY-CHAR UNSIGNED.
     *> shared state with Server
     01 SERVER-HNDL              PIC X(4)                EXTERNAL.
     COPY DD-CLIENTS.
@@ -1197,6 +1198,12 @@ PROCEDURE DIVISION.
     CALL "Server-Save"
 
     DISPLAY "Stopping server"
+
+    *> Close all region files
+    CALL "Region-CloseAll" USING FAILURE
+    IF FAILURE NOT = 0
+        DISPLAY "Error while closing region files"
+    END-IF
 
     *> Send a message to all clients
     MOVE "Server closed" TO BUFFER

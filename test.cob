@@ -10,7 +10,7 @@ PROCEDURE DIVISION.
     CALL "Test-NbtEncode"
     CALL "Test-NbtDecode"
     CALL "Test-JsonParse"
-    CALL "Test-World"
+    CALL "Test-Region"
     STOP RUN.
 
 END PROGRAM TestMain.
