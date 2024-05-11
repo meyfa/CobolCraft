@@ -1,6 +1,8 @@
 *> --- Copybook: NBT decoder state ---
 
 01 NBT-DECODER-STATE.
+    *> The position within the input buffer (starting at 1).
+    02 NBT-DECODER-OFFSET BINARY-LONG UNSIGNED.
     *> The number of items on the stack, indicating the descension level in the NBT tree.
     02 NBT-DECODER-LEVEL BINARY-LONG UNSIGNED.
     *> Each stack item stores the type of container at that level (compound/list/byte array/int array/long array).
