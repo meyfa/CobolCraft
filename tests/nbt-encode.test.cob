@@ -17,6 +17,7 @@ PROCEDURE DIVISION.
     CALL "Test-NbtEncode-EndCompound"
     CALL "Test-NbtEncode-IntArray"
     CALL "Test-NbtEncode-LongArray"
+    CALL "Test-NbtEncode-UUID"
     GOBACK.
 
     *> --- Test: NbtEncode-Byte ---
@@ -654,5 +655,34 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-NbtEncode-LongArray.
+
+    *> --- Test: NbtEncode-UUID ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtEncode-UUID.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-ENCODER.
+        01 BUFFER       PIC X(32).
+        01 UUID         PIC X(16).
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Test-NbtEncode-UUID".
+    Basic.
+        DISPLAY "    Case: UUID - " WITH NO ADVANCING
+        INITIALIZE NBT-ENCODER-STATE
+        MOVE 3 TO NBT-ENCODER-OFFSET
+        MOVE ALL X"FF" TO BUFFER
+        MOVE X"000102030405060708090A0B0C0D0E0F" TO UUID
+        CALL "NbtEncode-UUID" USING NBT-ENCODER-STATE BUFFER OMITTED OMITTED UUID
+        IF BUFFER = X"FFFF0B00000004000102030405060708090A0B0C0D0E0FFFFFFFFFFFFFFFFFFF" AND NBT-ENCODER-OFFSET = 24
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtEncode-UUID.
 
 END PROGRAM Test-NbtEncode.
