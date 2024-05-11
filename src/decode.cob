@@ -258,10 +258,14 @@ END PROGRAM Decode-Float.
 
 *> --- Decode-String ---
 *> Decode a string from a buffer. The string is prefixed with its length as a VarInt.
+*> The string is read into a target buffer which must be large enough to hold the entire string, or the string will be
+*> truncated.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Decode-String.
 
 DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 VALUE-LENGTH         BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-BUFFER            PIC X ANY LENGTH.
     01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
@@ -271,12 +275,12 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-BUFFER LK-BUFFERPOS LK-STR-LENGTH LK-VALUE.
     *> Read the length
     CALL "Decode-VarInt" USING LK-BUFFER LK-BUFFERPOS LK-STR-LENGTH
-    IF LK-STR-LENGTH < 0 OR LK-STR-LENGTH > 64000
-        *> TODO: Handle error
-        EXIT PROGRAM
+    IF LK-STR-LENGTH < 0
+        GOBACK
     END-IF
-    *> Read the string
-    MOVE LK-BUFFER(LK-BUFFERPOS:LK-STR-LENGTH) TO LK-VALUE(1:LK-STR-LENGTH)
+    *> Read the string. If the target buffer is too small, read only as much as fits.
+    COMPUTE VALUE-LENGTH = FUNCTION MIN(LK-STR-LENGTH, FUNCTION LENGTH(LK-VALUE))
+    MOVE LK-BUFFER(LK-BUFFERPOS:VALUE-LENGTH) TO LK-VALUE(1:VALUE-LENGTH)
     ADD LK-STR-LENGTH TO LK-BUFFERPOS
     GOBACK.
 
