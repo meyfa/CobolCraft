@@ -1,6 +1,8 @@
 *> --- Copybook: NBT encoder state ---
 
 01 NBT-ENCODER-STATE.
+    *> The position within the output buffer (starting at 1).
+    02 NBT-ENCODER-OFFSET BINARY-LONG UNSIGNED.
     *> The number of items on the stack, indicating the descension level in the NBT tree.
     02 NBT-ENCODER-LEVEL BINARY-LONG UNSIGNED.
     *> Each stack item stores the type of tag at that level (compound or list).

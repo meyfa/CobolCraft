@@ -124,7 +124,6 @@ WORKING-STORAGE SECTION.
     01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
     01 CHUNK-SECTION-MIN-Y      BINARY-LONG             VALUE -4.
     *> Temporary variables
-    01 OFFSET                   BINARY-LONG UNSIGNED.
     01 TAG-NAME                 PIC X(256).
     01 NAME-LEN                 BINARY-LONG UNSIGNED.
     01 STR                      PIC X(256).
@@ -160,45 +159,45 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
     MOVE 0 TO LK-FAILURE
 
     *> start root tag
-    MOVE 1 TO OFFSET
-    CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+    MOVE 1 TO NBT-ENCODER-OFFSET
+    CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER
 
     *> chunk position
     MOVE 4 TO NAME-LEN
     MOVE "xPos" TO TAG-NAME
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN WORLD-CHUNK-X(LK-CHUNK-INDEX)
+    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN WORLD-CHUNK-X(LK-CHUNK-INDEX)
     MOVE "zPos" TO TAG-NAME
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN WORLD-CHUNK-Z(LK-CHUNK-INDEX)
+    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN WORLD-CHUNK-Z(LK-CHUNK-INDEX)
     MOVE "yPos" TO TAG-NAME
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN CHUNK-SECTION-MIN-Y
+    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN CHUNK-SECTION-MIN-Y
 
     *> start chunk sections
     MOVE "sections" TO TAG-NAME
     MOVE 8 TO NAME-LEN
-    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
+    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
 
     PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > WORLD-SECTION-COUNT
         *> only write sections that are not entirely air
         *> Note: The official format stores all sections, but it seems unnecessary, so we don't.
         IF WORLD-SECTION-NON-AIR(LK-CHUNK-INDEX, SECTION-INDEX) > 0
             *> start section
-            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET OMITTED OMITTED
+            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED
 
             *> section position
             MOVE "Y" TO TAG-NAME
             MOVE 1 TO NAME-LEN
             COMPUTE INT8 = SECTION-INDEX - 1 + CHUNK-SECTION-MIN-Y
-            CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN INT8
+            CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN INT8
 
             *> block states - palette and data
             MOVE "block_states" TO TAG-NAME
             MOVE 12 TO NAME-LEN
-            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
+            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
 
             *> palette
             MOVE "palette" TO TAG-NAME
             MOVE 7 TO NAME-LEN
-            CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
+            CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
 
             MOVE 0 TO PALETTE-LENGTH
             PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > 4096
@@ -212,39 +211,39 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
                     CALL "Blocks-Get-StateDescription" USING CURRENT-BLOCK-ID PALETTE-BLOCK-DESCRIPTION
 
                     *> start palette entry
-                    CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET OMITTED OMITTED
+                    CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED
 
                     *> name
                     MOVE "Name" TO TAG-NAME
                     MOVE 4 TO NAME-LEN
                     MOVE FUNCTION STORED-CHAR-LENGTH(PALETTE-BLOCK-NAME) TO STR-LEN
-                    CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN PALETTE-BLOCK-NAME STR-LEN
+                    CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PALETTE-BLOCK-NAME STR-LEN
 
                     IF PALETTE-BLOCK-PROPERTY-COUNT > 0
                         *> start properties
                         MOVE "Properties" TO TAG-NAME
                         MOVE 10 TO NAME-LEN
-                        CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
+                        CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
 
                         PERFORM VARYING PROPERTY-INDEX FROM 1 BY 1 UNTIL PROPERTY-INDEX > PALETTE-BLOCK-PROPERTY-COUNT
                             MOVE PALETTE-BLOCK-PROPERTY-NAME(PROPERTY-INDEX) TO TAG-NAME
                             MOVE FUNCTION STORED-CHAR-LENGTH(TAG-NAME) TO NAME-LEN
                             MOVE PALETTE-BLOCK-PROPERTY-VALUE(PROPERTY-INDEX) TO STR
                             MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
-                            CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN STR STR-LEN
+                            CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
                         END-PERFORM
 
                         *> end properties
-                        CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+                        CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
                     END-IF
 
                     *> end palette entry
-                    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+                    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
                 END-IF
             END-PERFORM
 
             *> end palette
-            CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+            CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
 
             *> Note: We only need to encode data if the palette length is greater than 1
             IF PALETTE-LENGTH > 1
@@ -261,7 +260,7 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
                 *> data (packed long array)
                 MOVE "data" TO TAG-NAME
                 MOVE 4 TO NAME-LEN
-                CALL "NbtEncode-LongArray" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN LONG-ARRAY-LENGTH
+                CALL "NbtEncode-LongArray" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN LONG-ARRAY-LENGTH
 
                 MOVE 1 TO BLOCK-INDEX
                 PERFORM LONG-ARRAY-LENGTH TIMES
@@ -274,7 +273,7 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
                         COMPUTE LONG-ARRAY-MULTIPLIER = LONG-ARRAY-MULTIPLIER * (2 ** PALETTE-BITS)
                         ADD 1 TO BLOCK-INDEX
                     END-PERFORM
-                    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET OMITTED OMITTED LONG-ARRAY-ENTRY-SIGNED
+                    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED LONG-ARRAY-ENTRY-SIGNED
                 END-PERFORM
             END-IF
 
@@ -291,21 +290,21 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
             END-IF
 
             *> end block states
-            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
 
             *> end section
-            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
         END-IF
     END-PERFORM
 
     *> end chunk sections
-    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
 
     *> end root tag
-    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
 
     *> Save the chunk
-    COMPUTE NBT-BUFFER-LENGTH = OFFSET - 1
+    COMPUTE NBT-BUFFER-LENGTH = NBT-ENCODER-OFFSET - 1
     CALL "Region-WriteChunkData" USING WORLD-CHUNK-X(LK-CHUNK-INDEX) WORLD-CHUNK-Z(LK-CHUNK-INDEX) NBT-BUFFER NBT-BUFFER-LENGTH LK-FAILURE
     IF LK-FAILURE NOT = 0
         GOBACK
@@ -326,12 +325,9 @@ WORKING-STORAGE SECTION.
     01 NBT-BUFFER               PIC X(1048576).
     01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
     *> Temporary variables
-    01 OFFSET                   BINARY-LONG UNSIGNED.
     01 SEEK-FOUND               BINARY-LONG UNSIGNED.
     COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-SEEK==.
-    01 SEEK-OFFSET              BINARY-LONG UNSIGNED.
     COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-BLOCK-STATES==.
-    01 BLOCK-STATES-OFFSET      BINARY-LONG UNSIGNED.
     01 EXPECTED-TAG             PIC X(256).
     01 AT-END                   BINARY-CHAR UNSIGNED.
     01 TAG-NAME                 PIC X(256).
@@ -376,31 +372,30 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
     END-IF
 
     *> start root tag
-    MOVE 1 TO OFFSET
-    CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+    MOVE 1 TO NBT-DECODER-OFFSET
+    CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER
 
     *> Do a first pass to get the chunk X, Z, and Y values.
     *> The way we write NBT, they should come before any larger pieces of data, but this is not strictly guaranteed.
-    MOVE OFFSET TO SEEK-OFFSET
     MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
     MOVE 0 TO SEEK-FOUND
     PERFORM UNTIL EXIT
-        CALL "NbtDecode-Peek" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET AT-END TAG-NAME NAME-LEN
+        CALL "NbtDecode-Peek" USING NBT-SEEK-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
         IF AT-END > 0
             EXIT PERFORM
         END-IF
         EVALUATE TAG-NAME(1:NAME-LEN)
             WHEN "xPos"
-                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET CHUNK-X
+                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER CHUNK-X
                 ADD 1 TO SEEK-FOUND
             WHEN "zPos"
-                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET CHUNK-Z
+                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER CHUNK-Z
                 ADD 1 TO SEEK-FOUND
             WHEN "yPos"
-                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET CHUNK-SECTION-MIN-Y
+                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER CHUNK-SECTION-MIN-Y
                 ADD 1 TO SEEK-FOUND
             WHEN OTHER
-                CALL "NbtDecode-Skip" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET
+                CALL "NbtDecode-Skip" USING NBT-SEEK-STATE NBT-BUFFER
         END-EVALUATE
         IF SEEK-FOUND = 3
             EXIT PERFORM
@@ -416,96 +411,94 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
 
     *> Skip ahead until we find the sections tag.
     MOVE "sections" TO EXPECTED-TAG
-    CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+    CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER EXPECTED-TAG AT-END
     IF AT-END > 0
         MOVE 1 TO LK-FAILURE
         GOBACK
     END-IF
 
     *> start sections
-    CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER OFFSET LOADED-SECTION-COUNT
+    CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER LOADED-SECTION-COUNT
 
     PERFORM LOADED-SECTION-COUNT TIMES
         *> start section
-        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
 
         *> Do a first pass to get the Y value
         MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
-        MOVE OFFSET TO SEEK-OFFSET
         MOVE "Y" TO EXPECTED-TAG
-        CALL "SkipUntilTag" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET EXPECTED-TAG AT-END
+        CALL "SkipUntilTag" USING NBT-SEEK-STATE NBT-BUFFER EXPECTED-TAG AT-END
         IF AT-END > 0
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
-        CALL "NbtDecode-Byte" USING NBT-SEEK-STATE NBT-BUFFER SEEK-OFFSET INT8
+        CALL "NbtDecode-Byte" USING NBT-SEEK-STATE NBT-BUFFER INT8
         COMPUTE SECTION-INDEX = INT8 + 1 - CHUNK-SECTION-MIN-Y
 
         *> Decode the block states
         MOVE "block_states" TO EXPECTED-TAG
-        CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+        CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER EXPECTED-TAG AT-END
         IF AT-END > 0
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
 
         *> start block states
-        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
         MOVE NBT-DECODER-STATE TO NBT-BLOCK-STATES-STATE
-        MOVE OFFSET TO BLOCK-STATES-OFFSET
 
         *> Skip to the palette
         MOVE "palette" TO EXPECTED-TAG
-        CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+        CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER EXPECTED-TAG AT-END
         IF AT-END > 0
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
 
         *> start palette
-        CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER OFFSET PALETTE-LENGTH
+        CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER PALETTE-LENGTH
 
         PERFORM VARYING PALETTE-INDEX FROM 1 BY 1 UNTIL PALETTE-INDEX > PALETTE-LENGTH
             *> start palette entry
-            CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+            CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
             MOVE 0 TO PALETTE-BLOCK-PROPERTY-COUNT
 
             PERFORM UNTIL EXIT
-                CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER OFFSET AT-END TAG-NAME NAME-LEN
+                CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
                 IF AT-END > 0
                     EXIT PERFORM
                 END-IF
                 EVALUATE TAG-NAME(1:NAME-LEN)
                     WHEN "Name"
-                        CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER OFFSET STR STR-LEN
+                        CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
                         MOVE STR(1:STR-LEN) TO PALETTE-BLOCK-NAME
 
                     WHEN "Properties"
-                        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+                        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
                         PERFORM UNTIL EXIT
-                            CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER OFFSET AT-END TAG-NAME NAME-LEN
+                            CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
                             IF AT-END > 0
                                 EXIT PERFORM
                             END-IF
                             ADD 1 TO PALETTE-BLOCK-PROPERTY-COUNT
-                            CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER OFFSET STR STR-LEN
+                            CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
                             MOVE TAG-NAME(1:NAME-LEN) TO PALETTE-BLOCK-PROPERTY-NAME(PALETTE-BLOCK-PROPERTY-COUNT)
                             MOVE STR(1:STR-LEN) TO PALETTE-BLOCK-PROPERTY-VALUE(PALETTE-BLOCK-PROPERTY-COUNT)
                         END-PERFORM
-                        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+                        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
 
                     WHEN OTHER
-                        CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+                        CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
                 END-EVALUATE
             END-PERFORM
 
             *> end palette entry
-            CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+            CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
             CALL "Blocks-Get-StateId" USING PALETTE-BLOCK-DESCRIPTION BLOCK-STATE-IDS(PALETTE-INDEX)
         END-PERFORM
 
         *> end palette
-        CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
 
         *> number of bits per block = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
         COMPUTE INT32 = PALETTE-LENGTH - 1
@@ -526,27 +519,26 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
             END-IF
 
             *> Skip any remaining tags in the compound
-            CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+            CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
         ELSE
             *> Reset the state to the beginning of the block states compound, since "data" may come before "palette".
             *> We don't write NBT this way, but Minecraft does.
             MOVE NBT-BLOCK-STATES-STATE TO NBT-DECODER-STATE
-            MOVE BLOCK-STATES-OFFSET TO OFFSET
 
             *> Skip to the data
             MOVE "data" TO EXPECTED-TAG
-            CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER OFFSET EXPECTED-TAG AT-END
+            CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER EXPECTED-TAG AT-END
             IF AT-END > 0
                 MOVE 1 TO LK-FAILURE
                 GOBACK
             END-IF
 
             *> read packed long array
-            CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER OFFSET LONG-ARRAY-LENGTH
+            CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER LONG-ARRAY-LENGTH
 
             MOVE 1 TO BLOCK-INDEX
             PERFORM VARYING LONG-ARRAY-INDEX FROM 1 BY 1 UNTIL LONG-ARRAY-INDEX > LONG-ARRAY-LENGTH
-                CALL "NbtDecode-Long" USING NBT-DECODER-STATE NBT-BUFFER OFFSET LONG-ARRAY-ENTRY-SIGNED
+                CALL "NbtDecode-Long" USING NBT-DECODER-STATE NBT-BUFFER LONG-ARRAY-ENTRY-SIGNED
                 COMPUTE INT32 = FUNCTION MIN(BLOCKS-PER-LONG, 4096 - BLOCK-INDEX + 1)
                 PERFORM INT32 TIMES
                     COMPUTE PALETTE-INDEX = FUNCTION MOD(LONG-ARRAY-ENTRY, 2 ** PALETTE-BITS) + 1
@@ -561,24 +553,24 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
             END-PERFORM
 
             *> end data
-            CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+            CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
         END-IF
 
         *> end block states
-        CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
-        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
+        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
 
         *> end section
-        CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
-        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+        CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
+        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
     END-PERFORM
 
     *> end sections
-    CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+    CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
 
     *> end root tag
-    CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
-    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+    CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
+    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
 
     *> mark the chunk as present and clean (i.e., not needing to be saved)
     MOVE 1 TO WORLD-CHUNK-PRESENT(CHUNK-INDEX)
@@ -599,20 +591,19 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
     LINKAGE SECTION.
         COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
         01 LK-BUFFER            PIC X ANY LENGTH.
-        01 LK-OFFSET            BINARY-LONG UNSIGNED.
         01 LK-TAG-NAME          PIC X ANY LENGTH.
         01 LK-AT-END            BINARY-CHAR UNSIGNED.
 
-    PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET LK-TAG-NAME LK-AT-END.
+    PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-TAG-NAME LK-AT-END.
         PERFORM UNTIL EXIT
-            CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER LK-OFFSET LK-AT-END TAG-NAME NAME-LEN
+            CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER LK-AT-END TAG-NAME NAME-LEN
             IF LK-AT-END > 0
                 GOBACK
             END-IF
             IF TAG-NAME(1:NAME-LEN) = LK-TAG-NAME
                 EXIT PERFORM
             END-IF
-            CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER LK-OFFSET
+            CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER
         END-PERFORM
         MOVE 0 TO LK-AT-END
         GOBACK.
@@ -632,15 +623,14 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
     LINKAGE SECTION.
         COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
         01 LK-BUFFER            PIC X ANY LENGTH.
-        01 LK-OFFSET            BINARY-LONG UNSIGNED.
 
-    PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-OFFSET.
+    PROCEDURE DIVISION USING LK-STATE LK-BUFFER.
         PERFORM UNTIL EXIT
-            CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER LK-OFFSET AT-END TAG-NAME NAME-LEN
+            CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER AT-END TAG-NAME NAME-LEN
             IF AT-END > 0
                 GOBACK
             END-IF
-            CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER LK-OFFSET
+            CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER
         END-PERFORM
         GOBACK.
 
@@ -746,7 +736,6 @@ WORKING-STORAGE SECTION.
     01 COMPRESSED-BUFFER    PIC X(64000).
     01 COMPRESSED-LENGTH    BINARY-LONG UNSIGNED.
     *> Temporary variables
-    01 OFFSET               BINARY-LONG UNSIGNED.
     01 TAG-NAME             PIC X(256).
     01 NAME-LEN             BINARY-LONG UNSIGNED.
     *> World data
@@ -761,30 +750,30 @@ PROCEDURE DIVISION USING LK-FAILURE.
     MOVE ALL X"00" TO NBT-BUFFER
 
     *> root tag
-    MOVE 1 TO OFFSET
-    CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+    MOVE 1 TO NBT-ENCODER-OFFSET
+    CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER
 
     *> "Data" tag
     MOVE "Data" TO TAG-NAME
     MOVE 4 TO NAME-LEN
-    CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN
+    CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
 
     *> "Time": world age
     MOVE "Time" TO TAG-NAME
     MOVE 4 TO NAME-LEN
-    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN WORLD-AGE
+    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN WORLD-AGE
 
     *> "DayTime": world time
     MOVE "DayTime" TO TAG-NAME
     MOVE 7 TO NAME-LEN
-    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET TAG-NAME NAME-LEN WORLD-TIME
+    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN WORLD-TIME
 
     *> end "Data" and root tags
-    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
-    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER OFFSET
+    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
 
     *> write the data to disk in gzip-compressed form
-    COMPUTE NBT-BUFFER-LENGTH = OFFSET - 1
+    COMPUTE NBT-BUFFER-LENGTH = NBT-ENCODER-OFFSET - 1
     MOVE LENGTH OF COMPRESSED-BUFFER TO COMPRESSED-LENGTH
     CALL "GzipCompress" USING NBT-BUFFER NBT-BUFFER-LENGTH COMPRESSED-BUFFER COMPRESSED-LENGTH GIVING ERRNO
     IF ERRNO NOT = 0
@@ -811,7 +800,6 @@ WORKING-STORAGE SECTION.
     01 NBT-BUFFER               PIC X(64000).
     01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
     *> Temporary variables
-    01 OFFSET                   BINARY-LONG UNSIGNED.
     01 STR-VALUE                PIC X(256).
     01 STR-LEN                  BINARY-LONG UNSIGNED.
     01 AT-END                   BINARY-CHAR UNSIGNED.
@@ -848,28 +836,28 @@ PROCEDURE DIVISION USING LK-FAILURE.
     END-IF
 
     *> root tag containing the "Data" compound
-    MOVE 1 TO OFFSET
-    CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
-    CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+    MOVE 1 TO NBT-DECODER-OFFSET
+    CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER
+    CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
 
     PERFORM UNTIL EXIT
-        CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER OFFSET AT-END STR-VALUE STR-LEN
+        CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END STR-VALUE STR-LEN
         IF AT-END > 0
             EXIT PERFORM
         END-IF
         EVALUATE STR-VALUE(1:STR-LEN)
             WHEN "Time"
-                CALL "NbtDecode-Long" USING NBT-DECODER-STATE NBT-BUFFER OFFSET WORLD-AGE
+                CALL "NbtDecode-Long" USING NBT-DECODER-STATE NBT-BUFFER WORLD-AGE
             WHEN "DayTime"
-                CALL "NbtDecode-Long" USING NBT-DECODER-STATE NBT-BUFFER OFFSET WORLD-TIME
+                CALL "NbtDecode-Long" USING NBT-DECODER-STATE NBT-BUFFER WORLD-TIME
             WHEN OTHER
-                CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+                CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
         END-EVALUATE
     END-PERFORM
 
     *> end of "Data" and root tags
-    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
-    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER OFFSET
+    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
 
     GOBACK.
 
