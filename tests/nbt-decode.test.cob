@@ -16,6 +16,7 @@ PROCEDURE DIVISION.
     CALL "Test-NbtDecode-EndCompound"
     CALL "Test-NbtDecode-Peek"
     CALL "Test-NbtDecode-Skip"
+    CALL "Test-NbtDecode-UUID"
     GOBACK.
 
     *> --- Test: Test-NbtDecode-Byte ---
@@ -731,5 +732,34 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-NbtDecode-Skip.
+
+    *> --- Test: NbtDecode-UUID ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-NbtDecode-UUID.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-NBT-DECODER.
+        01 BUFFER       PIC X(32).
+        01 UUID         PIC X(16).
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Test-NbtDecode-UUID".
+    Basic.
+        DISPLAY "    Case: UUID - " WITH NO ADVANCING
+        INITIALIZE NBT-DECODER-STATE
+        MOVE 3 TO NBT-DECODER-OFFSET
+        MOVE x"FFFF0B00000004000102030405060708090A0B0C0D0E0FFFFFFFFFFFFFFFFFFF" TO BUFFER
+        MOVE ALL X"00" TO UUID
+        CALL "NbtDecode-UUID" USING NBT-DECODER-STATE BUFFER UUID
+        IF NBT-DECODER-OFFSET = 24 AND UUID = X"000102030405060708090A0B0C0D0E0F"
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-NbtDecode-UUID.
 
 END PROGRAM Test-NbtDecode.
