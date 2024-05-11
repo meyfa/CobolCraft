@@ -9,15 +9,13 @@ A Minecraft server written in COBOL. It supports Minecraft 1.20.6 (the latest ve
 
 The following features are already working:
 
-- [X] ping/server status (i.e., show as online in the server list)
-- [X] player login
-- [X] infinite world generation
+- [X] infinite terrain generation and dynamic chunk loading
 - [X] persisting world and player data to disk
-- [X] sending world data to clients
-- [X] player movement
-- [X] player inventory (limited to creative mode)
-- [X] breaking and placing blocks
+- [X] support for Minecraft's file formats (import existing worlds)
 - [X] multiplayer (up to 10 concurrent players)
+- [X] ping/server status (i.e., show as online in the server list)
+- [X] breaking and placing blocks
+- [X] player inventory (limited to creative mode)
 - [X] chat
 - [X] commands (in-game and via an interactive console)
 - [X] whitelist (single player, edit `main.cob` to enable/set username)
