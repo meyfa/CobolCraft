@@ -123,21 +123,28 @@ WORKING-STORAGE SECTION.
         02 BYTE-NUMERIC         BINARY-CHAR UNSIGNED.
     01 SIGNED-VALUE         BINARY-LONG.
     01 CURRENT-VALUE        REDEFINES SIGNED-VALUE BINARY-LONG UNSIGNED.
-LOCAL-STORAGE SECTION.
-    01 VARINT-MULTIPLIER    BINARY-LONG UNSIGNED    VALUE 1.
+    01 VARINT-MULTIPLIER    BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-BUFFER            PIC X ANY LENGTH.
     01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
     01 LK-VALUE             BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-BUFFER LK-BUFFERPOS LK-VALUE.
-    MOVE 0 TO CURRENT-VALUE
-    *> The maximum number of bytes a VarInt can have is 5
-    PERFORM 5 TIMES
-        *> Read the next byte
+    *> The maximum number of bytes a VarInt can have is 5. The first loop iteration is unrolled for performance:
+    *> Since a single-byte VarInt is always positive, fewer instructions are required. Note that this benefits all
+    *> VarInts, not just single-byte ones.
+    MOVE LK-BUFFER(LK-BUFFERPOS:1) TO BYTE-ALPHA
+    ADD 1 TO LK-BUFFERPOS
+    IF BYTE-NUMERIC < 128
+        MOVE BYTE-NUMERIC TO LK-VALUE
+        GOBACK
+    END-IF
+    *> Not a single-byte VarInt.
+    SUBTRACT 128 FROM BYTE-NUMERIC GIVING CURRENT-VALUE
+    MOVE 128 TO VARINT-MULTIPLIER
+    PERFORM 4 TIMES
         MOVE LK-BUFFER(LK-BUFFERPOS:1) TO BYTE-ALPHA
         ADD 1 TO LK-BUFFERPOS
-        *> The lower 7 bits of the byte are the value, and the high bit indicates if there are more bytes
         IF BYTE-NUMERIC < 128
             COMPUTE CURRENT-VALUE = CURRENT-VALUE + BYTE-NUMERIC * VARINT-MULTIPLIER
             EXIT PERFORM
