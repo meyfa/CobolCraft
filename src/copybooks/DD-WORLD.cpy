@@ -16,5 +16,6 @@
         03 WORLD-SECTION OCCURS WORLD-SECTION-COUNT TIMES.
             04 WORLD-SECTION-NON-AIR    BINARY-LONG UNSIGNED.
             *> block IDs (16x16x16) - X increases fastest, then Z, then Y
-            04 WORLD-BLOCK OCCURS 4096 TIMES.
-                05 WORLD-BLOCK-ID           BINARY-LONG UNSIGNED.
+            04 WORLD-SECTION-BLOCKS.
+                05 WORLD-BLOCK OCCURS 4096 TIMES.
+                    06 WORLD-BLOCK-ID           BINARY-LONG UNSIGNED.
