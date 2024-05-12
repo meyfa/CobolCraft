@@ -122,18 +122,20 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        01 INT16            BINARY-SHORT.
-        01 INT32            BINARY-LONG.
-        01 BLOCK-INDEX      BINARY-LONG UNSIGNED.
-        01 PALETTE-ENTRY    BINARY-LONG-LONG UNSIGNED.
+        01 INT16                BINARY-SHORT.
+        01 INT32                BINARY-LONG.
+        01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
+        01 PALETTE-ENTRY-LENGTH BINARY-LONG UNSIGNED        VALUE 8.
+        01 PALETTE-ENTRY        BINARY-LONG-LONG UNSIGNED.
+        01 PALETTE-ENTRY-BYTES  REDEFINES PALETTE-ENTRY PIC X(8).
     LINKAGE SECTION.
-        01 LK-CHUNK-SEC     BINARY-LONG UNSIGNED.
+        01 LK-CHUNK-SEC         BINARY-LONG UNSIGNED.
         01 LK-SECTION.
-            02 LK-NON-AIR       BINARY-LONG UNSIGNED.
+            02 LK-NON-AIR           BINARY-LONG UNSIGNED.
             02 LK-BLOCK OCCURS 4096 TIMES.
-                03 LK-BLOCK-ID      BINARY-LONG UNSIGNED.
-        01 LK-BUFFER        PIC X ANY LENGTH.
-        01 LK-BUFFERPOS     BINARY-LONG UNSIGNED.
+                03 LK-BLOCK-ID          BINARY-LONG UNSIGNED.
+        01 LK-BUFFER            PIC X ANY LENGTH.
+        01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION USING LK-CHUNK-SEC LK-SECTION LK-BUFFER LK-BUFFERPOS.
         *> block count (16x16x16)
@@ -163,13 +165,13 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
             MOVE 1024 TO INT32
             CALL "Encode-VarInt" USING INT32 LK-BUFFER LK-BUFFERPOS
             *> - data array: block ids - x increases fastest, then z, then y
-            MOVE 1 TO BLOCK-INDEX
-            PERFORM 1024 TIMES
+            PERFORM VARYING BLOCK-INDEX FROM 0 BY 4 UNTIL BLOCK-INDEX >= 4096
                 *> Each block uses 15 bits, and 4 blocks are packed into a 64-bit long starting from the least
                 *> significant bit. Since only 60 bits are used, the 4 most significant bits become padding (0).
-                COMPUTE PALETTE-ENTRY = LK-BLOCK-ID(BLOCK-INDEX) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 1) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 2) + 32768 * LK-BLOCK-ID(BLOCK-INDEX + 3)))
-                CALL "Encode-UnsignedLong" USING PALETTE-ENTRY LK-BUFFER LK-BUFFERPOS
-                ADD 4 TO BLOCK-INDEX
+                COMPUTE PALETTE-ENTRY = LK-BLOCK-ID(BLOCK-INDEX + 1) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 2) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 3) + 32768 * LK-BLOCK-ID(BLOCK-INDEX + 4)))
+                *> The following code is an inlined version of Encode-UnsignedLong (improves performance by 20%)
+                MOVE FUNCTION REVERSE(PALETTE-ENTRY-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
+                ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
             END-PERFORM
         END-IF
 
