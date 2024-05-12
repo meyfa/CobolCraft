@@ -266,8 +266,7 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
                 PERFORM LONG-ARRAY-LENGTH TIMES
                     MOVE 0 TO LONG-ARRAY-ENTRY
                     MOVE 1 TO LONG-ARRAY-MULTIPLIER
-                    COMPUTE INT32 = FUNCTION MIN(BLOCKS-PER-LONG, 4096 - BLOCK-INDEX + 1)
-                    PERFORM INT32 TIMES
+                    PERFORM FUNCTION MIN(BLOCKS-PER-LONG, 4096 - BLOCK-INDEX + 1) TIMES
                         MOVE WORLD-BLOCK-ID(LK-CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX) TO CURRENT-BLOCK-ID
                         COMPUTE LONG-ARRAY-ENTRY = LONG-ARRAY-ENTRY + LONG-ARRAY-MULTIPLIER * (BLOCK-PALETTE-INDEX(CURRENT-BLOCK-ID + 1) - 1)
                         COMPUTE LONG-ARRAY-MULTIPLIER = LONG-ARRAY-MULTIPLIER * (2 ** PALETTE-BITS)
@@ -347,9 +346,9 @@ WORKING-STORAGE SECTION.
     01 PALETTE-LENGTH           BINARY-LONG UNSIGNED.
     01 PALETTE-INDEX            BINARY-SHORT UNSIGNED.
     01 PALETTE-BITS             BINARY-LONG UNSIGNED.
+    01 PALETTE-BITS-POW         BINARY-LONG UNSIGNED.
     01 BLOCKS-PER-LONG          BINARY-LONG UNSIGNED.
     01 LONG-ARRAY-LENGTH        BINARY-LONG UNSIGNED.
-    01 LONG-ARRAY-INDEX         BINARY-LONG UNSIGNED.
     01 LONG-ARRAY-ENTRY         BINARY-LONG-LONG UNSIGNED.
     01 LONG-ARRAY-ENTRY-SIGNED  REDEFINES LONG-ARRAY-ENTRY BINARY-LONG-LONG.
     COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PALETTE-BLOCK==.
@@ -500,26 +499,14 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
         *> end palette
         CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
 
-        *> number of bits per block = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
-        COMPUTE INT32 = PALETTE-LENGTH - 1
-        CALL "LeadingZeros32" USING INT32 PALETTE-BITS
-        *> However, Minecraft uses a minimum of 4 bits
-        COMPUTE PALETTE-BITS = FUNCTION MAX(32 - PALETTE-BITS, 4)
-        DIVIDE 64 BY PALETTE-BITS GIVING BLOCKS-PER-LONG
-
         *> If the palette has length 1, we don't care about the data. In fact, it might not be there.
         IF PALETTE-LENGTH = 1
             *> Fill the section with the singular block state (unless it is air).
-            IF BLOCK-STATE-IDS(1) > 0
-                MOVE BLOCK-STATE-IDS(1) TO CURRENT-BLOCK-ID
-                PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > 4096
-                    MOVE CURRENT-BLOCK-ID TO WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX)
-                END-PERFORM
+            MOVE BLOCK-STATE-IDS(1) TO CURRENT-BLOCK-ID
+            IF CURRENT-BLOCK-ID > 0
+                INITIALIZE WORLD-SECTION-BLOCKS(CHUNK-INDEX, SECTION-INDEX) REPLACING NUMERIC BY CURRENT-BLOCK-ID
                 MOVE 4096 TO WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX)
             END-IF
-
-            *> Skip any remaining tags in the compound
-            CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
         ELSE
             *> Reset the state to the beginning of the block states compound, since "data" may come before "palette".
             *> We don't write NBT this way, but Minecraft does.
@@ -536,18 +523,24 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
             *> read packed long array
             CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER LONG-ARRAY-LENGTH
 
+            *> number of bits per block = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
+            COMPUTE INT32 = PALETTE-LENGTH - 1
+            CALL "LeadingZeros32" USING INT32 PALETTE-BITS
+            *> However, Minecraft uses a minimum of 4 bits
+            COMPUTE PALETTE-BITS = FUNCTION MAX(32 - PALETTE-BITS, 4)
+            DIVIDE 64 BY PALETTE-BITS GIVING BLOCKS-PER-LONG
+            COMPUTE PALETTE-BITS-POW = 2 ** PALETTE-BITS
+
             MOVE 1 TO BLOCK-INDEX
-            PERFORM VARYING LONG-ARRAY-INDEX FROM 1 BY 1 UNTIL LONG-ARRAY-INDEX > LONG-ARRAY-LENGTH
+            PERFORM LONG-ARRAY-LENGTH TIMES
                 CALL "NbtDecode-Long" USING NBT-DECODER-STATE NBT-BUFFER LONG-ARRAY-ENTRY-SIGNED
-                COMPUTE INT32 = FUNCTION MIN(BLOCKS-PER-LONG, 4096 - BLOCK-INDEX + 1)
-                PERFORM INT32 TIMES
-                    COMPUTE PALETTE-INDEX = FUNCTION MOD(LONG-ARRAY-ENTRY, 2 ** PALETTE-BITS) + 1
-                    MOVE BLOCK-STATE-IDS(PALETTE-INDEX) TO CURRENT-BLOCK-ID
+                PERFORM FUNCTION MIN(BLOCKS-PER-LONG, 4096 - BLOCK-INDEX + 1) TIMES
+                    DIVIDE LONG-ARRAY-ENTRY BY PALETTE-BITS-POW GIVING LONG-ARRAY-ENTRY REMAINDER PALETTE-INDEX
+                    MOVE BLOCK-STATE-IDS(PALETTE-INDEX + 1) TO CURRENT-BLOCK-ID
                     IF CURRENT-BLOCK-ID > 0
                         MOVE CURRENT-BLOCK-ID TO WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX)
                         ADD 1 TO WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX)
                     END-IF
-                    COMPUTE LONG-ARRAY-ENTRY = LONG-ARRAY-ENTRY / (2 ** PALETTE-BITS)
                     ADD 1 TO BLOCK-INDEX
                 END-PERFORM
             END-PERFORM
