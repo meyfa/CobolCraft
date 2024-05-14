@@ -1,5 +1,6 @@
 .idea
 *.so
+/out
 /cobolcraft
 /data
 /test

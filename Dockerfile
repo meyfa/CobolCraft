@@ -18,7 +18,7 @@ COPY src ./src
 COPY cpp ./cpp
 COPY CBL_GC_SOCKET ./CBL_GC_SOCKET
 COPY blobs ./blobs
-RUN make
+RUN make -j $(nproc)
 
 # --- Runtime stage ---
 FROM ubuntu:jammy
