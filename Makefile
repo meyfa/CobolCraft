@@ -6,7 +6,10 @@ SOCKET_LIB = CBL_GC_SOCKET.so
 UTIL_LIB = COBOLCRAFT_UTIL.so
 
 # Sources, copybooks, and binary
-SRC = main.cob $(wildcard src/*.cob src/*/*.cob)
+SRC = $(wildcard src/*.cob src/*/*.cob)
+MAIN_SRC = main.cob
+OBJECTS_DIR = out
+OBJECTS = $(patsubst src/%.cob, out/%.o, $(SRC))
 CPY_DIR = src/copybooks
 CPY = $(wildcard src/copybooks/*.cpy)
 BIN = cobolcraft
@@ -18,9 +21,22 @@ JSON_DATA = data/generated/reports/registries.json data/generated/reports/blocks
 TEST_SRC = test.cob $(wildcard tests/*.cob)
 TEST_BIN = test
 
-all: $(BIN) data
+.PHONY: all clean data run test
+
+all: $(BIN) $(SOCKET_LIB) $(UTIL_LIB) $(JSON_DATA)
+
+clean:
+	rm -rf $(OBJECTS_DIR)
+	rm -f $(BIN)
+	rm -f $(SOCKET_LIB)
+	rm -f $(UTIL_LIB)
+	rm -f $(TEST_BIN)
+	rm -f $(JSON_DATA)
 
 data: $(JSON_DATA)
+
+run: all
+	COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL ./$(BIN)
 
 $(SOCKET_LIB):
 	cd CBL_GC_SOCKET && ./build.sh
@@ -34,20 +50,13 @@ $(JSON_DATA):
 	curl -o data/server.jar https://piston-data.mojang.com/v1/objects/145ff0858209bcfc164859ba735d4199aafa1eea/server.jar
 	cd data && java -DbundlerMainClass="net.minecraft.data.Main" -jar server.jar --reports
 
-$(BIN): $(SOCKET_LIB) $(UTIL_LIB) $(SRC) $(CPY)
-	$(COBC) -x -O2 -debug -Wall -fnotrunc --free -lstdc++ -I $(CPY_DIR) -o $@ $(SRC)
+$(OBJECTS): out/%.o: src/%.cob $(CPY)
+	@mkdir -p $(@D)
+	$(COBC) -c -O2 -debug -Wall -fnotrunc --free -I $(CPY_DIR) -o $@ $<
 
-clean:
-	rm -f $(BIN)
-	rm -f $(SOCKET_LIB)
-	rm -f $(UTIL_LIB)
-	rm -f $(TEST_BIN)
-	rm -rf data/
+$(BIN): $(CPY) $(MAIN_SRC) $(OBJECTS)
+	$(COBC) -x -O2 -debug -Wall -fnotrunc --free -I $(CPY_DIR) -o $@ $(MAIN_SRC) $(OBJECTS)
 
-run: $(BIN) $(JSON_DATA)
-	COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL ./$(BIN)
-
-$(TEST_BIN): $(TEST_SRC) $(SRC) $(CPY) $(UTIL_LIB)
+test: $(TEST_SRC) $(SRC) $(CPY) $(UTIL_LIB)
 	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -I $(CPY_DIR) -o $@ $(TEST_SRC) $(SRC)
 	COB_PRE_LOAD=COBOLCRAFT_UTIL ./$(TEST_BIN)
-	rm -f $(TEST_BIN)
