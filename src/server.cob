@@ -1063,7 +1063,7 @@ HandlePlay SECTION.
             *> If the player is sneaking, we should execute the item's "use" callback instead of the block's
             *> "interact" callback - unless the item has no "use" callback.
             EVALUATE TRUE
-                WHEN PLAYER-SNEAKING(CLIENT-PLAYER(CLIENT-ID)) NOT = 0 AND CALLBACK-PTR-ITEM NOT = NULL
+                WHEN CALLBACK-PTR-ITEM NOT = NULL AND (CALLBACK-PTR-BLOCK = NULL OR PLAYER-SNEAKING(CLIENT-PLAYER(CLIENT-ID)) NOT = 0)
                     CALL CALLBACK-PTR-ITEM USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
                 WHEN CALLBACK-PTR-BLOCK NOT = NULL
                     CALL CALLBACK-PTR-BLOCK USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
