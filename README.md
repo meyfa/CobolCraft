@@ -29,6 +29,7 @@ Some are supported, however:
 - slabs (all variants)
 - rotated pillars, such as logs or basalt
 - buttons (non-interactive)
+- doors (including interaction)
 - trapdoors (including interaction)
 - beds
 
