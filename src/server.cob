@@ -141,6 +141,7 @@ RegisterItems.
     CALL "RegisterItem-Slab"
     CALL "RegisterItem-RotatedPillar"
     CALL "RegisterItem-Button"
+    CALL "RegisterItem-Door"
     CALL "RegisterItem-Trapdoor"
     CALL "RegisterItem-Bed"
     .
@@ -149,6 +150,7 @@ RegisterBlocks.
     DISPLAY "Registering blocks"
 
     *> Register blocks with special handling
+    CALL "RegisterBlock-Door"
     CALL "RegisterBlock-Trapdoor"
     .
 

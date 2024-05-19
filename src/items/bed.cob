@@ -15,7 +15,7 @@ WORKING-STORAGE SECTION.
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
 
-    *> Loop over all blocks and register the callback for each button
+    *> Loop over all blocks and register the callback for each bed
     CALL "Blocks-GetCount" USING BLOCK-COUNT
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
