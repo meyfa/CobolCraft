@@ -142,6 +142,7 @@ RegisterItems.
     CALL "RegisterItem-RotatedPillar"
     CALL "RegisterItem-Button"
     CALL "RegisterItem-Trapdoor"
+    CALL "RegisterItem-Bed"
     .
 
 RegisterBlocks.

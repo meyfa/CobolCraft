@@ -59,3 +59,35 @@ PROCEDURE DIVISION USING LK-FACING LK-STRING.
     GOBACK.
 
 END PROGRAM Facing-ToString.
+
+*> --- Facing-FromString ---
+*> Convert a string to a facing direction (enum value).
+*> Possible values: "down", "up", "north", "south", "west", "east".
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Facing-FromString.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-STRING        PIC X ANY LENGTH.
+    01 LK-FACING        BINARY-LONG.
+
+PROCEDURE DIVISION USING LK-STRING LK-FACING.
+    EVALUATE LK-STRING
+        WHEN "down"
+            MOVE 0 TO LK-FACING
+        WHEN "up"
+            MOVE 1 TO LK-FACING
+        WHEN "north"
+            MOVE 2 TO LK-FACING
+        WHEN "south"
+            MOVE 3 TO LK-FACING
+        WHEN "west"
+            MOVE 4 TO LK-FACING
+        WHEN "east"
+            MOVE 5 TO LK-FACING
+        WHEN OTHER
+            MOVE -1 TO LK-FACING
+    END-EVALUATE
+    GOBACK.
+
+END PROGRAM Facing-FromString.

@@ -55,6 +55,7 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX.
     INITIALIZE WORLD-CHUNK(LK-CHUNK-INDEX)
     MOVE LK-CHUNK-X TO WORLD-CHUNK-X(LK-CHUNK-INDEX)
     MOVE LK-CHUNK-Z TO WORLD-CHUNK-Z(LK-CHUNK-INDEX)
+    INITIALIZE WORLD-BLOCK-ENTITIES(LK-CHUNK-INDEX) REPLACING NUMERIC BY -1
     GOBACK.
 
 END PROGRAM World-AllocateChunk.
@@ -120,6 +121,7 @@ PROGRAM-ID. World-SaveChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 C-MINECRAFT-BLOCK_ENTITY_TYPE PIC X(32) VALUE "minecraft:block_entity_type".
     01 NBT-BUFFER               PIC X(1048576).
     01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
     01 CHUNK-SECTION-MIN-Y      BINARY-LONG             VALUE -4.
@@ -143,6 +145,10 @@ WORKING-STORAGE SECTION.
     01 LONG-ARRAY-MULTIPLIER    BINARY-LONG-LONG UNSIGNED.
     COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PALETTE-BLOCK==.
     01 PROPERTY-INDEX           BINARY-LONG UNSIGNED.
+    01 ENTITY-COUNT             BINARY-LONG UNSIGNED.
+    01 ENTITY-X                 BINARY-LONG.
+    01 ENTITY-Y                 BINARY-LONG.
+    01 ENTITY-Z                 BINARY-LONG.
     *> World data
     COPY DD-WORLD.
     *> A map of block state indices to palette indices
@@ -288,6 +294,62 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
     *> end chunk sections
     CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
 
+    *> start block entities
+    MOVE "block_entities" TO TAG-NAME
+    MOVE 14 TO NAME-LEN
+    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+
+    IF WORLD-BLOCK-ENTITY-COUNT(LK-CHUNK-INDEX) > 0
+        MOVE 1 TO BLOCK-INDEX
+        MOVE 0 TO ENTITY-COUNT
+        PERFORM 98304 TIMES
+            IF WORLD-BLOCK-ENTITY-ID(LK-CHUNK-INDEX, BLOCK-INDEX) >= 0
+                *> start block entity
+                CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER
+
+                *> id (registry: "minecraft:block_entity_type")
+                MOVE "id" TO TAG-NAME
+                MOVE 2 TO NAME-LEN
+                MOVE WORLD-BLOCK-ENTITY-ID(LK-CHUNK-INDEX, BLOCK-INDEX) TO INT32
+                CALL "Registries-Get-EntryName" USING C-MINECRAFT-BLOCK_ENTITY_TYPE INT32 STR
+                MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
+                CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
+
+                *> x, y, z
+                SUBTRACT 1 FROM BLOCK-INDEX GIVING INT32
+                DIVIDE INT32 BY 16 GIVING INT32 REMAINDER ENTITY-X
+                DIVIDE INT32 BY 16 GIVING INT32 REMAINDER ENTITY-Z
+                SUBTRACT 64 FROM INT32 GIVING ENTITY-Y
+                *> x and z are in the world coordinate system
+                COMPUTE ENTITY-X = ENTITY-X + WORLD-CHUNK-X(LK-CHUNK-INDEX) * 16
+                COMPUTE ENTITY-Z = ENTITY-Z + WORLD-CHUNK-Z(LK-CHUNK-INDEX) * 16
+                *> store the coordinates
+                MOVE 1 TO NAME-LEN
+                MOVE "x" TO TAG-NAME
+                CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN ENTITY-X
+                MOVE "y" TO TAG-NAME
+                CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN ENTITY-Y
+                MOVE "z" TO TAG-NAME
+                CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN ENTITY-Z
+
+                *> TODO: write the block entity-specific data
+
+                *> end block entity
+                CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+
+                *> stop the loop once all block entities have been written
+                ADD 1 TO ENTITY-COUNT
+                IF ENTITY-COUNT >= WORLD-BLOCK-ENTITY-COUNT(LK-CHUNK-INDEX)
+                    EXIT PERFORM
+                END-IF
+            END-IF
+            ADD 1 TO BLOCK-INDEX
+        END-PERFORM
+    END-IF
+
+    *> end block entities
+    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+
     *> end root tag
     CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
 
@@ -310,6 +372,7 @@ PROGRAM-ID. World-LoadChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 C-MINECRAFT-BLOCK_ENTITY_TYPE PIC X(32) VALUE "minecraft:block_entity_type".
     01 NBT-BUFFER               PIC X(1048576).
     01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
     *> Temporary variables
@@ -343,6 +406,12 @@ WORKING-STORAGE SECTION.
     COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PALETTE-BLOCK==.
     *> A map of palette indices to block state IDs
     01 BLOCK-STATE-IDS          BINARY-SHORT UNSIGNED OCCURS 4096 TIMES.
+    *> block entity data
+    01 ENTITY-COUNT             BINARY-LONG UNSIGNED.
+    01 ENTITY-ID                BINARY-LONG.
+    01 ENTITY-X                 BINARY-LONG.
+    01 ENTITY-Y                 BINARY-LONG.
+    01 ENTITY-Z                 BINARY-LONG.
     *> World data
     COPY DD-WORLD.
 LOCAL-STORAGE SECTION.
@@ -549,6 +618,42 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
 
     *> end sections
     CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
+
+    *> Skip to the block entities
+    *> TODO: make this position-independent
+    MOVE "block_entities" TO EXPECTED-TAG
+    CALL "SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER EXPECTED-TAG AT-END
+    IF AT-END = 0
+        CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-COUNT
+        MOVE ENTITY-COUNT TO WORLD-BLOCK-ENTITY-COUNT(CHUNK-INDEX)
+        PERFORM ENTITY-COUNT TIMES
+            CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
+            PERFORM UNTIL EXIT
+                CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
+                IF AT-END > 0
+                    EXIT PERFORM
+                END-IF
+                EVALUATE TAG-NAME(1:NAME-LEN)
+                    WHEN "id"
+                        CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
+                        CALL "Registries-Get-EntryId" USING C-MINECRAFT-BLOCK_ENTITY_TYPE STR(1:STR-LEN) ENTITY-ID
+                    WHEN "x"
+                        CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-X
+                    WHEN "y"
+                        CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-Y
+                    WHEN "z"
+                        CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-Z
+                    WHEN OTHER
+                        CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
+                END-EVALUATE
+            END-PERFORM
+            *> convert to chunk-relative coordinates
+            COMPUTE INT32 = FUNCTION MOD(ENTITY-X, 16) + 16 * (FUNCTION MOD(ENTITY-Z, 16) + 16 * (ENTITY-Y + 64)) + 1
+            MOVE ENTITY-ID TO WORLD-BLOCK-ENTITY-ID(CHUNK-INDEX, INT32)
+            CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+        END-PERFORM
+        CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
+    END-IF
 
     *> end root tag
     CALL "SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
@@ -1011,8 +1116,10 @@ WORKING-STORAGE SECTION.
     01 CHUNK-Z              BINARY-LONG.
     01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
     01 SECTION-INDEX        BINARY-LONG UNSIGNED.
+    01 BLOCK-IN-CHUNK-INDEX BINARY-LONG UNSIGNED.
     01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
     01 PREVIOUS-BLOCK-ID    BINARY-LONG UNSIGNED.
+    01 IS-SAME-BLOCK-TYPE   BINARY-CHAR UNSIGNED.
     01 CLIENT-ID            BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     *> The client that performed the action, to avoid playing sounds/particles for them
@@ -1024,7 +1131,7 @@ LINKAGE SECTION.
     01 LK-BLOCK-ID          BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-BLOCK-ID.
-    *> find the chunk, section, and block indices
+    *> Find the chunk, section, and block indices
     DIVIDE LK-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
     DIVIDE LK-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
     CALL "World-FindChunkIndex" USING CHUNK-X CHUNK-Z CHUNK-INDEX
@@ -1034,13 +1141,13 @@ PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-BLOCK-ID.
     COMPUTE SECTION-INDEX = (LK-Y + 64) / 16 + 1
     COMPUTE BLOCK-INDEX = ((FUNCTION MOD(LK-Y + 64, 16)) * 16 + (FUNCTION MOD(LK-Z, 16))) * 16 + (FUNCTION MOD(LK-X, 16)) + 1
 
-    *> skip if identical to the current block
+    *> Skip if identical to the current block
     MOVE WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX) TO PREVIOUS-BLOCK-ID
     IF PREVIOUS-BLOCK-ID = LK-BLOCK-ID
         GOBACK
     END-IF
 
-    *> check whether the block is becoming air or non-air
+    *> Check whether the block is becoming air or non-air
     EVALUATE TRUE
         WHEN LK-BLOCK-ID = 0
             SUBTRACT 1 FROM WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX)
@@ -1048,11 +1155,23 @@ PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-BLOCK-ID.
             ADD 1 TO WORLD-SECTION-NON-AIR(CHUNK-INDEX, SECTION-INDEX)
     END-EVALUATE
 
-    *> set the block and mark the chunk as dirty
+    *> Set the block and mark the chunk as dirty
     MOVE LK-BLOCK-ID TO WORLD-BLOCK-ID(CHUNK-INDEX, SECTION-INDEX, BLOCK-INDEX)
     MOVE 1 TO WORLD-CHUNK-DIRTY(CHUNK-INDEX)
 
-    *> notify clients
+    *> If the block is changing to a different type (not just state), remove any block entity
+    IF PREVIOUS-BLOCK-ID NOT = 0
+        CALL "Blocks-CompareBlockType" USING PREVIOUS-BLOCK-ID LK-BLOCK-ID IS-SAME-BLOCK-TYPE
+        IF IS-SAME-BLOCK-TYPE = 0
+            COMPUTE BLOCK-IN-CHUNK-INDEX = ((LK-Y + 64) * 16 + (FUNCTION MOD(LK-Z, 16))) * 16 + (FUNCTION MOD(LK-X, 16)) + 1
+            IF WORLD-BLOCK-ENTITY-ID(CHUNK-INDEX, BLOCK-IN-CHUNK-INDEX) >= 0
+                MOVE -1 TO WORLD-BLOCK-ENTITY-ID(CHUNK-INDEX, BLOCK-IN-CHUNK-INDEX)
+                SUBTRACT 1 FROM WORLD-BLOCK-ENTITY-COUNT(CHUNK-INDEX)
+            END-IF
+        END-IF
+    END-IF
+
+    *> Notify clients
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
             CALL "SendPacket-BlockUpdate" USING CLIENT-ID LK-POSITION LK-BLOCK-ID
@@ -1066,6 +1185,60 @@ PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-BLOCK-ID.
     GOBACK.
 
 END PROGRAM World-SetBlock.
+
+*> --- World-SetBlockEntity ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-SetBlockEntity.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-WORLD.
+    COPY DD-CLIENT-STATES.
+    COPY DD-CLIENTS.
+    01 CHUNK-X              BINARY-LONG.
+    01 CHUNK-Z              BINARY-LONG.
+    01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
+    01 BLOCK-IN-CHUNK-INDEX BINARY-LONG UNSIGNED.
+    01 CLIENT-ID            BINARY-LONG UNSIGNED.
+    *> TODO support entity data
+    *> Currently, only block entities without any data (= empty compound tag) are supported.
+    01 ENTITY-DATA          PIC X(2)                        VALUE X"0A00".
+    01 ENTITY-DATA-LENGTH   BINARY-LONG UNSIGNED            VALUE 2.
+LINKAGE SECTION.
+    01 LK-POSITION.
+        02 LK-X                 BINARY-LONG.
+        02 LK-Y                 BINARY-LONG.
+        02 LK-Z                 BINARY-LONG.
+    01 LK-BLOCK-ENTITY-ID   BINARY-LONG.
+
+PROCEDURE DIVISION USING LK-POSITION LK-BLOCK-ENTITY-ID.
+    *> Find the chunk and block indices
+    DIVIDE LK-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
+    DIVIDE LK-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
+    CALL "World-FindChunkIndex" USING CHUNK-X CHUNK-Z CHUNK-INDEX
+    IF CHUNK-INDEX = 0
+        GOBACK
+    END-IF
+    COMPUTE BLOCK-IN-CHUNK-INDEX = ((LK-Y + 64) * 16 + (FUNCTION MOD(LK-Z, 16))) * 16 + (FUNCTION MOD(LK-X, 16)) + 1
+
+    IF WORLD-BLOCK-ENTITY-ID(CHUNK-INDEX, BLOCK-IN-CHUNK-INDEX) >= 0
+        SUBTRACT 1 FROM WORLD-BLOCK-ENTITY-COUNT(CHUNK-INDEX)
+    END-IF
+
+    *> Set the block entity ID
+    MOVE LK-BLOCK-ENTITY-ID TO WORLD-BLOCK-ENTITY-ID(CHUNK-INDEX, BLOCK-IN-CHUNK-INDEX)
+    ADD 1 TO WORLD-BLOCK-ENTITY-COUNT(CHUNK-INDEX)
+
+    *> Notify clients
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+        IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
+            CALL "SendPacket-BlockEntityData" USING CLIENT-ID LK-POSITION LK-BLOCK-ENTITY-ID ENTITY-DATA ENTITY-DATA-LENGTH
+        END-IF
+    END-PERFORM
+
+    GOBACK.
+
+END PROGRAM World-SetBlockEntity.
 
 *> --- World-GetAge ---
 IDENTIFICATION DIVISION.
