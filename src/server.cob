@@ -140,6 +140,7 @@ RegisterItems.
     CALL "RegisterItem-Slab"
     CALL "RegisterItem-RotatedPillar"
     CALL "RegisterItem-Button"
+    CALL "RegisterItem-Trapdoor"
     .
 
 GenerateWorld.
