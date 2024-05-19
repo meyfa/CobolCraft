@@ -21,9 +21,16 @@ The following features are already working:
 - [X] commands (in-game and via an interactive console)
 - [X] whitelist (single player, edit `main.cob` to enable/set username)
 
-Note that blocks with multiple states and/or orientations require large amounts of specialized code to make them
-behave properly, which is way beyond the scope of this project.
-Some are supported, however (currently: torches, slabs, rotated pillars such as logs or basalt, buttons, trapdoors).
+Note that blocks with multiple states, orientations, or interactive blocks require large amounts of specialized code
+to make them behave properly, which is way beyond the scope of this project.
+Some are supported, however:
+
+- torches (all variants)
+- slabs (all variants)
+- rotated pillars, such as logs or basalt
+- buttons (non-interactive)
+- trapdoors (including interaction)
+- beds
 
 ## How-to
 

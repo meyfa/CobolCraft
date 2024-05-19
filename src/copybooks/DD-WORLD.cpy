@@ -19,3 +19,9 @@
             04 WORLD-SECTION-BLOCKS.
                 05 WORLD-BLOCK OCCURS 4096 TIMES.
                     06 WORLD-BLOCK-ID           BINARY-LONG UNSIGNED.
+        03 WORLD-BLOCK-ENTITY-COUNT BINARY-LONG UNSIGNED.
+        *> block entity IDs for each block
+        03 WORLD-BLOCK-ENTITIES.
+            *> set to a value < 0 to indicate no entity (since 0 is a valid ID)
+            *> TODO: support storing entity data, not just IDs
+            04 WORLD-BLOCK-ENTITY-ID OCCURS 98304 TIMES BINARY-CHAR.

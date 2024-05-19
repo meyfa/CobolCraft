@@ -10,10 +10,16 @@ WORKING-STORAGE SECTION.
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
     01 PAYLOADLEN       BINARY-LONG UNSIGNED.
     *> temporary data
+    01 UINT8            BINARY-CHAR UNSIGNED.
+    01 INT16            BINARY-SHORT.
     01 INT32            BINARY-LONG.
     01 CHUNK-SEC        BINARY-LONG UNSIGNED.
     01 CHUNK-DATA       PIC X(256000).
     01 CHUNK-DATA-POS   BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX      BINARY-LONG UNSIGNED.
+    01 ENTITY-COUNT     BINARY-LONG UNSIGNED.
+    01 BLOCK-X          BINARY-CHAR UNSIGNED.
+    01 BLOCK-Z          BINARY-CHAR UNSIGNED.
 LINKAGE SECTION.
     01 LK-CLIENT        BINARY-LONG UNSIGNED.
     01 LK-CHUNK.
@@ -26,6 +32,11 @@ LINKAGE SECTION.
             *> block IDs (16x16x16) - X increases fastest, then Z, then Y
             03 LK-BLOCK OCCURS 4096 TIMES.
                 04 LK-BLOCK-ID      BINARY-LONG UNSIGNED.
+        02 LK-CHUNK-BLOCK-ENTITY-COUNT BINARY-LONG UNSIGNED.
+        *> block entity IDs for each block
+        02 LK-CHUNK-BLOCK-ENTITIES.
+            *> a value < 0 indicates no entity
+            03 LK-CHUNK-BLOCK-ENTITY-ID OCCURS 98304 TIMES BINARY-CHAR.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
     MOVE 1 TO PAYLOADPOS
@@ -52,11 +63,43 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
     MOVE CHUNK-DATA(1:INT32) TO PAYLOAD(PAYLOADPOS:INT32)
     ADD INT32 TO PAYLOADPOS
 
-    *> number of block entities
-    MOVE 0 TO INT32
-    CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
+    *> block entities prefixed by count
+    CALL "Encode-VarInt" USING LK-CHUNK-BLOCK-ENTITY-COUNT PAYLOAD PAYLOADPOS
+    IF LK-CHUNK-BLOCK-ENTITY-COUNT > 0
+        MOVE 1 TO BLOCK-INDEX
+        MOVE 0 TO ENTITY-COUNT
+        PERFORM 98304 TIMES
+            IF LK-CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) >= 0
+                *> packed XZ coordinates: (X << 4) | Z
+                SUBTRACT 1 FROM BLOCK-INDEX GIVING INT32
+                DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-X
+                DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-Z
+                COMPUTE UINT8 = BLOCK-X * 16 + BLOCK-Z
+                MOVE FUNCTION CHAR(UINT8 + 1) TO PAYLOAD(PAYLOADPOS:1)
+                ADD 1 TO PAYLOADPOS
 
-    *> block entities
+                *> Y coordinate
+                COMPUTE INT16 = INT32 - 64
+                CALL "Encode-Short" USING INT16 PAYLOAD PAYLOADPOS
+
+                *> block entity type
+                MOVE LK-CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) TO INT32
+                CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
+
+                *> block entity NBT - send an empty compound tag for now
+                *> TODO: implement block entity NBT
+                MOVE X"0a00" TO PAYLOAD(PAYLOADPOS:2)
+                ADD 2 TO PAYLOADPOS
+
+                *> stop the loop once all entities have been sent
+                ADD 1 TO ENTITY-COUNT
+                IF ENTITY-COUNT >= LK-CHUNK-BLOCK-ENTITY-COUNT
+                    EXIT PERFORM
+                END-IF
+            END-IF
+            ADD 1 TO BLOCK-INDEX
+        END-PERFORM
+    END-IF
 
     *> sky light mask
     *> Note: Each 16x16x16 section needs a bit + 1 below the chunk + 1 above the chunk => 26 bits => 1 long.
