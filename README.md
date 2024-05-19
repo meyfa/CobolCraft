@@ -15,6 +15,7 @@ The following features are already working:
 - [X] multiplayer (up to 10 concurrent players)
 - [X] ping/server status (i.e., show as online in the server list)
 - [X] breaking and placing blocks
+- [X] block interaction (right-clicking, e.g., to open trapdoors)
 - [X] player inventory (limited to creative mode)
 - [X] chat
 - [X] commands (in-game and via an interactive console)
@@ -32,7 +33,7 @@ However, it is possible to use Docker for a platform-independent deployment.
 
 To deploy on Linux, make sure all prerequisites are installed:
 
-* `cobc` (e.g. from the `gnucobol` APT package on Debian)
+* `cobc` (e.g., from the `gnucobol` APT package on Debian)
 * `make`
 * `g++`
 * `zlib` (e.g. `zlib1g-dev` on Debian)
