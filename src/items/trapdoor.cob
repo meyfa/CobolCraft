@@ -1,0 +1,111 @@
+*> --- RegisterItem-Trapdoor ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. RegisterItem-Trapdoor.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 C-MINECRAFT-AIR                  PIC X(32) GLOBAL    VALUE "minecraft:air".
+    01 C-MINECRAFT-TRAPDOOR             PIC X(32) GLOBAL    VALUE "minecraft:trapdoor".
+    01 USE-PTR                          PROGRAM-POINTER.
+    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
+    01 BLOCK-NAME                       PIC X(64).
+    01 BLOCK-TYPE                       PIC X(64).
+
+PROCEDURE DIVISION.
+    SET USE-PTR TO ENTRY "Callback-Use"
+
+    *> Loop over all blocks and register the callback for each trapdoor
+    CALL "Blocks-GetCount" USING BLOCK-COUNT
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
+        CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
+        IF BLOCK-TYPE = C-MINECRAFT-TRAPDOOR
+            CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
+            CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
+        END-IF
+    END-PERFORM
+
+    GOBACK.
+
+    *> --- Callback-Use ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-Use.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
+        *> Block state description for the block to place.
+        COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PLACE==.
+        01 BLOCK-POSITION.
+            02 BLOCK-X              BINARY-LONG.
+            02 BLOCK-Y              BINARY-LONG.
+            02 BLOCK-Z              BINARY-LONG.
+        01 FACING                   PIC X(16).
+        01 BOUNDS-CHECK             BINARY-CHAR UNSIGNED.
+        01 BLOCK-ID                 BINARY-LONG.
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-ITEM-USE.
+
+    PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
+        MOVE LK-ITEM-NAME TO PLACE-NAME
+
+        MOVE 5 TO PLACE-PROPERTY-COUNT
+        *> facing, half: filled in depending on click position
+        MOVE "half" TO PLACE-PROPERTY-NAME(1)
+        MOVE "facing" TO PLACE-PROPERTY-NAME(2)
+        *> open, powered, waterlogged: default to false
+        MOVE "open" TO PLACE-PROPERTY-NAME(3)
+        MOVE "false" TO PLACE-PROPERTY-VALUE(3)
+        MOVE "powered" TO PLACE-PROPERTY-NAME(4)
+        MOVE "false" TO PLACE-PROPERTY-VALUE(4)
+        MOVE "waterlogged" TO PLACE-PROPERTY-NAME(5)
+        MOVE "false" TO PLACE-PROPERTY-VALUE(5)
+
+        CALL "Facing-ToString" USING LK-FACE FACING
+        EVALUATE FACING
+            WHEN "up"
+                MOVE "bottom" TO PLACE-PROPERTY-VALUE(1)
+            WHEN "down"
+                MOVE "top" TO PLACE-PROPERTY-VALUE(1)
+            WHEN OTHER
+                IF LK-CURSOR-Y > 0.5
+                    MOVE "top" TO PLACE-PROPERTY-VALUE(1)
+                ELSE
+                    MOVE "bottom" TO PLACE-PROPERTY-VALUE(1)
+                END-IF
+        END-EVALUATE
+
+        *> The trapdoor should be placed next to the clicked block
+        MOVE LK-POSITION TO BLOCK-POSITION
+        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
+        CALL "World-CheckBounds" USING BLOCK-POSITION BOUNDS-CHECK
+        IF BOUNDS-CHECK NOT = 0
+            GOBACK
+        END-IF
+
+        *> Use the player's yaw to determine the facing
+        EVALUATE FUNCTION MOD(PLAYER-YAW(LK-PLAYER) + 45, 360)
+            WHEN < 90
+                MOVE "north" TO PLACE-PROPERTY-VALUE(2)
+            WHEN < 180
+                MOVE "east" TO PLACE-PROPERTY-VALUE(2)
+            WHEN < 270
+                MOVE "south" TO PLACE-PROPERTY-VALUE(2)
+            WHEN OTHER
+                MOVE "west" TO PLACE-PROPERTY-VALUE(2)
+        END-EVALUATE
+
+        *> Ensure the block was previously air
+        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
+        IF BLOCK-ID NOT = 0
+            GOBACK
+        END-IF
+
+        CALL "Blocks-Get-StateId" USING PLACE-DESCRIPTION BLOCK-ID
+        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+
+        GOBACK.
+
+    END PROGRAM Callback-Use.
+
+END PROGRAM RegisterItem-Trapdoor.
