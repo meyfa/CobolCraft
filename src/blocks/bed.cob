@@ -6,6 +6,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 C-MINECRAFT-BED                  PIC X(32) GLOBAL    VALUE "minecraft:bed".
     01 DESTROY-PTR                      PROGRAM-POINTER.
+    01 FACE-PTR                         PROGRAM-POINTER.
     01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
     01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
     01 BLOCK-TYPE                       PIC X(64).
@@ -15,6 +16,7 @@ WORKING-STORAGE SECTION.
 
 PROCEDURE DIVISION.
     SET DESTROY-PTR TO ENTRY "Callback-Destroy"
+    SET FACE-PTR TO ENTRY "Callback-Face"
 
     *> Loop over all blocks and register the callback for each matching block type
     CALL "Blocks-GetCount" USING BLOCK-COUNT
@@ -24,6 +26,7 @@ PROCEDURE DIVISION.
             CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
             PERFORM VARYING STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL STATE-ID > BLOCK-MAXIMUM-STATE-ID
                 CALL "SetCallback-BlockDestroy" USING STATE-ID DESTROY-PTR
+                CALL "SetCallback-BlockFace" USING STATE-ID FACE-PTR
             END-PERFORM
         END-IF
     END-PERFORM
@@ -105,5 +108,20 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Callback-Destroy.
+
+    *> --- Callback-Face ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-Face.
+
+    DATA DIVISION.
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-BLOCK-FACE.
+
+    PROCEDURE DIVISION USING LK-BLOCK-STATE LK-FACE LK-RESULT.
+        *> Beds have no solid faces.
+        MOVE 0 TO LK-RESULT
+        GOBACK.
+
+    END PROGRAM Callback-Face.
 
 END PROGRAM RegisterBlock-Bed.
