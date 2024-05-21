@@ -78,6 +78,12 @@ WORKING-STORAGE SECTION.
     01 REGISTRY-LENGTH              BINARY-LONG UNSIGNED.
     01 REGISTRY-ENTRY-INDEX         BINARY-LONG UNSIGNED.
     01 REGISTRY-ENTRY-NAME          PIC X(100).
+    *> Variables used for block registration
+    01 BLOCK-COUNT                  BINARY-LONG.
+    01 BLOCK-INDEX                  BINARY-LONG.
+    01 BLOCK-MINIMUM-STATE-ID       BINARY-LONG.
+    01 BLOCK-MAXIMUM-STATE-ID       BINARY-LONG.
+    01 BLOCK-STATE-ID               BINARY-LONG.
     *> TODO: remove need to access world data directly in this file
     COPY DD-WORLD.
 
@@ -149,9 +155,19 @@ RegisterItems.
 RegisterBlocks.
     DISPLAY "Registering blocks"
 
+    *> Register generic handlers for every block state
+    CALL "Blocks-GetCount" USING BLOCK-COUNT
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
+        CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
+        PERFORM VARYING BLOCK-STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL BLOCK-STATE-ID > BLOCK-MAXIMUM-STATE-ID
+            CALL "RegisterBlock-Generic" USING BLOCK-STATE-ID
+        END-PERFORM
+    END-PERFORM
+
     *> Register blocks with special handling
     CALL "RegisterBlock-Door"
     CALL "RegisterBlock-Trapdoor"
+    CALL "RegisterBlock-Bed"
     .
 
 GenerateWorld.
@@ -948,16 +964,22 @@ HandlePlay SECTION.
                 *> started digging
                 WHEN TEMP-INT32 = 0
                     *> face (ignored)
-                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-BLOCK-FACE
                     *> sequence ID
                     CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION SEQUENCE-ID
-                    *> update the block (if inside the world bounds)
+
+                    *> Check the position validity
                     CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
                     IF TEMP-INT8 = 0
-                        MOVE 0 TO TEMP-INT32
-                        CALL "World-SetBlock" USING CLIENT-ID TEMP-POSITION TEMP-INT32
+                        *> Call the block's destroy handler
+                        CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
+                        CALL "GetCallback-BlockDestroy" USING TEMP-INT32 CALLBACK-PTR-BLOCK
+                        IF CALLBACK-PTR-BLOCK NOT = NULL
+                            CALL CALLBACK-PTR-BLOCK USING CLIENT-PLAYER(CLIENT-ID) TEMP-POSITION TEMP-BLOCK-FACE
+                        END-IF
                     END-IF
-                    *> acknowledge the action
+
+                    *> Acknowledge the action
                     CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
             END-EVALUATE
 
