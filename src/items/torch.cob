@@ -25,7 +25,7 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        COPY DD-PLAYERS.
+        01 FACING-UP                PIC X(4) GLOBAL         VALUE "up".
         *> Block state description for the wall torch variant.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==WALL_TORCH==.
         01 BLOCK-POSITION.
@@ -35,6 +35,13 @@ PROCEDURE DIVISION.
         01 FACING                   PIC X(5).
         01 BOUNDS-CHECK             BINARY-CHAR UNSIGNED.
         01 BLOCK-ID                 BINARY-LONG.
+        01 TARGET-BLOCK-POSITION.
+            02 TARGET-BLOCK-X       BINARY-LONG.
+            02 TARGET-BLOCK-Y       BINARY-LONG.
+            02 TARGET-BLOCK-Z       BINARY-LONG.
+        01 FACE-CALLBACK            PROGRAM-POINTER.
+        01 BLOCK-FACE               BINARY-CHAR UNSIGNED.
+        COPY DD-PLAYERS.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
@@ -58,13 +65,43 @@ PROCEDURE DIVISION.
             GOBACK
         END-IF
 
-        *> TODO: check for solid block where the torch will be placed
+        *> TODO change torch facing if not legal (missing solid block) while another facing would be legal
 
         IF FACING = "up" OR FACING = "down"
+            *> Check for solid block below
+            MOVE BLOCK-POSITION TO TARGET-BLOCK-POSITION
+            SUBTRACT 1 FROM TARGET-BLOCK-Y
+            CALL "World-GetBlock" USING TARGET-BLOCK-POSITION BLOCK-ID
+            CALL "GetCallback-BlockFace" USING BLOCK-ID FACE-CALLBACK
+            CALL FACE-CALLBACK USING BLOCK-ID FACING-UP BLOCK-FACE
+            IF BLOCK-FACE = 0
+                GOBACK
+            END-IF
+
+            *> Place the torch
             CALL "Blocks-Get-DefaultStateId" USING LK-ITEM-NAME BLOCK-ID
             CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
         ELSE
-            *> use the correct wall torch type
+            *> Check for solid block where the torch would attach
+            MOVE BLOCK-POSITION TO TARGET-BLOCK-POSITION
+            EVALUATE FACING
+                WHEN "north"
+                    ADD 1 TO TARGET-BLOCK-Z
+                WHEN "south"
+                    SUBTRACT 1 FROM TARGET-BLOCK-Z
+                WHEN "east"
+                    SUBTRACT 1 FROM TARGET-BLOCK-X
+                WHEN "west"
+                    ADD 1 TO TARGET-BLOCK-X
+            END-EVALUATE
+            CALL "World-GetBlock" USING TARGET-BLOCK-POSITION BLOCK-ID
+            CALL "GetCallback-BlockFace" USING BLOCK-ID FACE-CALLBACK
+            CALL FACE-CALLBACK USING BLOCK-ID FACING BLOCK-FACE
+            IF BLOCK-FACE = 0
+                GOBACK
+            END-IF
+
+            *> Use the correct wall torch type
             EVALUATE LK-ITEM-NAME
                 WHEN C-MINECRAFT-TORCH
                     MOVE C-MINECRAFT-WALL_TORCH TO WALL_TORCH-NAME

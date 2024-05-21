@@ -165,6 +165,9 @@ RegisterBlocks.
     END-PERFORM
 
     *> Register blocks with special handling
+    CALL "RegisterBlock-Air"
+    CALL "RegisterBlock-Torch"
+    CALL "RegisterBlock-Slab"
     CALL "RegisterBlock-Door"
     CALL "RegisterBlock-Trapdoor"
     CALL "RegisterBlock-Bed"

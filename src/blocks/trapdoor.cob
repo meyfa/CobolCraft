@@ -6,6 +6,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 C-MINECRAFT-TRAPDOOR             PIC X(32) GLOBAL    VALUE "minecraft:trapdoor".
     01 INTERACT-PTR                     PROGRAM-POINTER.
+    01 FACE-PTR                         PROGRAM-POINTER.
     01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
     01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
     01 BLOCK-TYPE                       PIC X(64).
@@ -15,6 +16,7 @@ WORKING-STORAGE SECTION.
 
 PROCEDURE DIVISION.
     SET INTERACT-PTR TO ENTRY "Callback-Interact"
+    SET FACE-PTR TO ENTRY "Callback-Face"
 
     *> Loop over all blocks and register the callback for each matching block type
     CALL "Blocks-GetCount" USING BLOCK-COUNT
@@ -25,6 +27,7 @@ PROCEDURE DIVISION.
             CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
             PERFORM VARYING STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL STATE-ID > BLOCK-MAXIMUM-STATE-ID
                 CALL "SetCallback-BlockInteract" USING STATE-ID INTERACT-PTR
+                CALL "SetCallback-BlockFace" USING STATE-ID FACE-PTR
             END-PERFORM
         END-IF
     END-PERFORM
@@ -66,5 +69,44 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Callback-Interact.
+
+    *> --- Callback-Face ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-Face.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 C-OPEN                   PIC X(4)                VALUE "open".
+        01 C-HALF                   PIC X(4)                VALUE "half".
+        COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==BLOCK==.
+        01 PROPERTY-VALUE           PIC X(16).
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-BLOCK-FACE.
+
+    PROCEDURE DIVISION USING LK-BLOCK-STATE LK-FACE LK-RESULT.
+        *> Contrary to doors, trapdoors have solid faces that depend on the orientation and open state.
+        CALL "Blocks-Get-StateDescription" USING LK-BLOCK-STATE BLOCK-DESCRIPTION
+
+        *> Open trapdoors have no solid face
+        CALL "Blocks-Description-GetValue" USING BLOCK-DESCRIPTION C-OPEN PROPERTY-VALUE
+        IF PROPERTY-VALUE = "true"
+            MOVE 0 TO LK-RESULT
+            GOBACK
+        END-IF
+
+        *> Closed trapdoors have a solid face depending on whether they are placed on the top or bottom of a block
+        CALL "Blocks-Description-GetValue" USING BLOCK-DESCRIPTION C-HALF PROPERTY-VALUE
+        EVALUATE PROPERTY-VALUE ALSO LK-FACE
+            WHEN "top" ALSO "up"
+                MOVE 1 TO LK-RESULT
+            WHEN "bottom" ALSO "down"
+                MOVE 1 TO LK-RESULT
+            WHEN OTHER
+                MOVE 0 TO LK-RESULT
+        END-EVALUATE
+
+        GOBACK.
+
+    END PROGRAM Callback-Face.
 
 END PROGRAM RegisterBlock-Trapdoor.
