@@ -5,7 +5,7 @@ PROGRAM-ID. RegisterBlock-Trapdoor.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 C-MINECRAFT-TRAPDOOR             PIC X(32) GLOBAL    VALUE "minecraft:trapdoor".
-    01 USE-PTR                          PROGRAM-POINTER.
+    01 INTERACT-PTR                     PROGRAM-POINTER.
     01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
     01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
     01 BLOCK-TYPE                       PIC X(64).
@@ -14,9 +14,9 @@ WORKING-STORAGE SECTION.
     01 STATE-ID                         BINARY-LONG.
 
 PROCEDURE DIVISION.
-    SET USE-PTR TO ENTRY "Callback-Interact"
+    SET INTERACT-PTR TO ENTRY "Callback-Interact"
 
-    *> Loop over all blocks and register the callback for each trapdoor
+    *> Loop over all blocks and register the callback for each matching block type
     CALL "Blocks-GetCount" USING BLOCK-COUNT
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
@@ -24,7 +24,7 @@ PROCEDURE DIVISION.
         IF BLOCK-TYPE = C-MINECRAFT-TRAPDOOR
             CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
             PERFORM VARYING STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL STATE-ID > BLOCK-MAXIMUM-STATE-ID
-                CALL "SetCallback-BlockInteract" USING STATE-ID USE-PTR
+                CALL "SetCallback-BlockInteract" USING STATE-ID INTERACT-PTR
             END-PERFORM
         END-IF
     END-PERFORM

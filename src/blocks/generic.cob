@@ -1,0 +1,34 @@
+*> --- RegisterBlock-Generic ---
+*> Register handlers for a generic block.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. RegisterBlock-Generic.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 DESTROY-PTR                  PROGRAM-POINTER.
+LINKAGE SECTION.
+    01 LK-BLOCK-STATE-ID            BINARY-LONG.
+
+PROCEDURE DIVISION USING LK-BLOCK-STATE-ID.
+    SET DESTROY-PTR TO ENTRY "Callback-Destroy"
+    CALL "SetCallback-BlockDestroy" USING LK-BLOCK-STATE-ID DESTROY-PTR
+    GOBACK.
+
+    *> --- Callback-Destroy ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-Destroy.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 AIR-BLOCK-STATE          BINARY-LONG             VALUE 0.
+        COPY DD-PLAYERS.
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-BLOCK-DESTROY.
+
+    PROCEDURE DIVISION USING LK-PLAYER LK-POSITION LK-FACE.
+        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) LK-POSITION AIR-BLOCK-STATE
+        GOBACK.
+
+    END PROGRAM Callback-Destroy.
+
+END PROGRAM RegisterBlock-Generic.

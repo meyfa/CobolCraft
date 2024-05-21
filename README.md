@@ -15,7 +15,7 @@ The following features are already working:
 - [X] multiplayer (up to 10 concurrent players)
 - [X] ping/server status (i.e., show as online in the server list)
 - [X] breaking and placing blocks
-- [X] block interaction (right-clicking, e.g., to open trapdoors)
+- [X] block interaction (right-clicking, e.g., to open doors)
 - [X] player inventory (limited to creative mode)
 - [X] chat
 - [X] commands (in-game and via an interactive console)
