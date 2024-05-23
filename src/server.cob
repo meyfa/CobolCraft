@@ -151,6 +151,9 @@ RegisterItems.
     CALL "RegisterItem-Door"
     CALL "RegisterItem-Trapdoor"
     CALL "RegisterItem-Bed"
+    CALL "RegisterItem-Bucket"
+    CALL "RegisterItem-WaterBucket"
+    CALL "RegisterItem-LavaBucket"
     .
 
 RegisterBlocks.
@@ -1098,6 +1101,33 @@ HandlePlay SECTION.
                 WHEN CALLBACK-PTR-BLOCK NOT = NULL
                     CALL CALLBACK-PTR-BLOCK USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
             END-EVALUATE
+
+            *> Acknowledge the action
+            CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
+
+        *> Use item
+        WHEN H'39'
+            *> hand enum: 0=main hand, 1=off hand
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            IF TEMP-INT32 = 0
+                *> compute the inventory slot
+                COMPUTE TEMP-INT16 = 36 + PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
+            ELSE
+                MOVE 45 TO TEMP-INT16
+            END-IF
+
+            *> sequence ID
+            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION SEQUENCE-ID
+
+            *> TODO: Buckets send this packet when clicking a liquid directly - handle this case
+            *> TODO food items
+            *> TODO potions
+            *> TODO splash potions
+            *> TODO lingering potions
+            *> TODO bows
+            *> TODO shields
+            *> TODO bottle o' enchanting
+            *> TODO eggs, snowballs, ender pearls, etc.
 
             *> Acknowledge the action
             CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
