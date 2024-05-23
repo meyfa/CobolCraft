@@ -737,6 +737,7 @@ HandleConfiguration SECTION.
             CALL "SendPacket-FeatureFlags" USING CLIENT-ID
             CALL "SendPacket-KnownPacks" USING CLIENT-ID
             CALL "SendPacket-Registry" USING CLIENT-ID
+            CALL "SendPacket-UpdateTags" USING CLIENT-ID
 
             *> Send finish configuration
             CALL "SendPacket-FinishConfiguration" USING CLIENT-ID
