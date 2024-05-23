@@ -145,6 +145,7 @@ RegisterItems.
     *> Register items with special handling
     CALL "RegisterItem-Torch"
     CALL "RegisterItem-Slab"
+    CALL "RegisterItem-Stairs"
     CALL "RegisterItem-RotatedPillar"
     CALL "RegisterItem-Button"
     CALL "RegisterItem-Door"
