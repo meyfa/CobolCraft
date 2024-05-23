@@ -27,6 +27,7 @@ Some are supported, however:
 
 - torches (all variants)
 - slabs (all variants)
+- stairs (non-connecting)
 - rotated pillars, such as logs or basalt
 - buttons (non-interactive)
 - doors (including interaction)
