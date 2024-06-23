@@ -64,7 +64,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-SENDER-UUID LK-SENDER-NAME LK-MESSAGE LK-M
 
     *> chat type
     *> TODO: This is a reference to the "minecraft:chat_type" registry. Get the correct value from the registry.
-    MOVE X"00" TO PAYLOAD(PAYLOADPOS:1)
+    MOVE X"01" TO PAYLOAD(PAYLOADPOS:1)
     ADD 1 TO PAYLOADPOS
 
     *> sender name (NBT string tag)

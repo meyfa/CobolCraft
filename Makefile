@@ -47,7 +47,7 @@ $(UTIL_LIB): cpp/cobolcraft_util.cpp
 
 $(JSON_DATA):
 	mkdir -p data
-	curl -o data/server.jar https://piston-data.mojang.com/v1/objects/145ff0858209bcfc164859ba735d4199aafa1eea/server.jar
+	curl -o data/server.jar https://piston-data.mojang.com/v1/objects/450698d1863ab5180c25d7c804ef0fe6369dd1ba/server.jar
 	cd data && java -DbundlerMainClass="net.minecraft.data.Main" -jar server.jar --reports
 
 $(OBJECTS): out/%.o: src/%.cob $(CPY)
