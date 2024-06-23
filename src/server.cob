@@ -766,7 +766,7 @@ HandleConfiguration SECTION.
 
             *> send "Login (play)" with player index as entity ID
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE PLAYER-GAMEMODE(TEMP-INT32)
+            CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE PLAYER-GAMEMODE(TEMP-INT32) MAX-PLAYERS
 
             *> send world time
             CALL "World-GetAge" USING TEMP-INT64
