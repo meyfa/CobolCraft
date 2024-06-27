@@ -1,6 +1,6 @@
 # --- Build stage ---
 # Need to use ubuntu instead of debian to get a recent Java version
-FROM ubuntu:jammy AS build
+FROM ubuntu:noble AS build
 
 # Install packages required for building
 ENV DEBIAN_FRONTEND=noninteractive
@@ -21,7 +21,7 @@ COPY blobs ./blobs
 RUN make -j $(nproc)
 
 # --- Runtime stage ---
-FROM ubuntu:jammy
+FROM ubuntu:noble
 
 # Install runtime packages
 ENV DEBIAN_FRONTEND=noninteractive
