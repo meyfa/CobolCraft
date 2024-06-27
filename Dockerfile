@@ -35,6 +35,7 @@ COPY --from=build cobolcraft .
 COPY --from=build *.so .
 COPY --from=build blobs ./blobs
 COPY --from=build data/generated/reports/*.json ./data/generated/reports/
+COPY --from=build data/generated/data ./data/generated/data
 
 # Include runtime dependencies
 ENV COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL

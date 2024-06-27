@@ -1,52 +1,51 @@
 IDENTIFICATION DIVISION.
 PROGRAM-ID. SendPacket-Registry.
 
-ENVIRONMENT DIVISION.
-INPUT-OUTPUT SECTION.
-FILE-CONTROL.
-SELECT FD-REGISTRY-BLOB ASSIGN TO "blobs/registry_packets.txt"
-    ORGANIZATION IS LINE SEQUENTIAL.
-
 DATA DIVISION.
-FILE SECTION.
-    FD FD-REGISTRY-BLOB.
-        01 REGISTRY-BLOB-REC    PIC X(64).
 WORKING-STORAGE SECTION.
-    COPY DD-CLIENTS.
-    01 HNDL                     PIC X(4).
-    01 ERRNO            PIC 9(3).
-    01 HEX              PIC X(64).
-    01 HEXLEN           BINARY-LONG UNSIGNED.
-    01 BUFFER           PIC X(32).
-    01 BUFFERLEN        BINARY-LONG UNSIGNED.
+    01 PACKET-ID                BINARY-LONG             VALUE H'07'.
+    *> buffer used to store the packet data
+    01 PAYLOAD                  PIC X(60000).
+    01 PAYLOADPOS               BINARY-LONG UNSIGNED.
+    01 PAYLOADLEN               BINARY-LONG UNSIGNED.
+    *> temporary data
+    01 REGISTRY-NAME            PIC X(255).
+    01 REGISTRY-ENTRY-COUNT     BINARY-LONG UNSIGNED.
+    01 REGISTRY-ENTRY-INDEX     BINARY-LONG UNSIGNED.
+    01 REGISTRY-ENTRY-NAME      PIC X(255).
+    01 INT32                    BINARY-LONG.
 LINKAGE SECTION.
-    01 LK-CLIENT        BINARY-LONG UNSIGNED.
+    01 LK-CLIENT                BINARY-LONG UNSIGNED.
+    01 LK-REGISTRY-INDEX        BINARY-LONG UNSIGNED.
 
-PROCEDURE DIVISION USING LK-CLIENT.
-    *> Don't send packet if the client is already in an error state. It will be disconnected on the next tick.
-    IF CLIENT-ERRNO-SEND(LK-CLIENT) NOT = 0
-        EXIT PROGRAM
-    END-IF
-    MOVE CLIENT-HNDL(LK-CLIENT) TO HNDL
+PROCEDURE DIVISION USING LK-CLIENT LK-REGISTRY-INDEX.
+    MOVE 1 TO PAYLOADPOS
 
-    OPEN INPUT FD-REGISTRY-BLOB
-    MOVE 64 TO HEXLEN
-    PERFORM UNTIL HEXLEN = 0
-        MOVE SPACES TO HEX(1:64)
-        READ FD-REGISTRY-BLOB INTO HEX
-            AT END
-                MOVE 0 TO HEXLEN
-            NOT AT END
-                CALL "DecodeHexString" USING HEX HEXLEN BUFFER BUFFERLEN
-                CALL "Socket-Write" USING HNDL ERRNO BUFFERLEN BUFFER
-                IF ERRNO NOT = 0
-                    MOVE 0 TO HEXLEN
-                    MOVE ERRNO TO CLIENT-ERRNO-SEND(LK-CLIENT)
-                END-IF
-        END-READ
+    *> registry name
+    CALL "Registries-Iterate-Name" USING LK-REGISTRY-INDEX REGISTRY-NAME
+    MOVE FUNCTION STORED-CHAR-LENGTH(REGISTRY-NAME) TO INT32
+    CALL "Encode-String" USING REGISTRY-NAME INT32 PAYLOAD PAYLOADPOS
+
+    *> entry count
+    CALL "Registries-GetRegistryLength" USING LK-REGISTRY-INDEX REGISTRY-ENTRY-COUNT
+    CALL "Encode-VarInt" USING REGISTRY-ENTRY-COUNT PAYLOAD PAYLOADPOS
+
+    *> entries
+    PERFORM VARYING REGISTRY-ENTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-ENTRY-INDEX > REGISTRY-ENTRY-COUNT
+        *> TODO: This assumes that entries are sorted by protocol ID. This is the case for all registries that we care
+        *> about with this packet, but shouldn't be relied upon.
+        CALL "Registries-Iterate-EntryName" USING LK-REGISTRY-INDEX REGISTRY-ENTRY-INDEX REGISTRY-ENTRY-NAME
+        MOVE FUNCTION STORED-CHAR-LENGTH(REGISTRY-ENTRY-NAME) TO INT32
+        CALL "Encode-String" USING REGISTRY-ENTRY-NAME INT32 PAYLOAD PAYLOADPOS
+
+        *> has data (always false)
+        MOVE X"00" TO PAYLOAD(PAYLOADPOS:1)
+        ADD 1 TO PAYLOADPOS
     END-PERFORM
-    CLOSE FD-REGISTRY-BLOB
 
+    *> send packet
+    COMPUTE PAYLOADLEN = PAYLOADPOS - 1
+    CALL "SendPacket" USING LK-CLIENT PACKET-ID PAYLOAD PAYLOADLEN
     GOBACK.
 
 END PROGRAM SendPacket-Registry.

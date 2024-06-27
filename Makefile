@@ -15,7 +15,8 @@ CPY = $(wildcard src/copybooks/*.cpy)
 BIN = cobolcraft
 
 # Data extraction from Mojang's server.jar
-JSON_DATA = data/generated/reports/registries.json data/generated/reports/blocks.json
+SERVER_URL = https://piston-data.mojang.com/v1/objects/450698d1863ab5180c25d7c804ef0fe6369dd1ba/server.jar
+SERVER_JAR_EXTRACTED = data/versions/1.21/server-1.21.jar
 
 # Test sources and binary
 TEST_SRC = test.cob $(wildcard tests/*.cob)
@@ -23,7 +24,7 @@ TEST_BIN = test
 
 .PHONY: all clean data run test
 
-all: $(BIN) $(SOCKET_LIB) $(UTIL_LIB) $(JSON_DATA)
+all: $(BIN) $(SOCKET_LIB) $(UTIL_LIB) data
 
 clean:
 	rm -rf $(OBJECTS_DIR)
@@ -32,8 +33,9 @@ clean:
 	rm -f $(UTIL_LIB)
 	rm -f $(TEST_BIN)
 	rm -f $(JSON_DATA)
+	rm -rf data
 
-data: $(JSON_DATA)
+data: $(SERVER_JAR_EXTRACTED)
 
 run: all
 	COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL ./$(BIN)
@@ -45,10 +47,10 @@ $(SOCKET_LIB):
 $(UTIL_LIB): cpp/cobolcraft_util.cpp
 	g++ -shared -Wall -O2 -fPIC -lz -o $@ $<
 
-$(JSON_DATA):
+$(SERVER_JAR_EXTRACTED):
 	mkdir -p data
-	curl -o data/server.jar https://piston-data.mojang.com/v1/objects/450698d1863ab5180c25d7c804ef0fe6369dd1ba/server.jar
-	cd data && java -DbundlerMainClass="net.minecraft.data.Main" -jar server.jar --reports
+	curl -o data/server.jar $(SERVER_URL)
+	cd data && java -DbundlerMainClass="net.minecraft.data.Main" -jar server.jar --reports --server
 
 $(OBJECTS): out/%.o: src/%.cob $(CPY)
 	@mkdir -p $(@D)

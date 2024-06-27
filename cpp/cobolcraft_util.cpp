@@ -1,8 +1,10 @@
 #include "cobolcraft_util.h"
+#include <cstring>
 #include <chrono>
 #include <csignal>
 #include <fcntl.h>
 #include <errno.h>
+#include <dirent.h>
 #include <zlib.h>
 
 #define ERRNO_PARAMS 99
@@ -87,6 +89,65 @@ EXTERN_DECL int LeadingZeros32(unsigned long *value, unsigned long *count)
         return 0;
     }
     *count = __builtin_clz(*value);
+    return 0;
+}
+
+EXTERN_DECL int OpenDirectory(char *path, unsigned long *path_length, unsigned long long *handle)
+{
+    static char buffer[65536];
+    if (!path || !path_length || *path_length == 0 || *path_length >= sizeof(buffer))
+    {
+        return ERRNO_PARAMS;
+    }
+    memcpy(buffer, path, *path_length);
+    buffer[*path_length] = '\0';
+    DIR *dir;
+    if ((dir = opendir(buffer)) == NULL)
+    {
+        return ERRNO_SYSTEM;
+    }
+    *handle = (unsigned long long)dir;
+    return 0;
+}
+
+EXTERN_DECL int ReadDirectory(unsigned long long *handle, char *entry)
+{
+    if (!handle || !entry)
+    {
+        return ERRNO_PARAMS;
+    }
+    DIR *dir = (DIR *)(*handle);
+    struct dirent *result;
+    do
+    {
+        result = readdir(dir);
+        if (result == NULL)
+        {
+            return ERRNO_SYSTEM;
+        }
+    } while (strcmp(result->d_name, ".") == 0 || strcmp(result->d_name, "..") == 0);
+    // Invariant: entry is at least 255 bytes long - but it will be space-padded instead of null-terminated.
+    size_t length = strlen(result->d_name);
+    if (length > 255)
+    {
+        length = 255;
+    }
+    memcpy(entry, result->d_name, length);
+    memset(entry + length, ' ', 255 - length);
+    return 0;
+}
+
+EXTERN_DECL int CloseDirectory(unsigned long long *handle)
+{
+    if (!handle)
+    {
+        return ERRNO_PARAMS;
+    }
+    DIR *dir = (DIR *)(*handle);
+    if (closedir(dir) != 0)
+    {
+        return ERRNO_SYSTEM;
+    }
     return 0;
 }
 

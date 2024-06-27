@@ -8,8 +8,20 @@ WORKING-STORAGE SECTION.
     *> File names
     01 FILE-REGISTRIES              PIC X(255)              VALUE "data/generated/reports/registries.json".
     01 FILE-BLOCKS                  PIC X(255)              VALUE "data/generated/reports/blocks.json".
+    01 FILE-DATAPACK-ROOT           PIC X(255)              VALUE "data/generated/data/".
     *> Constants
     COPY DD-CLIENT-STATES.
+    01 C-MINECRAFT-WORLDGEN-BIOME   PIC X(50)               VALUE "minecraft:worldgen/biome".
+    01 C-MINECRAFT-CHAT_TYPE        PIC X(50)               VALUE "minecraft:chat_type".
+    01 C-MINECRAFT-TRIM_PATTERN     PIC X(50)               VALUE "minecraft:trim_pattern".
+    01 C-MINECRAFT-TRIM_MATERIAL    PIC X(50)               VALUE "minecraft:trim_material".
+    01 C-MINECRAFT-WOLF_VARIANT     PIC X(50)               VALUE "minecraft:wolf_variant".
+    01 C-MINECRAFT-PAINTING_VARIANT PIC X(50)               VALUE "minecraft:painting_variant".
+    01 C-MINECRAFT-DIMENSION_TYPE   PIC X(50)               VALUE "minecraft:dimension_type".
+    01 C-MINECRAFT-DAMAGE_TYPE      PIC X(50)               VALUE "minecraft:damage_type".
+    01 C-MINECRAFT-BANNER_PATTERN   PIC X(50)               VALUE "minecraft:banner_pattern".
+    01 C-MINECRAFT-ENCHANTMENT      PIC X(50)               VALUE "minecraft:enchantment".
+    01 C-MINECRAFT-JUKEBOX_SONG     PIC X(50)               VALUE "minecraft:jukebox_song".
     01 C-MINECRAFT-ITEM             PIC X(50)               VALUE "minecraft:item".
     01 C-COLOR-YELLOW               PIC X(16)               VALUE "yellow".
     *> The server sends (2 * VIEW-DISTANCE + 1) * (2 * VIEW-DISTANCE + 1) chunks around the player.
@@ -73,6 +85,9 @@ WORKING-STORAGE SECTION.
     01 CHUNK-END-Z                  BINARY-LONG.
     01 PREV-CENTER-CHUNK-X          BINARY-LONG.
     01 PREV-CENTER-CHUNK-Z          BINARY-LONG.
+    *> Variables used for datapack loading
+    01 VANILLA-DATAPACK-NAME        PIC X(50)               VALUE "minecraft".
+    01 REGISTRY-COUNT               BINARY-LONG UNSIGNED.
     *> Variables used for item registration
     01 REGISTRY-INDEX               BINARY-LONG.
     01 REGISTRY-LENGTH              BINARY-LONG UNSIGNED.
@@ -108,6 +123,21 @@ LoadRegistries.
         DISPLAY "Failed to parse registries"
         STOP RUN
     END-IF
+
+    *> Create additional registries not exported by the report generator.
+    *> Set the flag to 1 to indicate that they need to be part of a Registry Data packet sent to the client.
+    MOVE 1 TO TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-WORLDGEN-BIOME TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-CHAT_TYPE TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-TRIM_PATTERN TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-TRIM_MATERIAL TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-WOLF_VARIANT TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-PAINTING_VARIANT TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-DIMENSION_TYPE TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-DAMAGE_TYPE TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-BANNER_PATTERN TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-ENCHANTMENT TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-JUKEBOX_SONG TEMP-INT8
     .
 
 LoadBlocks.
@@ -122,6 +152,26 @@ LoadBlocks.
         DISPLAY "Failed to parse blocks"
         STOP RUN
     END-IF
+    .
+
+LoadDatapack.
+    DISPLAY "Loading vanilla datapack"
+    CALL "Datapack-Load" USING FILE-DATAPACK-ROOT VANILLA-DATAPACK-NAME DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to load datapack"
+        STOP RUN
+    END-IF
+
+    *> Sanity check: There shouldn't be any empty registries now.
+    CALL "Registries-GetCount" USING REGISTRY-COUNT
+    PERFORM VARYING REGISTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-INDEX > REGISTRY-COUNT
+        CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
+        IF REGISTRY-LENGTH <= 0
+            CALL "Registries-Iterate-Name" USING REGISTRY-INDEX TEMP-IDENTIFIER
+            DISPLAY "Error: Empty registry '" FUNCTION TRIM(TEMP-IDENTIFIER) "'!"
+            STOP RUN
+        END-IF
+    END-PERFORM
     .
 
 RegisterItems.
@@ -742,7 +792,13 @@ HandleConfiguration SECTION.
             *> Send configuration packets
             CALL "SendPacket-FeatureFlags" USING CLIENT-ID
             CALL "SendPacket-KnownPacks" USING CLIENT-ID
-            CALL "SendPacket-Registry" USING CLIENT-ID
+            CALL "Registries-GetCount" USING REGISTRY-COUNT
+            PERFORM VARYING REGISTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-INDEX > REGISTRY-COUNT
+                CALL "Registries-Iterate-ReqPacket" USING REGISTRY-INDEX TEMP-INT8
+                IF TEMP-INT8 = 1
+                    CALL "SendPacket-Registry" USING CLIENT-ID REGISTRY-INDEX
+                END-IF
+            END-PERFORM
             CALL "SendPacket-UpdateTags" USING CLIENT-ID
 
             *> Send finish configuration
