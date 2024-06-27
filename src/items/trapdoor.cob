@@ -4,7 +4,6 @@ PROGRAM-ID. RegisterItem-Trapdoor.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-AIR                  PIC X(32) GLOBAL    VALUE "minecraft:air".
     01 C-MINECRAFT-TRAPDOOR             PIC X(32) GLOBAL    VALUE "minecraft:trapdoor".
     01 USE-PTR                          PROGRAM-POINTER.
     01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
@@ -41,12 +40,18 @@ PROCEDURE DIVISION.
             02 BLOCK-Y              BINARY-LONG.
             02 BLOCK-Z              BINARY-LONG.
         01 FACING                   PIC X(16).
-        01 BOUNDS-CHECK             BINARY-CHAR UNSIGNED.
+        01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
         01 BLOCK-ID                 BINARY-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
     PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
+        MOVE LK-POSITION TO BLOCK-POSITION
+        CALL "ItemUtil-GetReplaceablePosition" USING BLOCK-POSITION LK-FACE CHECK-RESULT
+        IF CHECK-RESULT = 0
+            GOBACK
+        END-IF
+
         MOVE LK-ITEM-NAME TO PLACE-NAME
 
         MOVE 5 TO PLACE-PROPERTY-COUNT
@@ -75,14 +80,6 @@ PROCEDURE DIVISION.
                 END-IF
         END-EVALUATE
 
-        *> The trapdoor should be placed next to the clicked block
-        MOVE LK-POSITION TO BLOCK-POSITION
-        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
-        CALL "World-CheckBounds" USING BLOCK-POSITION BOUNDS-CHECK
-        IF BOUNDS-CHECK NOT = 0
-            GOBACK
-        END-IF
-
         *> Use the player's yaw to determine the facing
         EVALUATE FUNCTION MOD(PLAYER-YAW(LK-PLAYER) + 45, 360)
             WHEN < 90
@@ -94,12 +91,6 @@ PROCEDURE DIVISION.
             WHEN OTHER
                 MOVE "west" TO PLACE-PROPERTY-VALUE(2)
         END-EVALUATE
-
-        *> Ensure the block was previously air
-        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
-        IF BLOCK-ID NOT = 0
-            GOBACK
-        END-IF
 
         CALL "Blocks-Get-StateId" USING PLACE-DESCRIPTION BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID

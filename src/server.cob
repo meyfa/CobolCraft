@@ -170,11 +170,14 @@ RegisterBlocks.
 
     *> Register blocks with special handling
     CALL "RegisterBlock-Air"
+    CALL "RegisterBlock-TallGrass"
     CALL "RegisterBlock-Torch"
     CALL "RegisterBlock-Slab"
     CALL "RegisterBlock-Door"
     CALL "RegisterBlock-Trapdoor"
     CALL "RegisterBlock-Bed"
+    CALL "RegisterBlock-Water"
+    CALL "RegisterBlock-Lava"
     .
 
 GenerateWorld.

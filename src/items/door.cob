@@ -51,6 +51,8 @@ PROCEDURE DIVISION.
         01 FACING                   PIC X(16).
         01 HINGE                    PIC X(16).
         01 BLOCK-ID                 BINARY-LONG.
+        01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
+        01 CB-PTR-REPLACEABLE       PROGRAM-POINTER.
         *> Block state description for neighboring blocks.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==NEIGHBOR==.
         01 NEIGHBOR-LEFT-POSITION.
@@ -74,7 +76,20 @@ PROCEDURE DIVISION.
 
         *> Compute the position of the lower block
         MOVE LK-POSITION TO BLOCK-POSITION-LOWER
-        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION-LOWER
+        CALL "ItemUtil-GetReplaceablePosition" USING BLOCK-POSITION-LOWER LK-FACE CHECK-RESULT
+        IF CHECK-RESULT = 0
+            GOBACK
+        END-IF
+
+        *> Compute the position of the upper block
+        MOVE BLOCK-POSITION-LOWER TO BLOCK-POSITION-UPPER
+        ADD 1 TO BLOCK-Y OF BLOCK-POSITION-UPPER
+        CALL "World-GetBlock" USING BLOCK-POSITION-UPPER BLOCK-ID
+        CALL "GetCallback-BlockReplaceable" USING BLOCK-ID CB-PTR-REPLACEABLE
+        CALL CB-PTR-REPLACEABLE USING BLOCK-ID CHECK-RESULT
+        IF CHECK-RESULT = 0
+            GOBACK
+        END-IF
 
         MOVE LK-ITEM-NAME TO PLACE-NAME
 
@@ -173,16 +188,6 @@ PROCEDURE DIVISION.
 
         MOVE FACING TO PLACE-PROPERTY-VALUE(1)
         MOVE HINGE TO PLACE-PROPERTY-VALUE(2)
-
-        *> Compute the position of the upper block
-        MOVE BLOCK-POSITION-LOWER TO BLOCK-POSITION-UPPER
-        ADD 1 TO BLOCK-Y OF BLOCK-POSITION-UPPER
-
-        *> Ensure both blocks are air
-        CALL "World-GetBlock" USING BLOCK-POSITION-LOWER BLOCK-ID
-        IF BLOCK-ID NOT = 0 GOBACK.
-        CALL "World-GetBlock" USING BLOCK-POSITION-UPPER BLOCK-ID
-        IF BLOCK-ID NOT = 0 GOBACK.
 
         *> TODO check for solid block below
 

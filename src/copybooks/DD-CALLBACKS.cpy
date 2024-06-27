@@ -14,3 +14,5 @@
         03 CB-PTR-INTERACT USAGE PROGRAM-POINTER.
         *> Called for determining the shape of a block face, such as for checking if a block face is solid.
         03 CB-PTR-FACE USAGE PROGRAM-POINTER.
+        *> Called for determining whether a block state can be replaced by another block state.
+        03 CB-PTR-REPLACEABLE USAGE PROGRAM-POINTER.

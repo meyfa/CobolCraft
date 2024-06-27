@@ -67,7 +67,6 @@ PROGRAM-ID. World-GenerateChunk.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> Constants
-    01 C-MINECRAFT-AIR              PIC X(50) VALUE "minecraft:air".
     01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
     01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
     *> World data
