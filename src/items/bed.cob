@@ -49,7 +49,8 @@ PROCEDURE DIVISION.
             02 BLOCK-Y              BINARY-LONG.
             02 BLOCK-Z              BINARY-LONG.
         01 FACING                   PIC X(16).
-        01 BOUNDS-CHECK             BINARY-CHAR UNSIGNED.
+        01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
+        01 CB-PTR-REPLACEABLE       PROGRAM-POINTER.
         01 BLOCK-ID                 BINARY-LONG.
         01 BLOCK-ENTITY-TYPE        BINARY-LONG.
     LINKAGE SECTION.
@@ -58,9 +59,13 @@ PROCEDURE DIVISION.
     PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
         *> TODO reduce duplication with other callbacks
 
-        *> Compute the position of the foot block
+        *> Compute the position of the foot block - use the clicked block position if the block is replaceable.
+        *> Otherwise, use the position next to it.
         MOVE LK-POSITION TO BLOCK-POSITION-FOOT
-        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION-FOOT
+        CALL "ItemUtil-GetReplaceablePosition" USING BLOCK-POSITION-FOOT LK-FACE CHECK-RESULT
+        IF CHECK-RESULT = 0
+            GOBACK
+        END-IF
 
         MOVE LK-ITEM-NAME TO PLACE-NAME
 
@@ -87,11 +92,13 @@ PROCEDURE DIVISION.
         CALL "Facing-FromString" USING PLACE-PROPERTY-VALUE(3) BED-FACE
         CALL "Facing-GetRelative" USING BED-FACE BLOCK-POSITION-HEAD
 
-        *> Ensure both blocks are air
-        CALL "World-GetBlock" USING BLOCK-POSITION-FOOT BLOCK-ID
-        IF BLOCK-ID NOT = 0 GOBACK.
+        *> Ensure the head block is also replaceable
         CALL "World-GetBlock" USING BLOCK-POSITION-HEAD BLOCK-ID
-        IF BLOCK-ID NOT = 0 GOBACK.
+        CALL "GetCallback-BlockReplaceable" USING BLOCK-ID CB-PTR-REPLACEABLE
+        CALL CB-PTR-REPLACEABLE USING BLOCK-ID CHECK-RESULT
+        IF CHECK-RESULT = 0
+            GOBACK
+        END-IF
 
         *> Place the bed
         MOVE "foot" TO PLACE-PROPERTY-VALUE(2)

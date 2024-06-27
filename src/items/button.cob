@@ -42,7 +42,7 @@ PROCEDURE DIVISION.
             02 BLOCK-Y              BINARY-LONG.
             02 BLOCK-Z              BINARY-LONG.
         01 FACING                   PIC X(16).
-        01 BOUNDS-CHECK             BINARY-CHAR UNSIGNED.
+        01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
         01 BLOCK-ID                 BINARY-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
@@ -50,20 +50,9 @@ PROCEDURE DIVISION.
     PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
         *> TODO reduce duplication with other callbacks
 
-        *> Compute the position of the block to be affected
         MOVE LK-POSITION TO BLOCK-POSITION
-        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
-        CALL "Facing-ToString" USING LK-FACE FACING
-
-        *> Ensure the position is not outside the world
-        CALL "World-CheckBounds" USING BLOCK-POSITION BOUNDS-CHECK
-        IF BOUNDS-CHECK NOT = 0
-            GOBACK
-        END-IF
-
-        *> Ensure the block was previously air
-        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
-        IF BLOCK-ID NOT = 0
+        CALL "ItemUtil-GetReplaceablePosition" USING BLOCK-POSITION LK-FACE CHECK-RESULT
+        IF CHECK-RESULT = 0
             GOBACK
         END-IF
 

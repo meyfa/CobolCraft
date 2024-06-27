@@ -44,7 +44,6 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> Constants
     01 C-MINECRAFT-ITEM         PIC X(16) VALUE "minecraft:item".
-    01 C-MINECRAFT-AIR          PIC X(16) VALUE "minecraft:air".
     *> File name and data
     01 PLAYER-FILE-NAME         PIC X(64).
     01 ERRNO                    BINARY-LONG.

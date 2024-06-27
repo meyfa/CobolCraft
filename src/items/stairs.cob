@@ -4,7 +4,6 @@ PROGRAM-ID. RegisterItem-Stairs.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-AIR                  PIC X(32) GLOBAL    VALUE "minecraft:air".
     01 C-MINECRAFT-STAIR                PIC X(32) GLOBAL    VALUE "minecraft:stair".
     01 USE-PTR                          PROGRAM-POINTER.
     01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
@@ -46,6 +45,7 @@ PROCEDURE DIVISION.
             02 BLOCK-Z              BINARY-LONG.
         01 FACING                   PIC X(16).
         01 BLOCK-ID                 BINARY-LONG.
+        01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
@@ -54,7 +54,10 @@ PROCEDURE DIVISION.
 
         *> Compute the position of the block to be affected
         MOVE LK-POSITION TO BLOCK-POSITION
-        CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
+        CALL "ItemUtil-GetReplaceablePosition" USING BLOCK-POSITION LK-FACE CHECK-RESULT
+        IF CHECK-RESULT = 0
+            GOBACK
+        END-IF
 
         MOVE 4 TO PLACE-PROPERTY-COUNT
         MOVE C-HALF TO PLACE-PROPERTY-NAME(1)
@@ -92,13 +95,6 @@ PROCEDURE DIVISION.
         END-EVALUATE
 
         *> TODO connect with neighboring stairs
-        *> TODO allow replacing some blocks other than air (water, grass, etc.)
-
-        *> Check for air at the block position
-        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
-        IF BLOCK-ID NOT = 0
-            GOBACK
-        END-IF
 
         CALL "Blocks-Get-StateId" USING PLACE-DESCRIPTION BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID

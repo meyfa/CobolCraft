@@ -7,14 +7,17 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 DESTROY-PTR                  PROGRAM-POINTER.
     01 FACE-PTR                     PROGRAM-POINTER.
+    01 REPLACEABLE-PTR              PROGRAM-POINTER.
 LINKAGE SECTION.
     01 LK-BLOCK-STATE-ID            BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-BLOCK-STATE-ID.
     SET DESTROY-PTR TO ENTRY "Callback-Destroy"
     SET FACE-PTR TO ENTRY "Callback-Face"
+    SET REPLACEABLE-PTR TO ENTRY "Callback-Replaceable"
     CALL "SetCallback-BlockDestroy" USING LK-BLOCK-STATE-ID DESTROY-PTR
     CALL "SetCallback-BlockFace" USING LK-BLOCK-STATE-ID FACE-PTR
+    CALL "SetCallback-BlockReplaceable" USING LK-BLOCK-STATE-ID REPLACEABLE-PTR
     GOBACK.
 
     *> --- Callback-Destroy ---
@@ -48,5 +51,21 @@ PROCEDURE DIVISION USING LK-BLOCK-STATE-ID.
         GOBACK.
 
     END PROGRAM Callback-Face.
+
+    *> --- Callback-Replaceable ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-Replaceable.
+
+    DATA DIVISION.
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-BLOCK-REPLACEABLE.
+
+    PROCEDURE DIVISION USING LK-BLOCK-STATE LK-RESULT.
+        *> Assume all blocks are non-replaceable by default (right-clicking the block with a block in hand will not
+        *> replace the block).
+        MOVE 0 TO LK-RESULT
+        GOBACK.
+
+    END PROGRAM Callback-Replaceable.
 
 END PROGRAM RegisterBlock-Generic.
