@@ -19,6 +19,10 @@
             04 WORLD-SECTION-BLOCKS.
                 05 WORLD-BLOCK OCCURS 4096 TIMES.
                     06 WORLD-BLOCK-ID           BINARY-LONG UNSIGNED.
+            *> section biome ID
+            *> TODO: This is kind of a hack, just to get a default "plains" biome instead of whatever is added first to
+            *> the biome registry (usually badlands). We should have a separate biome array.
+            04 WORLD-SECTION-BIOME-ID    BINARY-LONG UNSIGNED.
         03 WORLD-BLOCK-ENTITY-COUNT BINARY-LONG UNSIGNED.
         *> block entity IDs for each block
         03 WORLD-BLOCK-ENTITIES.

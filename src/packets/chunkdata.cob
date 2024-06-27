@@ -32,6 +32,7 @@ LINKAGE SECTION.
             *> block IDs (16x16x16) - X increases fastest, then Z, then Y
             03 LK-BLOCK OCCURS 4096 TIMES.
                 04 LK-BLOCK-ID      BINARY-LONG UNSIGNED.
+            03 LK-BIOME-ID      BINARY-LONG UNSIGNED.
         02 LK-CHUNK-BLOCK-ENTITY-COUNT BINARY-LONG UNSIGNED.
         *> block entity IDs for each block
         02 LK-CHUNK-BLOCK-ENTITIES.
@@ -177,6 +178,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
             02 LK-NON-AIR           BINARY-LONG UNSIGNED.
             02 LK-BLOCK OCCURS 4096 TIMES.
                 03 LK-BLOCK-ID          BINARY-LONG UNSIGNED.
+            02 LK-BIOME-ID          BINARY-LONG UNSIGNED.
         01 LK-BUFFER            PIC X ANY LENGTH.
         01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
 
@@ -223,9 +225,8 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
         MOVE X"00" TO LK-BUFFER(LK-BUFFERPOS:1)
         ADD 1 TO LK-BUFFERPOS
         *> - palette: id of the biome
-        *> TODO: use plains biome
-        MOVE 0 TO INT32
-        CALL "Encode-VarInt" USING INT32 LK-BUFFER LK-BUFFERPOS
+        *> TODO: use actual biome data
+        CALL "Encode-VarInt" USING LK-BIOME-ID LK-BUFFER LK-BUFFERPOS
         *> - data array length: 0, since we have a single-valued palette
         MOVE 0 TO INT32
         CALL "Encode-VarInt" USING INT32 LK-BUFFER LK-BUFFERPOS
