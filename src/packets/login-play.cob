@@ -3,21 +3,22 @@ PROGRAM-ID. SendPacket-LoginPlay.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                BINARY-LONG             VALUE H'2B'.
+    01 PACKET-ID                    BINARY-LONG                 VALUE H'2B'.
     *> constants
-    01 C-MINECRAFT-OVERWORLD    PIC X(19) VALUE "minecraft:overworld".
+    01 C-MINECRAFT-DIMENSION_TYPE   PIC X(24)                   VALUE "minecraft:dimension_type".
+    01 C-MINECRAFT-OVERWORLD        PIC X(19)                   VALUE "minecraft:overworld".
     *> temporary data used during encoding
-    01 INT32                    BINARY-LONG.
+    01 INT32                        BINARY-LONG.
     *> buffer used to store the packet data
-    01 PAYLOAD                  PIC X(64000).
-    01 PAYLOADPOS               BINARY-LONG UNSIGNED.
-    01 PAYLOADLEN               BINARY-LONG UNSIGNED.
+    01 PAYLOAD                      PIC X(64000).
+    01 PAYLOADPOS                   BINARY-LONG UNSIGNED.
+    01 PAYLOADLEN                   BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    01 LK-CLIENT                BINARY-LONG UNSIGNED.
-    01 LK-ENTITY-ID             BINARY-LONG.
-    01 LK-VIEW-DISTANCE         BINARY-LONG.
-    01 LK-GAMEMODE              BINARY-CHAR UNSIGNED.
-    01 LK-MAX-PLAYERS           BINARY-LONG.
+    01 LK-CLIENT                    BINARY-LONG UNSIGNED.
+    01 LK-ENTITY-ID                 BINARY-LONG.
+    01 LK-VIEW-DISTANCE             BINARY-LONG.
+    01 LK-GAMEMODE                  BINARY-CHAR UNSIGNED.
+    01 LK-MAX-PLAYERS               BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-VIEW-DISTANCE LK-GAMEMODE LK-MAX-PLAYERS.
     MOVE 1 TO PAYLOADPOS
@@ -59,8 +60,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-VIEW-DISTANCE LK-GAMEMODE LK-
     ADD 1 TO PAYLOADPOS
 
     *> dimension type (ID in the minecraft:dimension_type registry)
-    *> TODO: get this from the registry
-    MOVE 0 TO INT32
+    CALL "Registries-Get-EntryId" USING C-MINECRAFT-DIMENSION_TYPE C-MINECRAFT-OVERWORLD INT32
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 
     *> dimension name="minecraft:overworld"
