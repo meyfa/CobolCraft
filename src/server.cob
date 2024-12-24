@@ -313,7 +313,7 @@ ServerLoop.
                 PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS OR CLIENT-PRESENT(CLIENT-ID) = 0
                     IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = CLIENT-STATE-PLAY AND TEMP-INT16 NOT = CLIENT-ID
                         MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
-                        CALL "SendPacket-TeleportEntity" USING CLIENT-ID TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+                        CALL "SendPacket-EntityPositionSync" USING CLIENT-ID TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                         CALL "SendPacket-SetHeadRotation" USING CLIENT-ID TEMP-INT32 PLAYER-YAW(TEMP-INT32)
                         *> index(byte), type(VarInt), value(VarInt); terminator is 0xFF
                         *> index of pose: 6, type of pose: 21
@@ -942,7 +942,7 @@ HandlePlay SECTION.
             END-IF
 
         *> Chat command
-        WHEN H'04'
+        WHEN H'05'
             CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
             *> Command may not be longer than 256 characters
             IF BYTE-COUNT > 256
@@ -953,7 +953,7 @@ HandlePlay SECTION.
             CALL "HandleCommand" USING CLIENT-ID BUFFER BYTE-COUNT
 
         *> Chat message
-        WHEN H'06'
+        WHEN H'07'
             CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
             *> Message may not be longer than 256 characters
             IF BYTE-COUNT > 256
@@ -973,11 +973,11 @@ HandlePlay SECTION.
             MOVE TEMP-INT16 TO CLIENT-ID
 
         *> KeepAlive response
-        WHEN H'18'
+        WHEN H'1A'
             CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
 
         *> Set player position
-        WHEN H'1A'
+        WHEN H'1C'
             *> Ignore movement packets until the client acknowledges the last sent teleport packet
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
@@ -988,7 +988,7 @@ HandlePlay SECTION.
             *> TODO: "on ground" flag
 
         *> Set player position and rotation
-        WHEN H'1B'
+        WHEN H'1D'
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
@@ -1000,7 +1000,7 @@ HandlePlay SECTION.
             *> TODO: "on ground" flag
 
         *> Set player rotation
-        WHEN H'1C'
+        WHEN H'1E'
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
@@ -1009,21 +1009,21 @@ HandlePlay SECTION.
             *> TODO: "on ground" flag
 
         *> Set player on ground
-        WHEN H'1D'
+        WHEN H'1F'
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
             *> TODO: "on ground" flag
 
         *> Player abilities
-        WHEN H'23'
+        WHEN H'26'
             CALL "Decode-Byte" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT8
             *> flying = bitmask & 0x02
             COMPUTE TEMP-INT8 = TEMP-INT8 / 2
             COMPUTE PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID)) = FUNCTION MOD(TEMP-INT8, 2)
 
         *> Player action
-        WHEN H'24'
+        WHEN H'27'
             *> Status (= the action), block position, face, sequence number.
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
@@ -1051,7 +1051,7 @@ HandlePlay SECTION.
             END-EVALUATE
 
         *> Player command
-        WHEN H'25'
+        WHEN H'28'
             *> entity ID (why does this exist? should always be the player's entity ID - skip it)
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             *> action ID
@@ -1066,14 +1066,14 @@ HandlePlay SECTION.
             END-EVALUATE
 
         *> Set held item
-        WHEN H'2F'
+        WHEN H'33'
             CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
             IF TEMP-INT16 >= 0 AND TEMP-INT16 <= 8
                 MOVE TEMP-INT16 TO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             END-IF
 
         *> Set creative mode slot
-        WHEN H'32'
+        WHEN H'36'
             *> slot ID
             CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
             *> TODO: spawn item entity when slot ID is -1
@@ -1099,7 +1099,7 @@ HandlePlay SECTION.
             END-IF
 
         *> Swing arm
-        WHEN H'36'
+        WHEN H'3A'
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 1
@@ -1118,7 +1118,7 @@ HandlePlay SECTION.
             MOVE TEMP-INT16 TO CLIENT-ID
 
         *> Use item on block
-        WHEN H'38'
+        WHEN H'3C'
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0
@@ -1165,7 +1165,7 @@ HandlePlay SECTION.
             CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
 
         *> Use item
-        WHEN H'39'
+        WHEN H'3D'
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0

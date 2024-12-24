@@ -4,7 +4,7 @@ PROGRAM-ID. SendPacket-ChunkData.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'27'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'28'.
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(512000).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.

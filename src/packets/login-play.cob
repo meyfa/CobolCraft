@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-LoginPlay.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                    BINARY-LONG                 VALUE H'2B'.
+    01 PACKET-ID                    BINARY-LONG                 VALUE H'2C'.
     *> constants
     01 C-MINECRAFT-DIMENSION_TYPE   PIC X(24)                   VALUE "minecraft:dimension_type".
     01 C-MINECRAFT-OVERWORLD        PIC X(19)                   VALUE "minecraft:overworld".
@@ -92,6 +92,10 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-VIEW-DISTANCE LK-GAMEMODE LK-
 
     *> portal cooldown=0
     MOVE X"00" TO PAYLOAD(PAYLOADPOS:1)
+    ADD 1 TO PAYLOADPOS
+
+    *> sea level=63
+    MOVE X"3F" TO PAYLOAD(PAYLOADPOS:1)
     ADD 1 TO PAYLOADPOS
 
     *> enforces secure chat=false

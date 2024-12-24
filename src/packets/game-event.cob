@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-GameEvent.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'22'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'23'.
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(8).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.

@@ -4,8 +4,8 @@ PROGRAM-ID. SendPacket-Status.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 PACKET-ID        BINARY-LONG             VALUE H'00'.
-    01 SERVER-VERSION   PIC X(4)                VALUE "1.21".
-    01 SERVER-PROTOCOL  BINARY-LONG             VALUE 767.
+    01 SERVER-VERSION   PIC X(6)                VALUE "1.21.4".
+    01 SERVER-PROTOCOL  BINARY-LONG             VALUE 769.
     *> buffer used to store the JSON string
     01 JSONBUFFER       PIC X(64000).
     01 JSONPOS          BINARY-LONG UNSIGNED.

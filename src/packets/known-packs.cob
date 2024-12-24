@@ -7,7 +7,7 @@ WORKING-STORAGE SECTION.
     *> known pack data
     01 PACK-NAMESPACE           PIC X(9)                VALUE "minecraft".
     01 PACK-ID                  PIC X(4)                VALUE "core".
-    01 PACK-VERSION             PIC X(4)                VALUE "1.21".
+    01 PACK-VERSION             PIC X(6)                VALUE "1.21.4".
     *> buffer used to store the packet data
     01 PAYLOAD                  PIC X(1024).
     01 PAYLOADPOS               BINARY-LONG UNSIGNED.
