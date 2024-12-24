@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-PlayerAbilities.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'38'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'3A'.
     01 FLYING-SPEED     FLOAT-SHORT             VALUE 0.05.
     01 FIELD-OF-VIEW    FLOAT-SHORT             VALUE 0.1.
     *> buffer used to store the packet data

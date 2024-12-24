@@ -15,8 +15,8 @@ CPY = $(wildcard src/copybooks/*.cpy)
 BIN = cobolcraft
 
 # Data extraction from Mojang's server.jar
-SERVER_URL = https://piston-data.mojang.com/v1/objects/450698d1863ab5180c25d7c804ef0fe6369dd1ba/server.jar
-SERVER_JAR_EXTRACTED = data/versions/1.21/server-1.21.jar
+SERVER_URL = https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar
+SERVER_JAR_EXTRACTED = data/versions/1.21.4/server-1.21.4.jar
 
 # Test sources and binary
 TEST_SRC = test.cob $(wildcard tests/*.cob)

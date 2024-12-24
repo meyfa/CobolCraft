@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-PlayerChat.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                    BINARY-LONG                 VALUE H'39'.
+    01 PACKET-ID                    BINARY-LONG                 VALUE H'3B'.
     01 C-MINECRAFT-CHAT_TYPE        PIC X(19)                   VALUE "minecraft:chat_type".
     01 C-MINECRAFT-CHAT             PIC X(14)                   VALUE "minecraft:chat".
     *> temporary data used during encoding

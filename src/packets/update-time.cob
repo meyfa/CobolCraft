@@ -3,9 +3,9 @@ PROGRAM-ID. SendPacket-UpdateTime.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'64'.
+    01 PACKET-ID        BINARY-LONG             VALUE H'6B'.
     *> buffer used to store the packet data
-    01 PAYLOAD          PIC X(16).
+    01 PAYLOAD          PIC X(17).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
     01 PAYLOADLEN       BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
@@ -21,6 +21,10 @@ PROCEDURE DIVISION USING LK-CLIENT LK-WORLD-AGE LK-TIME.
 
     *> time of day
     CALL "Encode-Long" USING LK-TIME PAYLOAD PAYLOADPOS
+
+    *> time of day increasing
+    MOVE X"01" TO PAYLOAD(PAYLOADPOS:1)
+    ADD 1 TO PAYLOADPOS
 
     *> send packet
     COMPUTE PAYLOADLEN = PAYLOADPOS - 1
