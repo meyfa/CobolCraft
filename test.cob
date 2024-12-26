@@ -10,6 +10,7 @@ PROCEDURE DIVISION.
     CALL "Test-NbtEncode"
     CALL "Test-NbtDecode"
     CALL "Test-JsonParse"
+    CALL "Test-JsonEncode"
     CALL "Test-Region"
     STOP RUN.
 
