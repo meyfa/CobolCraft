@@ -101,6 +101,11 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
     *> Handle the command
     EVALUATE PART-VALUE(1)
         WHEN "gamemode"
+            IF PART-COUNT NOT = 2
+                MOVE "Usage: /gamemode <gamemode>" TO BUFFER
+                CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                EXIT SECTION
+            END-IF
             EVALUATE PART-VALUE(2)
                 WHEN "survival"
                     MOVE 0 TO PLAYER-GAMEMODE(PLAYER-ID)
