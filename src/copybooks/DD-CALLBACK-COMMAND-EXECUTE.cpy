@@ -1,7 +1,7 @@
 *> --- Copybook: callback parameters for command execution ---
 
 *> Client index, 0 for server
-01 LK-CLIENT-ID                 BINARY-CHAR.
+01 LK-CLIENT-ID                 BINARY-LONG UNSIGNED.
 
 *> Command name, followed by arguments
 01 LK-PARTS.

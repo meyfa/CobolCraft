@@ -23,7 +23,7 @@ PROCEDURE DIVISION.
         COPY DD-PLAYERS.
         01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
         01 BUFFER                   PIC X(255).
-        01 TEMP-INT64               BINARY-LONG.
+        01 TEMP-INT64               BINARY-LONG-LONG.
         01 TEMP-INT64-PIC           PIC -(19)9.
     LINKAGE SECTION.
         COPY DD-CALLBACK-COMMAND-EXECUTE.

@@ -238,7 +238,7 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         01 BUFFER       PIC X(100).
         01 OFFSET       BINARY-LONG UNSIGNED.
-        01 INT64        BINARY-LONG.
+        01 INT64        BINARY-LONG-LONG.
 
     PROCEDURE DIVISION.
         DISPLAY "  Test: JsonEncode-Integer".
