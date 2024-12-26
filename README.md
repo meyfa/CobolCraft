@@ -55,13 +55,19 @@ Then execute `make` to build, followed by `make run` to start a server on port 2
 Or, using Docker:
 
 ```sh
-docker build -t cobolcraft .
+# pull the image from Docker Hub
+docker pull meyfa/cobolcraft:latest
+
+# or build it yourself
+git clone https://github.com/meyfa/CobolCraft.git cobolcraft && cd cobolcraft
+docker build --tag meyfa/cobolcraft .
+
 docker run --rm --interactive --tty \
      --publish 25565:25565 \
-     --volume server.properties:/server.properties \
-     --volume whitelist.json:/whitelist.json \
-     --volume save:/save \
-    cobolcraft
+     --volume "$(pwd)/server.properties:/app/server.properties" \
+     --volume "$(pwd)/whitelist.json:/app/whitelist.json" \
+     --volume "$(pwd)/save:/app/save" \
+    meyfa/cobolcraft
 ```
 
 To configure the server, edit the `server.properties` file.
@@ -76,7 +82,7 @@ To make it accessible from the outside (your local network, via VPN, port forwar
 can start the Docker container like this:
 
 ```sh
-docker run --rm -it -p 0.0.0.0:25565:25565 cobolcraft
+docker run --rm -it -p 0.0.0.0:25565:25565 meyfa/cobolcraft
 ```
 
 ## Why?

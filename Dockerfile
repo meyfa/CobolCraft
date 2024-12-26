@@ -2,6 +2,8 @@
 # Need to use ubuntu instead of debian to get a recent Java version
 FROM ubuntu:noble AS build
 
+WORKDIR /app
+
 # Install packages required for building
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
@@ -23,6 +25,8 @@ RUN make -j $(nproc)
 # --- Runtime stage ---
 FROM ubuntu:noble
 
+WORKDIR /app
+
 # Install runtime packages
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
@@ -30,16 +34,16 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy the build results
-COPY --from=build Makefile .
-COPY --from=build cobolcraft .
-COPY --from=build *.so .
-COPY --from=build blobs ./blobs
-COPY --from=build data/generated/reports/*.json ./data/generated/reports/
-COPY --from=build data/generated/data ./data/generated/data
+COPY --from=build /app/Makefile .
+COPY --from=build /app/cobolcraft .
+COPY --from=build /app/*.so .
+COPY --from=build /app/blobs ./blobs
+COPY --from=build /app/data/generated/reports/*.json ./data/generated/reports/
+COPY --from=build /app/data/generated/data ./data/generated/data
 
 # Include runtime dependencies
 ENV COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL
 
 # Run the server within Tini (to handle signals properly)
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["./cobolcraft"]
+CMD ["/app/cobolcraft"]
