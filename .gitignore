@@ -1,4 +1,6 @@
+.DS_Store
 .idea
+.vscode
 *.so
 /out
 /cobolcraft
@@ -6,3 +8,4 @@
 /test
 /test.log
 /save
+/whitelist.json

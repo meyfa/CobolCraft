@@ -19,7 +19,8 @@ WORKING-STORAGE SECTION.
     *> command handling
     01 PART-INDEX               BINARY-LONG UNSIGNED.
     01 PLAYER-ID                BINARY-LONG UNSIGNED.
-    01 BUFFER                   PIC X(256).
+    01 BUFFER                   PIC X(64000).
+    01 BUFFER-POS               BINARY-LONG UNSIGNED.
     01 BYTE-COUNT               BINARY-LONG UNSIGNED.
     01 TEMP-INT8                BINARY-CHAR.
     01 TEMP-INT64               BINARY-LONG-LONG.
@@ -28,6 +29,7 @@ WORKING-STORAGE SECTION.
     *> shared data
     COPY DD-CLIENTS.
     COPY DD-PLAYERS.
+    COPY DD-WHITELIST.
     *> help text
     01 HELP-TEXT-COUNT          BINARY-LONG UNSIGNED.
     01 HELP-TEXT                PIC X(256) OCCURS 16 TIMES.
@@ -39,6 +41,11 @@ WORKING-STORAGE SECTION.
         02 SPECTATOR-MODE       PIC X(16) VALUE "Spectator Mode".
     01 GAMEMODE-STRINGS         REDEFINES GAMEMODE-STRING-ENUM.
         02 GAMEMODE-STRING      PIC X(16) OCCURS 4 TIMES.
+    *> whitelist commands
+    01 WHITELIST-INDEX          BINARY-LONG UNSIGNED.
+    01 WHITELIST-FAILURE        BINARY-CHAR UNSIGNED.
+    01 WHITELIST-TEMP-UUID      PIC X(16).
+    01 WHITELIST-TEMP-NAME      PIC X(16).
 LINKAGE SECTION.
     01 LK-CLIENT-ID             BINARY-LONG UNSIGNED.
     01 LK-INPUT                 PIC X(256).
@@ -139,7 +146,8 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
             MOVE "/save - save the world" TO HELP-TEXT(5)
             MOVE "/stop - stop the server" TO HELP-TEXT(6)
             MOVE "/time set (day|noon|night|midnight|<time>) - change the time" TO HELP-TEXT(7)
-            MOVE 7 TO HELP-TEXT-COUNT
+            MOVE "/whitelist (reload|list|add|remove) [player] - manage the whitelist" TO HELP-TEXT(8)
+            MOVE 8 TO HELP-TEXT-COUNT
             PERFORM VARYING TEMP-INT64 FROM 1 BY 1 UNTIL TEMP-INT64 > HELP-TEXT-COUNT
                 CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID HELP-TEXT(TEMP-INT64) C-COLOR-WHITE
             END-PERFORM
@@ -197,6 +205,72 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
             MOVE TEMP-INT64 TO TEMP-INT64-PIC
             INITIALIZE BUFFER
             STRING "Set the time to " FUNCTION TRIM(TEMP-INT64-PIC) INTO BUFFER
+            CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+
+        WHEN "whitelist"
+            IF PART-COUNT = 2 AND PART-VALUE(2) = "reload"
+                CALL "Whitelist-Read" USING WHITELIST-FAILURE
+                IF WHITELIST-FAILURE NOT = 0
+                    MOVE "Error reloading the whitelist" TO BUFFER
+                    CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                    EXIT SECTION
+                END-IF
+                MOVE "Reloaded the whitelist" TO BUFFER
+                CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                EXIT SECTION
+            END-IF
+            IF PART-COUNT = 2 AND PART-VALUE(2) = "list"
+                IF WHITELIST-LENGTH = 0
+                    MOVE "There are no whitelisted players" TO BUFFER
+                    CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                    EXIT SECTION
+                END-IF
+                MOVE WHITELIST-LENGTH TO TEMP-INT64-PIC
+                INITIALIZE BUFFER
+                STRING "There are " FUNCTION TRIM(TEMP-INT64-PIC) " whitelisted player(s):" INTO BUFFER
+                COMPUTE BUFFER-POS = FUNCTION STORED-CHAR-LENGTH(BUFFER) + 2
+                PERFORM VARYING WHITELIST-INDEX FROM 1 BY 1 UNTIL WHITELIST-INDEX > WHITELIST-LENGTH
+                    IF WHITELIST-INDEX > 1
+                        MOVE ", " TO BUFFER(BUFFER-POS:2)
+                        ADD 2 TO BUFFER-POS
+                    END-IF
+                    MOVE FUNCTION STORED-CHAR-LENGTH(WHITELIST-NAME(WHITELIST-INDEX)) TO BYTE-COUNT
+                    MOVE WHITELIST-NAME(WHITELIST-INDEX)(1:BYTE-COUNT) TO BUFFER(BUFFER-POS:BYTE-COUNT)
+                    ADD BYTE-COUNT TO BUFFER-POS
+                END-PERFORM
+                CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                EXIT SECTION
+            END-IF
+            IF PART-COUNT = 3
+                MOVE PART-VALUE(3) TO WHITELIST-TEMP-NAME
+                MOVE FUNCTION STORED-CHAR-LENGTH(WHITELIST-TEMP-NAME) TO BYTE-COUNT
+                *> TODO refactor this to a subroutine (currently duplicated with server)
+                MOVE X"00000000000000000000000000000000" TO WHITELIST-TEMP-UUID
+                MOVE WHITELIST-TEMP-NAME(1:BYTE-COUNT) TO WHITELIST-TEMP-UUID(1:BYTE-COUNT)
+                IF PART-VALUE(2) = "add"
+                    CALL "Whitelist-Add" USING WHITELIST-TEMP-UUID WHITELIST-TEMP-NAME BYTE-COUNT WHITELIST-FAILURE
+                    IF WHITELIST-FAILURE NOT = 0
+                        MOVE "Player is already whitelisted" TO BUFFER
+                    ELSE
+                        INITIALIZE BUFFER
+                        STRING "Added " FUNCTION TRIM(WHITELIST-TEMP-NAME(1:BYTE-COUNT)) " to the whitelist" INTO BUFFER
+                    END-IF
+                    CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                    EXIT SECTION
+                END-IF
+                IF PART-VALUE(2) = "remove"
+                    CALL "Whitelist-Remove" USING WHITELIST-TEMP-UUID WHITELIST-TEMP-NAME BYTE-COUNT WHITELIST-FAILURE
+                    IF WHITELIST-FAILURE NOT = 0
+                        MOVE "Player is not whitelisted" TO BUFFER
+                    ELSE
+                        INITIALIZE BUFFER
+                        STRING "Removed " FUNCTION TRIM(WHITELIST-TEMP-NAME(1:BYTE-COUNT)) " from the whitelist" INTO BUFFER
+                    END-IF
+                    CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                    EXIT SECTION
+                END-IF
+            END-IF
+            MOVE "Usage: /whitelist (reload|list|add|remove) [player]" TO BUFFER
             CALL "HandleCommand-SendToClient" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
 
         WHEN OTHER
@@ -318,6 +392,25 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
         *> argument
         *> TODO: differentiate between the literals and <time>
         MOVE "time" to NODE-NAME
+        MOVE 1 TO EXECUTABLE
+        MOVE LENGTH OF PROPERTIES-STRING-SINGLE TO PROPERTIES-LENGTH
+        MOVE PROPERTIES-STRING-SINGLE TO PROPERTIES-VALUE
+        CALL "AddArgumentNode" USING NODE-NAME EXECUTABLE PARSER-STRING PROPERTIES-LENGTH PROPERTIES-VALUE
+
+        *> "/whitelist (reload|list|add|remove) [player]"
+        MOVE "whitelist" to NODE-NAME
+        MOVE 0 TO EXECUTABLE
+        CALL "AddCommandNode" USING NODE-NAME EXECUTABLE
+        *> argument
+        *> TODO: differentiate between subcommands (requires appending children to any previous node)
+        MOVE "command" to NODE-NAME
+        MOVE 1 TO EXECUTABLE
+        MOVE LENGTH OF PROPERTIES-STRING-SINGLE TO PROPERTIES-LENGTH
+        MOVE PROPERTIES-STRING-SINGLE TO PROPERTIES-VALUE
+        CALL "AddArgumentNode" USING NODE-NAME EXECUTABLE PARSER-STRING PROPERTIES-LENGTH PROPERTIES-VALUE
+        *> player name
+        *> TODO: make this conditional on the subcommand
+        MOVE "player" to NODE-NAME
         MOVE 1 TO EXECUTABLE
         MOVE LENGTH OF PROPERTIES-STRING-SINGLE TO PROPERTIES-LENGTH
         MOVE PROPERTIES-STRING-SINGLE TO PROPERTIES-VALUE

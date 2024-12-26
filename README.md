@@ -19,7 +19,7 @@ The following features are already working:
 - [X] player inventory (limited to creative mode)
 - [X] chat
 - [X] commands (in-game and via an interactive console)
-- [X] whitelist (single player, edit `main.cob` to enable/set username)
+- [X] whitelist (persistent; stored in `whitelist.json`)
 
 Note that blocks with multiple states, orientations, or interactive blocks require large amounts of specialized code
 to make them behave properly, which is way beyond the scope of this project.

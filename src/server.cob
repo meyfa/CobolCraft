@@ -107,7 +107,6 @@ LINKAGE SECTION.
     01 SERVER-CONFIG.
         02 PORT                 PIC X(5).
         02 WHITELIST-ENABLE     BINARY-CHAR.
-        02 WHITELIST-PLAYER     PIC X(16).
         02 MOTD                 PIC X(64).
 
 PROCEDURE DIVISION USING SERVER-CONFIG.
@@ -228,6 +227,15 @@ RegisterBlocks.
     CALL "RegisterBlock-Bed"
     CALL "RegisterBlock-Water"
     CALL "RegisterBlock-Lava"
+    .
+
+LoadProperties.
+    DISPLAY "Loading whitelist"
+    CALL "Whitelist-Read" USING DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to read whitelist"
+        STOP RUN
+    END-IF
     .
 
 GenerateWorld.
@@ -717,13 +725,16 @@ HandleLogin SECTION.
             MOVE TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) TO TEMP-UUID(1:TEMP-PLAYER-NAME-LEN)
 
             *> Check username against the whitelist
-            IF WHITELIST-ENABLE > 0 AND TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) NOT = WHITELIST-PLAYER
-                MOVE "You are not white-listed on this server!" TO BUFFER
-                MOVE 40 TO BYTE-COUNT
-                DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                PERFORM DisconnectClient
-                EXIT SECTION
+            IF WHITELIST-ENABLE > 0
+                CALL "Whitelist-Check" USING TEMP-UUID TEMP-PLAYER-NAME TEMP-PLAYER-NAME-LEN TEMP-INT8
+                IF TEMP-INT8 = 0
+                    MOVE "You are not white-listed on this server!" TO BUFFER
+                    MOVE 40 TO BYTE-COUNT
+                    DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
+                    CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
+                    PERFORM DisconnectClient
+                    EXIT SECTION
+                END-IF
             END-IF
 
             *> If the player is already connected, disconnect them first

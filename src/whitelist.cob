@@ -1,0 +1,277 @@
+*> --- Whitelist-Read ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Whitelist-Read.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 WHITELIST-FILENAME       PIC X(64) VALUE "whitelist.json".
+    01 EMPTY-UUID               PIC X(16) VALUE X"00000000000000000000000000000000".
+    *> shared data
+    COPY DD-WHITELIST.
+    *> Marked EXTERNAL to allow for use in both read and write programs
+    01 WHITELIST-BUFFER         PIC X(64000) EXTERNAL.
+    01 WHITELIST-BUFFER-LEN     BINARY-LONG UNSIGNED.
+    01 WHITELIST-BUFFER-POS     BINARY-LONG UNSIGNED.
+    01 FLAG                     BINARY-CHAR UNSIGNED.
+    01 OBJECT-KEY               PIC X(255).
+    01 TEMP-UUID-STR            PIC X(36).
+    01 TEMP-UUID                PIC X(16).
+    01 TEMP-PLAYER-NAME         PIC X(16).
+LINKAGE SECTION.
+    01 LK-FAILURE               BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-FAILURE.
+    MOVE 0 TO LK-FAILURE
+
+    MOVE 0 TO WHITELIST-LENGTH
+
+    CALL "Files-ReadAll" USING WHITELIST-FILENAME WHITELIST-BUFFER WHITELIST-BUFFER-LEN FLAG
+    IF FLAG NOT = 0
+        *> error reading whitelist file, attempt to create a new one
+        CALL "Whitelist-Write" USING LK-FAILURE
+        GOBACK
+    END-IF
+
+    MOVE 1 TO WHITELIST-BUFFER-POS
+
+    *> mandatory array start
+    CALL "JsonParse-ArrayStart" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG
+    IF FLAG NOT = 0
+        MOVE 1 TO LK-FAILURE
+        GOBACK
+    END-IF
+
+    PERFORM UNTIL EXIT
+        *> optional object start
+        CALL "JsonParse-ObjectStart" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG
+        IF FLAG NOT = 0
+            *> If there is no object, but there was a comma, this is an error
+            IF WHITELIST-LENGTH > 0
+                MOVE 1 TO LK-FAILURE
+                GOBACK
+            END-IF
+            EXIT PERFORM
+        END-IF
+
+        MOVE EMPTY-UUID TO TEMP-UUID
+        MOVE SPACES TO TEMP-PLAYER-NAME
+
+        PERFORM UNTIL EXIT
+            *> mandatory key
+            CALL "JsonParse-ObjectKey" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG OBJECT-KEY
+            IF FLAG NOT = 0
+                MOVE 1 TO LK-FAILURE
+                GOBACK
+            END-IF
+
+            EVALUATE OBJECT-KEY
+                WHEN "uuid"
+                    CALL "JsonParse-String" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG TEMP-UUID-STR
+                    CALL "UUID-FromString" USING TEMP-UUID-STR TEMP-UUID
+                WHEN "name"
+                    CALL "JsonParse-String" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG TEMP-PLAYER-NAME
+                WHEN OTHER
+                    CALL "JsonParse-SkipValue" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG
+            END-EVALUATE
+
+            IF FLAG NOT = 0
+                MOVE 1 TO LK-FAILURE
+                GOBACK
+            END-IF
+
+            *> optional comma
+            CALL "JsonParse-Comma" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG
+            IF FLAG NOT = 0
+                EXIT PERFORM
+            END-IF
+        END-PERFORM
+
+        *> mandatory object end
+        CALL "JsonParse-ObjectEnd" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG
+        IF FLAG NOT = 0
+            MOVE 1 TO LK-FAILURE
+            EXIT PERFORM
+        END-IF
+
+        *> Only add complete entries (the official server does it this way)
+        IF TEMP-UUID NOT = EMPTY-UUID AND TEMP-PLAYER-NAME NOT = SPACES
+            ADD 1 TO WHITELIST-LENGTH
+            MOVE TEMP-UUID TO WHITELIST-UUID(WHITELIST-LENGTH)
+            MOVE TEMP-PLAYER-NAME TO WHITELIST-NAME(WHITELIST-LENGTH)
+        END-IF
+
+        *> optional comma
+        CALL "JsonParse-Comma" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG
+        IF FLAG NOT = 0
+            EXIT PERFORM
+        END-IF
+    END-PERFORM
+
+    *> mandatory array end
+    CALL "JsonParse-ArrayEnd" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS FLAG
+    IF FLAG NOT = 0
+        MOVE 1 TO LK-FAILURE
+        GOBACK
+    END-IF
+
+    GOBACK.
+
+END PROGRAM Whitelist-Read.
+
+*> --- Whitelist-Write ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Whitelist-Write.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 WHITELIST-FILENAME       PIC X(64) VALUE "whitelist.json".
+    *> shared data
+    COPY DD-WHITELIST.
+    *> Marked EXTERNAL to allow for use in both read and write programs
+    01 WHITELIST-BUFFER         PIC X(64000) EXTERNAL.
+    01 WHITELIST-BUFFER-POS     BINARY-LONG UNSIGNED.
+    01 WHITELIST-BUFFER-LEN     BINARY-LONG UNSIGNED.
+    01 WHITELIST-INDEX          BINARY-LONG UNSIGNED.
+    01 TEMP-STR                 PIC X(36).
+    01 TEMP-STR-LEN             BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-FAILURE               BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-FAILURE.
+    MOVE 0 TO LK-FAILURE
+
+    MOVE 1 TO WHITELIST-BUFFER-POS
+
+    CALL "JsonEncode-ArrayStart" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS
+
+    PERFORM VARYING WHITELIST-INDEX FROM 1 BY 1 UNTIL WHITELIST-INDEX > WHITELIST-LENGTH
+        IF WHITELIST-INDEX > 1
+            CALL "JsonEncode-Comma" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS
+        END-IF
+
+        CALL "JsonEncode-ObjectStart" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS
+
+        MOVE 4 TO TEMP-STR-LEN
+        MOVE "uuid" TO TEMP-STR(1:TEMP-STR-LEN)
+        CALL "JsonEncode-ObjectKey" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS TEMP-STR TEMP-STR-LEN
+
+        MOVE 36 TO TEMP-STR-LEN
+        CALL "UUID-ToString" USING WHITELIST-UUID(WHITELIST-INDEX) TEMP-STR
+        CALL "JsonEncode-String" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS TEMP-STR TEMP-STR-LEN
+
+        CALL "JsonEncode-Comma" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS
+
+        MOVE 4 TO TEMP-STR-LEN
+        MOVE "name" TO TEMP-STR(1:TEMP-STR-LEN)
+        CALL "JsonEncode-ObjectKey" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS TEMP-STR TEMP-STR-LEN
+
+        MOVE WHITELIST-NAME(WHITELIST-INDEX) TO TEMP-STR
+        MOVE FUNCTION STORED-CHAR-LENGTH(TEMP-STR) TO TEMP-STR-LEN
+        CALL "JsonEncode-String" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS TEMP-STR TEMP-STR-LEN
+
+        CALL "JsonEncode-ObjectEnd" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS
+    END-PERFORM
+
+    CALL "JsonEncode-ArrayEnd" USING WHITELIST-BUFFER WHITELIST-BUFFER-POS
+
+    COMPUTE WHITELIST-BUFFER-LEN = WHITELIST-BUFFER-POS - 1
+    CALL "Files-WriteAll" USING WHITELIST-FILENAME WHITELIST-BUFFER WHITELIST-BUFFER-LEN LK-FAILURE
+
+    GOBACK.
+
+END PROGRAM Whitelist-Write.
+
+*> --- Whitelist-Check ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Whitelist-Check.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared data
+    COPY DD-WHITELIST.
+    *> temporary variables
+    01 WHITELIST-INDEX          BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-UUID                  PIC X(16).
+    01 LK-NAME                  PIC X(16).
+    01 LK-NAME-LEN              BINARY-LONG UNSIGNED.
+    *> 0 = not found, 1 = found
+    01 LK-RESULT                BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-UUID LK-NAME LK-NAME-LEN LK-RESULT.
+    *> Ignore UUID and only compare the name (UUID is basically meaningless in this server implementation)
+    PERFORM VARYING WHITELIST-INDEX FROM 1 BY 1 UNTIL WHITELIST-INDEX > WHITELIST-LENGTH
+        IF WHITELIST-NAME(WHITELIST-INDEX) = LK-NAME(1:LK-NAME-LEN)
+            MOVE 1 TO LK-RESULT
+            GOBACK
+        END-IF
+    END-PERFORM
+    MOVE 0 TO LK-RESULT
+    GOBACK.
+
+END PROGRAM Whitelist-Check.
+
+*> --- Whitelist-Add ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Whitelist-Add.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared data
+    COPY DD-WHITELIST.
+    *> temporary variables
+    01 WRITE-FAILURE            BINARY-CHAR UNSIGNED.
+LINKAGE SECTION.
+    01 LK-UUID                  PIC X(16).
+    01 LK-NAME                  PIC X(16).
+    01 LK-NAME-LEN              BINARY-LONG UNSIGNED.
+    01 LK-ALREADY-EXISTS        BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-UUID LK-NAME LK-NAME-LEN LK-ALREADY-EXISTS.
+    CALL "Whitelist-Check" USING LK-UUID LK-NAME LK-NAME-LEN LK-ALREADY-EXISTS
+    IF LK-ALREADY-EXISTS NOT = 0
+        GOBACK
+    END-IF
+    ADD 1 TO WHITELIST-LENGTH
+    MOVE LK-UUID TO WHITELIST-UUID(WHITELIST-LENGTH)
+    MOVE LK-NAME(1:LK-NAME-LEN) TO WHITELIST-NAME(WHITELIST-LENGTH)
+    *> TODO handle failure
+    CALL "Whitelist-Write" USING WRITE-FAILURE
+    GOBACK.
+
+END PROGRAM Whitelist-Add.
+
+*> --- Whitelist-Remove ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Whitelist-Remove.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared data
+    COPY DD-WHITELIST.
+    *> temporary variables
+    01 WHITELIST-INDEX          BINARY-LONG UNSIGNED.
+    01 WRITE-FAILURE            BINARY-CHAR UNSIGNED.
+LINKAGE SECTION.
+    01 LK-UUID                  PIC X(16).
+    01 LK-NAME                  PIC X(16).
+    01 LK-NAME-LEN              BINARY-LONG UNSIGNED.
+    01 LK-NOT-FOUND             BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-UUID LK-NAME LK-NAME-LEN LK-NOT-FOUND.
+    PERFORM VARYING WHITELIST-INDEX FROM 1 BY 1 UNTIL WHITELIST-INDEX > WHITELIST-LENGTH
+        IF WHITELIST-NAME(WHITELIST-INDEX) = LK-NAME(1:LK-NAME-LEN)
+            *> swap the last entry with the one to remove
+            MOVE WHITELIST-NAME(WHITELIST-LENGTH) TO WHITELIST-NAME(WHITELIST-INDEX)
+            MOVE WHITELIST-UUID(WHITELIST-LENGTH) TO WHITELIST-UUID(WHITELIST-INDEX)
+            SUBTRACT 1 FROM WHITELIST-LENGTH
+            *> TODO handle failure
+            CALL "Whitelist-Write" USING WRITE-FAILURE
+            MOVE 0 TO LK-NOT-FOUND
+            GOBACK
+        END-IF
+    END-PERFORM
+    MOVE 1 TO LK-NOT-FOUND
+    GOBACK.
+
+END PROGRAM Whitelist-Remove.
