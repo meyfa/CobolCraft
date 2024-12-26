@@ -24,6 +24,8 @@ WORKING-STORAGE SECTION.
     01 C-MINECRAFT-JUKEBOX_SONG     PIC X(50)               VALUE "minecraft:jukebox_song".
     01 C-MINECRAFT-ITEM             PIC X(50)               VALUE "minecraft:item".
     01 C-COLOR-YELLOW               PIC X(16)               VALUE "yellow".
+    *> Configuration
+    COPY DD-SERVER-PROPERTIES.
     *> The server sends (2 * VIEW-DISTANCE + 1) * (2 * VIEW-DISTANCE + 1) chunks around the player.
     *> TODO: Improve performance so this can be increased to a reasonable value.
     01 VIEW-DISTANCE                BINARY-LONG             VALUE 3.
@@ -102,14 +104,7 @@ WORKING-STORAGE SECTION.
     *> TODO: remove need to access world data directly in this file
     COPY DD-WORLD.
 
-LINKAGE SECTION.
-    *> Configuration provided by main program
-    01 SERVER-CONFIG.
-        02 PORT                 PIC X(5).
-        02 WHITELIST-ENABLE     BINARY-CHAR.
-        02 MOTD                 PIC X(64).
-
-PROCEDURE DIVISION USING SERVER-CONFIG.
+PROCEDURE DIVISION.
 LoadRegistries.
     DISPLAY "Loading registries"
     CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
@@ -230,6 +225,20 @@ RegisterBlocks.
     .
 
 LoadProperties.
+    DISPLAY "Loading server properties"
+    CALL "ServerProperties-Read" USING DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to read server.properties"
+        STOP RUN
+    END-IF
+
+    *> Always write out server.properties to ensure that any missing properties are added
+    CALL "ServerProperties-Write" USING DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to write server.properties"
+        STOP RUN
+    END-IF
+
     DISPLAY "Loading whitelist"
     CALL "Whitelist-Read" USING DATA-FAILURE
     IF DATA-FAILURE NOT = 0
@@ -267,7 +276,7 @@ StartServer.
         MOVE CLIENT-STATE-DISCONNECTED TO CLIENT-STATE(CLIENT-ID)
     END-PERFORM
 
-    CALL "Socket-Listen" USING PORT SERVER-HNDL ERRNO
+    CALL "Socket-Listen" USING SP-PORT SERVER-HNDL ERRNO
     PERFORM HandleServerError
 
     DISPLAY "Done! For help, type ""help"""
@@ -695,7 +704,7 @@ HandleStatus SECTION.
                     ADD 1 TO TEMP-INT32
                 END-IF
             END-PERFORM
-            CALL "SendPacket-Status" USING CLIENT-ID MOTD MAX-PLAYERS TEMP-INT32
+            CALL "SendPacket-Status" USING CLIENT-ID SP-MOTD MAX-PLAYERS TEMP-INT32
 
         *> Ping request: respond with the same payload and close the connection
         WHEN H'01'
@@ -725,7 +734,7 @@ HandleLogin SECTION.
             MOVE TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) TO TEMP-UUID(1:TEMP-PLAYER-NAME-LEN)
 
             *> Check username against the whitelist
-            IF WHITELIST-ENABLE > 0
+            IF SP-WHITELIST-ENABLE > 0
                 CALL "Whitelist-Check" USING TEMP-UUID TEMP-PLAYER-NAME TEMP-PLAYER-NAME-LEN TEMP-INT8
                 IF TEMP-INT8 = 0
                     MOVE "You are not white-listed on this server!" TO BUFFER

@@ -19,7 +19,8 @@ The following features are already working:
 - [X] player inventory (limited to creative mode)
 - [X] chat
 - [X] commands (in-game and via an interactive console)
-- [X] whitelist (persistent; stored in `whitelist.json`)
+- [X] configuration via server.properties
+- [X] whitelist (persistent; stored in whitelist.json)
 
 Note that blocks with multiple states, orientations, or interactive blocks require large amounts of specialized code
 to make them behave properly, which is way beyond the scope of this project.
@@ -55,17 +56,27 @@ Or, using Docker:
 
 ```sh
 docker build -t cobolcraft .
-docker run --rm -p 25565:25565 -it cobolcraft
+docker run --rm --interactive --tty \
+     --publish 25565:25565 \
+     --volume server.properties:/server.properties \
+     --volume whitelist.json:/whitelist.json \
+     --volume save:/save \
+    cobolcraft
 ```
 
-To configure the server, edit the variables in `main.cob` (limited options available).
+To configure the server, edit the `server.properties` file.
+This file is generated automatically on first run with default values for all supported options:
+
+* `server-port` (default: 25565)
+* `white-list` (default: false)
+* `motd` (default: "CobolCraft")
 
 Note: By default, the server is only accessible via localhost (i.e., only on your own system via `localhost:25565`).
 To make it accessible from the outside (your local network, via VPN, port forwarding, on a rented server, ...), you
 can start the Docker container like this:
 
 ```sh
-docker run --rm -p 0.0.0.0:25565:25565 -it cobolcraft
+docker run --rm -it -p 0.0.0.0:25565:25565 cobolcraft
 ```
 
 ## Why?
