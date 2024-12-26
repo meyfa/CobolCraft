@@ -1,0 +1,17 @@
+**/.DS_Store
+.idea
+.vscode
+**/*.so
+/out
+/cobolcraft
+/data
+/test
+/test.log
+/save
+/server.properties
+/whitelist.json
+
+/.dockerignore
+/Dockerfile
+
+/.github
