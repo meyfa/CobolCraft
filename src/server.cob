@@ -224,6 +224,18 @@ RegisterBlocks.
     CALL "RegisterBlock-Lava"
     .
 
+RegisterCommands.
+    DISPLAY "Registering commands"
+
+    CALL "RegisterCommand-GameMode"
+    CALL "RegisterCommand-Help"
+    CALL "RegisterCommand-Say"
+    CALL "RegisterCommand-Save"
+    CALL "RegisterCommand-Stop"
+    CALL "RegisterCommand-Time"
+    CALL "RegisterCommand-Whitelist"
+    .
+
 LoadProperties.
     DISPLAY "Loading server properties"
     CALL "ServerProperties-Read" USING DATA-FAILURE
