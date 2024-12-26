@@ -1,3 +1,28 @@
+*> --- SendChatMessage ---
+*> Send a chat message to a specific client. A client ID of 0 means to write the message to the server console.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. SendChatMessage.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-CLIENTS.
+    01 BYTE-COUNT               BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-CLIENT-ID             BINARY-LONG UNSIGNED.
+    01 LK-MESSAGE               PIC X ANY LENGTH.
+    01 LK-COLOR                 PIC X(16).
+
+PROCEDURE DIVISION USING LK-CLIENT-ID LK-MESSAGE LK-COLOR.
+    MOVE FUNCTION STORED-CHAR-LENGTH(LK-MESSAGE) TO BYTE-COUNT
+    IF LK-CLIENT-ID = 0
+        DISPLAY LK-MESSAGE(1:BYTE-COUNT)
+        GOBACK
+    END-IF
+    CALL "SendPacket-SystemChat" USING LK-CLIENT-ID LK-MESSAGE BYTE-COUNT LK-COLOR
+    GOBACK.
+
+END PROGRAM SendChatMessage.
+
 *> --- BroadcastChatMessage ---
 *> Send a chat message to all clients in the "play" state, and log it to the server console.
 IDENTIFICATION DIVISION.
@@ -46,4 +71,3 @@ PROCEDURE DIVISION USING LK-EXCEPT-CLIENT-ID LK-MESSAGE LK-MESSAGE-LENGTH LK-COL
     GOBACK.
 
 END PROGRAM BroadcastChatMessageExcept.
-
