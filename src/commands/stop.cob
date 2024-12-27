@@ -7,10 +7,13 @@ WORKING-STORAGE SECTION.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "stop".
     01 COMMAND-HELP                 PIC X(255)                  VALUE "/stop - stop the server".
     01 PTR                          PROGRAM-POINTER.
+    01 NODE-ROOT                    BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
-    CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR
+    CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
+    CALL "SetCommandExecutable" USING NODE-ROOT
+
     GOBACK.
 
     *> --- Callback-Execute ---

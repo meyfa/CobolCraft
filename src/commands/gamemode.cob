@@ -7,10 +7,16 @@ WORKING-STORAGE SECTION.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "gamemode".
     01 COMMAND-HELP                 PIC X(255)                  VALUE "/gamemode <gamemode> - change your game mode".
     01 PTR                          PROGRAM-POINTER.
+    01 NODE-ROOT                    BINARY-LONG UNSIGNED.
+    01 NODE-GAMEMODE                BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
-    CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR
+    CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
+
+    CALL "AddCommandArgument-Simple" USING NODE-ROOT "gamemode" NODE-GAMEMODE
+    CALL "SetCommandExecutable" USING NODE-GAMEMODE
+
     GOBACK.
 
     *> --- Callback-Execute ---

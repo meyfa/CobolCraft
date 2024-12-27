@@ -7,10 +7,28 @@ WORKING-STORAGE SECTION.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "whitelist".
     01 COMMAND-HELP                 PIC X(255)                  VALUE "/whitelist (reload|list|add|remove) [player] - manage the whitelist".
     01 PTR                          PROGRAM-POINTER.
+    01 NODE-ROOT                    BINARY-LONG UNSIGNED.
+    01 NODE-OPERATION               BINARY-LONG UNSIGNED.
+    01 NODE-ARGUMENT                BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
-    CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR
+    CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
+
+    CALL "AddCommandNode-Literal" USING NODE-ROOT "reload" NODE-OPERATION
+    CALL "SetCommandExecutable" USING NODE-OPERATION
+
+    CALL "AddCommandNode-Literal" USING NODE-ROOT "list" NODE-OPERATION
+    CALL "SetCommandExecutable" USING NODE-OPERATION
+
+    CALL "AddCommandNode-Literal" USING NODE-ROOT "add" NODE-OPERATION
+    CALL "AddCommandArgument-Simple" USING NODE-OPERATION "player" NODE-ARGUMENT
+    CALL "SetCommandExecutable" USING NODE-ARGUMENT
+
+    CALL "AddCommandNode-Literal" USING NODE-ROOT "remove" NODE-OPERATION
+    CALL "AddCommandArgument-Simple" USING NODE-OPERATION "player" NODE-ARGUMENT
+    CALL "SetCommandExecutable" USING NODE-ARGUMENT
+
     GOBACK.
 
     *> --- Callback-Execute ---
