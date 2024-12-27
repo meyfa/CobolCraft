@@ -37,7 +37,8 @@
             04 CHUNK-QUEUE-X        BINARY-LONG.
             04 CHUNK-QUEUE-Z        BINARY-LONG.
         *> Packet reading: expected packet length (0 if not yet known), packet buffer, amount of received bytes
-        *> Note: Maximum packet length is 2^21-1 bytes - see: https://wiki.vg/Protocol#Packet_format
+        *> Note: Maximum packet length is 2^21-1 bytes,
+        *>       see: https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#Packet_format
         03 PACKET-LENGTH        BINARY-LONG.
         03 PACKET-BUFFER        PIC X(2100000).
         03 PACKET-BUFFERLEN     BINARY-LONG.

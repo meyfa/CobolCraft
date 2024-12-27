@@ -33,7 +33,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-INVENTORY.
     MOVE 0 TO INT32
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 
-    *> count = 46 (https://wiki.vg/Inventory#Player_Inventory)
+    *> count = 46 (https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Inventory)
     MOVE 46 TO INT32
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 

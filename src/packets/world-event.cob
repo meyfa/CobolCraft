@@ -30,7 +30,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-EVENT LK-POSITION LK-DATA.
     CALL "Encode-Int" USING LK-DATA PAYLOAD PAYLOADPOS
 
     *> disable relative volume = false
-    *> TODO set to true for some sounds, see: https://wiki.vg/Protocol#World_Event
+    *> TODO set to true for some sounds (https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#World_Event)
     MOVE X"00" TO PAYLOAD(PAYLOADPOS:1)
     ADD 1 TO PAYLOADPOS
 

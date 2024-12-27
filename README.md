@@ -101,7 +101,8 @@ If you too have never written COBOL before but are interested in CobolCraft, I r
 Programmer's Guide:
 https://gnucobol.sourceforge.io/HTML/gnucobpg.html
 
-To learn more about the Minecraft protocol, you can refer to https://wiki.vg/Protocol.
+To learn more about the Minecraft protocol, you can refer to the wiki.vg documentation:
+https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol
 In some cases, it may be helpful to look at real server traffic to better understand the flow of information.
 
 ## Program Overview
