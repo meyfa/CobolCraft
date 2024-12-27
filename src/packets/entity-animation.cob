@@ -11,7 +11,7 @@ WORKING-STORAGE SECTION.
 LINKAGE SECTION.
     01 LK-CLIENT        BINARY-LONG UNSIGNED.
     01 LK-ENTITY-ID     BINARY-LONG.
-    *> Possible values: https://wiki.vg/Protocol#Entity_Animation
+    *> Possible values: https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#Entity_Animation
     01 LK-ANIMATION     BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-ANIMATION.
