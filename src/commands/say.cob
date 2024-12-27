@@ -7,10 +7,16 @@ WORKING-STORAGE SECTION.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "say".
     01 COMMAND-HELP                 PIC X(255)                  VALUE "/say <message> - broadcast a message".
     01 PTR                          PROGRAM-POINTER.
+    01 NODE-ROOT                    BINARY-LONG UNSIGNED.
+    01 NODE-MESSAGE                 BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
-    CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR
+    CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
+
+    CALL "AddCommandArgument-Greedy" USING NODE-ROOT "message" NODE-MESSAGE
+    CALL "SetCommandExecutable" USING NODE-MESSAGE
+
     GOBACK.
 
     *> --- Callback-Execute ---
