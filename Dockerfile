@@ -34,7 +34,6 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy the build results
-COPY --from=build /app/Makefile .
 COPY --from=build /app/cobolcraft .
 COPY --from=build /app/*.so .
 COPY --from=build /app/blobs ./blobs
