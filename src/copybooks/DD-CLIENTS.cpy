@@ -1,10 +1,14 @@
 *> --- Copybook: shared data for client state ---
 
 *> The number of client slots available.
-78 MAX-CLIENTS VALUE 10.
+78 MAX-CLIENTS                  VALUE 10.
+
+*> Maximum packet length is 2^21-1 bytes ~= 2.1 MiB,
+*> see: https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#Packet_format
+78 RECEIVE-BUFFER-LENGTH        VALUE 2100000.
 
 *> The maximum number of chunks that can be queued for a client.
-78 CHUNK-QUEUE-LENGTH                           VALUE 100.
+78 CHUNK-QUEUE-LENGTH           VALUE 100.
 
 *> Client data
 01 CLIENTS EXTERNAL.
@@ -37,8 +41,10 @@
             04 CHUNK-QUEUE-X        BINARY-LONG.
             04 CHUNK-QUEUE-Z        BINARY-LONG.
         *> Packet reading: expected packet length (0 if not yet known), packet buffer, amount of received bytes
-        *> Note: Maximum packet length is 2^21-1 bytes,
-        *>       see: https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#Packet_format
         03 PACKET-LENGTH        BINARY-LONG.
-        03 PACKET-BUFFER        PIC X(2100000).
+        *> Pointer to the client's receive buffer. Must be ALLOCATE'd when the client connects and FREE'd on disconnect.
+        03 PACKET-BUFFER        POINTER.
         03 PACKET-BUFFERLEN     BINARY-LONG.
+
+*> The receive buffer for the currently selected client (its PACKET-BUFFER).
+01 CLIENT-RECEIVE-BUFFER PIC X(RECEIVE-BUFFER-LENGTH) BASED.
