@@ -449,9 +449,13 @@ NetworkRead SECTION.
 
 InsertClient SECTION.
     INITIALIZE CLIENT(CLIENT-ID)
+
     MOVE 1 TO CLIENT-PRESENT(CLIENT-ID)
     MOVE TEMP-HNDL TO CLIENT-HNDL(CLIENT-ID)
     MOVE CLIENT-STATE-HANDSHAKE TO CLIENT-STATE(CLIENT-ID)
+
+    ALLOCATE RECEIVE-BUFFER-LENGTH CHARACTERS RETURNING PACKET-BUFFER(CLIENT-ID)
+
     EXIT SECTION.
 
 KeepAlive SECTION.
@@ -601,6 +605,9 @@ ReceivePacket SECTION.
         EXIT SECTION
     END-IF
 
+    *> Select the current client's buffer
+    SET ADDRESS OF CLIENT-RECEIVE-BUFFER TO PACKET-BUFFER(CLIENT-ID)
+
     *> If the packet length is not yet known, try to read more bytes one by one until the VarInt is valid
     IF PACKET-LENGTH(CLIENT-ID) <= 0
         MOVE 1 TO BYTE-COUNT
@@ -615,7 +622,7 @@ ReceivePacket SECTION.
         END-IF
 
         ADD 1 TO PACKET-BUFFERLEN(CLIENT-ID)
-        MOVE BUFFER(1:1) TO PACKET-BUFFER(CLIENT-ID)(PACKET-BUFFERLEN(CLIENT-ID):1)
+        MOVE BUFFER(1:1) TO CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID):1)
 
         *> If the most significant bit is set, we need to read more bytes (later).
         *> Note: ORD(...) returns the ASCII code of the character + 1.
@@ -630,7 +637,7 @@ ReceivePacket SECTION.
 
         *> Otherwise, we can decode the packet length now.
         MOVE 1 TO PACKET-POSITION
-        CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
+        CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
         IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length: " PACKET-LENGTH(CLIENT-ID)
             PERFORM DisconnectClient
@@ -648,7 +655,7 @@ ReceivePacket SECTION.
         COMPUTE BYTE-COUNT = FUNCTION MIN(PACKET-LENGTH(CLIENT-ID) - PACKET-BUFFERLEN(CLIENT-ID), 64000)
         MOVE 1 TO TIMEOUT-MS
         CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT
-            PACKET-BUFFER(CLIENT-ID)(PACKET-BUFFERLEN(CLIENT-ID) + 1:) TIMEOUT-MS
+            CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID) + 1:) TIMEOUT-MS
         IF ERRNO NOT = 0
             PERFORM HandleClientError
             EXIT SECTION
@@ -663,7 +670,7 @@ ReceivePacket SECTION.
 
     *> Start decoding the packet by decoding the packet ID.
     MOVE 1 TO PACKET-POSITION
-    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PACKET-ID
+    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-ID
 
     EVALUATE CLIENT-STATE(CLIENT-ID)
         WHEN CLIENT-STATE-HANDSHAKE
@@ -696,7 +703,7 @@ HandleHandshake SECTION.
     END-IF
 
     *> The final byte of the payload encodes the target state.
-    COMPUTE CLIENT-STATE(CLIENT-ID) = FUNCTION ORD(PACKET-BUFFER(CLIENT-ID)(PACKET-LENGTH(CLIENT-ID):1)) - 1
+    COMPUTE CLIENT-STATE(CLIENT-ID) = FUNCTION ORD(CLIENT-RECEIVE-BUFFER(PACKET-LENGTH(CLIENT-ID):1)) - 1
     IF CLIENT-STATE(CLIENT-ID) NOT = CLIENT-STATE-STATUS AND CLIENT-STATE(CLIENT-ID) NOT = CLIENT-STATE-LOGIN
         DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client requested invalid target state: " CLIENT-STATE(CLIENT-ID)
         PERFORM DisconnectClient
@@ -720,7 +727,7 @@ HandleStatus SECTION.
 
         *> Ping request: respond with the same payload and close the connection
         WHEN H'01'
-            CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT64
+            CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT64
             CALL "SendPacket-PingResponse" USING CLIENT-ID TEMP-INT64
             PERFORM DisconnectClient
 
@@ -735,8 +742,8 @@ HandleLogin SECTION.
         *> Login start
         WHEN H'00'
             *> Decode username and UUID
-            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-PLAYER-NAME-LEN TEMP-PLAYER-NAME
-            MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:16) TO TEMP-UUID
+            CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-PLAYER-NAME-LEN TEMP-PLAYER-NAME
+            MOVE CLIENT-RECEIVE-BUFFER(PACKET-POSITION:16) TO TEMP-UUID
             ADD 16 TO PACKET-POSITION
 
             *> For testing, we want to allow the same UUID to connect multiple times with different usernames.
@@ -968,14 +975,14 @@ HandlePlay SECTION.
     EVALUATE PACKET-ID
         *> Confirm teleportation
         WHEN H'00'
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 > TELEPORT-RECV(CLIENT-ID) AND TEMP-INT32 <= TELEPORT-SENT(CLIENT-ID)
                 MOVE TEMP-INT32 TO TELEPORT-RECV(CLIENT-ID)
             END-IF
 
         *> Chat command
         WHEN H'05'
-            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
+            CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION BYTE-COUNT BUFFER
             *> Command may not be longer than 256 characters
             IF BYTE-COUNT > 256
                 PERFORM DisconnectClient
@@ -986,7 +993,7 @@ HandlePlay SECTION.
 
         *> Chat message
         WHEN H'07'
-            CALL "Decode-String" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION BYTE-COUNT BUFFER
+            CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION BYTE-COUNT BUFFER
             *> Message may not be longer than 256 characters
             IF BYTE-COUNT > 256
                 PERFORM DisconnectClient
@@ -1006,7 +1013,7 @@ HandlePlay SECTION.
 
         *> KeepAlive response
         WHEN H'1A'
-            CALL "Decode-Long" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
+            CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
 
         *> Set player position
         WHEN H'1C'
@@ -1014,9 +1021,9 @@ HandlePlay SECTION.
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
 
         *> Set player position and rotation
@@ -1024,11 +1031,11 @@ HandlePlay SECTION.
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Double" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
 
         *> Set player rotation
@@ -1036,8 +1043,8 @@ HandlePlay SECTION.
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
+            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
 
         *> Set player on ground
@@ -1049,7 +1056,7 @@ HandlePlay SECTION.
 
         *> Player abilities
         WHEN H'26'
-            CALL "Decode-Byte" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT8
+            CALL "Decode-Byte" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT8
             *> flying = bitmask & 0x02
             COMPUTE TEMP-INT8 = TEMP-INT8 / 2
             COMPUTE PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID)) = FUNCTION MOD(TEMP-INT8, 2)
@@ -1057,15 +1064,15 @@ HandlePlay SECTION.
         *> Player action
         WHEN H'27'
             *> Status (= the action), block position, face, sequence number.
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
-            CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
+            CALL "Decode-Position" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-POSITION
             EVALUATE TRUE
                 *> started digging
                 WHEN TEMP-INT32 = 0
                     *> face (ignored)
-                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-BLOCK-FACE
+                    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-BLOCK-FACE
                     *> sequence ID
-                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION SEQUENCE-ID
+                    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION SEQUENCE-ID
 
                     *> Check the position validity
                     CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
@@ -1085,9 +1092,9 @@ HandlePlay SECTION.
         *> Player command
         WHEN H'28'
             *> entity ID (why does this exist? should always be the player's entity ID - skip it)
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             *> action ID
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             EVALUATE TEMP-INT32
                 *> start sneaking
                 WHEN 0
@@ -1099,7 +1106,7 @@ HandlePlay SECTION.
 
         *> Set held item
         WHEN H'33'
-            CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
+            CALL "Decode-Short" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT16
             IF TEMP-INT16 >= 0 AND TEMP-INT16 <= 8
                 MOVE TEMP-INT16 TO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             END-IF
@@ -1107,22 +1114,22 @@ HandlePlay SECTION.
         *> Set creative mode slot
         WHEN H'36'
             *> slot ID
-            CALL "Decode-Short" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT16
+            CALL "Decode-Short" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT16
             *> TODO: spawn item entity when slot ID is -1
             *> slot description (count (byte) [, item ID (VarInt), NBT data])
-            CALL "Decode-Byte" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT8
+            CALL "Decode-Byte" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT8
             IF TEMP-INT16 >= 0 AND TEMP-INT16 < 46
                 MOVE TEMP-INT8 TO PLAYER-INVENTORY-SLOT-COUNT(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
                 IF TEMP-INT8 = 0
                     MOVE 0 TO PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
                 ELSE
-                    CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+                    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
                     MOVE TEMP-INT32 TO PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
                     *> remainder is NBT
                     COMPUTE BYTE-COUNT = PACKET-LENGTH(CLIENT-ID) - PACKET-POSITION + 1
                     IF BYTE-COUNT <= 1024
                         MOVE BYTE-COUNT TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
-                        MOVE PACKET-BUFFER(CLIENT-ID)(PACKET-POSITION:BYTE-COUNT) TO PLAYER-INVENTORY-SLOT-NBT-DATA(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)(1:BYTE-COUNT)
+                        MOVE CLIENT-RECEIVE-BUFFER(PACKET-POSITION:BYTE-COUNT) TO PLAYER-INVENTORY-SLOT-NBT-DATA(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)(1:BYTE-COUNT)
                     ELSE
                         MOVE 0 TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
                         DISPLAY "Item NBT data too long: " BYTE-COUNT
@@ -1133,7 +1140,7 @@ HandlePlay SECTION.
         *> Swing arm
         WHEN H'3A'
             *> hand enum: 0=main hand, 1=off hand
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 1
                 MOVE 3 TO TEMP-INT8
             ELSE
@@ -1152,7 +1159,7 @@ HandlePlay SECTION.
         *> Use item on block
         WHEN H'3C'
             *> hand enum: 0=main hand, 1=off hand
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0
                 *> compute the inventory slot
                 COMPUTE TEMP-INT16 = 36 + PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
@@ -1161,19 +1168,19 @@ HandlePlay SECTION.
             END-IF
 
             *> block position
-            CALL "Decode-Position" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-POSITION
+            CALL "Decode-Position" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-POSITION
 
             *> face enum (0-5): -Y, +Y, -Z, +Z, -X, +X
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-BLOCK-FACE
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-X
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-Y
-            CALL "Decode-Float" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-CURSOR-Z
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-BLOCK-FACE
+            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-CURSOR-X
+            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-CURSOR-Y
+            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-CURSOR-Z
 
             *> TODO: "inside block" flag
             ADD 1 TO PACKET-POSITION
 
             *> sequence ID
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION SEQUENCE-ID
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION SEQUENCE-ID
 
             *> Determine the item in the inventory slot
             MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
@@ -1199,7 +1206,7 @@ HandlePlay SECTION.
         *> Use item
         WHEN H'3D'
             *> hand enum: 0=main hand, 1=off hand
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION TEMP-INT32
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0
                 *> compute the inventory slot
                 COMPUTE TEMP-INT16 = 36 + PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
@@ -1208,7 +1215,7 @@ HandlePlay SECTION.
             END-IF
 
             *> sequence ID
-            CALL "Decode-VarInt" USING PACKET-BUFFER(CLIENT-ID) PACKET-POSITION SEQUENCE-ID
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION SEQUENCE-ID
 
             *> TODO: Buckets send this packet when clicking a liquid directly - handle this case
             *> TODO food items
@@ -1304,6 +1311,8 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
     MOVE X"00000000" TO CLIENT-HNDL(LK-CLIENT-ID)
     MOVE CLIENT-STATE-DISCONNECTED TO CLIENT-STATE(LK-CLIENT-ID)
     MOVE 0 TO CONFIG-FINISH(LK-CLIENT-ID)
+
+    FREE PACKET-BUFFER(LK-CLIENT-ID)
 
     *> If there is an associated player, remove the association
     IF CLIENT-PLAYER(LK-CLIENT-ID) > 0
