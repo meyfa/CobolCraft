@@ -1,8 +1,13 @@
 * text=auto eol=lf
 *.txt text
+*.json text
 *.cob text
+*.cpy text
 *.c text
+*.cpp text
 *.h text
+*.hpp text
+*.sh text
 *.nbt binary
 
 # Mark the socket library as vendored on GitHub
