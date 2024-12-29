@@ -12,7 +12,7 @@ The following features are already working:
 - [X] infinite terrain generation and dynamic chunk loading
 - [X] persisting world and player data to disk
 - [X] support for Minecraft's file formats (import existing worlds)
-- [X] multiplayer (up to 10 concurrent players)
+- [X] multiplayer (configurable number of concurrent players)
 - [X] ping/server status (i.e., show as online in the server list)
 - [X] breaking and placing blocks
 - [X] block interaction (right-clicking, e.g., to open doors)
