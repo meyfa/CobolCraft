@@ -27,6 +27,9 @@ PROCEDURE DIVISION USING LK-FAILURE.
     MOVE "25565" TO SP-PORT
     MOVE 0 TO SP-WHITELIST-ENABLE
     MOVE "CobolCraft" TO SP-MOTD
+    *> Default value for the maximum number of players
+    MOVE 10 TO MAX-PLAYERS
+    MOVE 10 TO MAX-CLIENTS
 
     *> Attempt to read file, but ignore if missing
     CALL "Files-ReadAll" USING SERVER-PROPERTIES-FILE BUFFER BUFFER-LENGTH READ-FAILURE
@@ -102,6 +105,13 @@ PROCEDURE DIVISION USING LK-FAILURE.
 
                     WHEN "motd"
                         MOVE FUNCTION TRIM(ENTRY-VALUE) TO SP-MOTD
+
+                    WHEN "max-players"
+                        MOVE FUNCTION NUMVAL(ENTRY-VALUE) TO MAX-PLAYERS MAX-CLIENTS
+                        IF MAX-PLAYERS < 1
+                           MOVE 1 TO LK-FAILURE
+                           GOBACK
+                        END-IF
                 END-EVALUATE
         END-EVALUATE
     END-PERFORM
@@ -128,6 +138,7 @@ WORKING-STORAGE SECTION.
     *> temporary data
     01 ENTRY-KEY                PIC X(255).
     01 ENTRY-VALUE              PIC X(255).
+    01 INT-TO-STR               PIC -(9)9.
     01 BYTE-COUNT               BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-FAILURE               BINARY-CHAR UNSIGNED.
@@ -152,6 +163,11 @@ PROCEDURE DIVISION USING LK-FAILURE.
 
     MOVE "motd" TO ENTRY-KEY
     MOVE SP-MOTD TO ENTRY-VALUE
+    PERFORM AppendKeyValue
+
+    MOVE "max-players" TO ENTRY-KEY
+    MOVE MAX-PLAYERS   TO INT-TO-STR
+    MOVE FUNCTION TRIM(INT-TO-STR) TO ENTRY-VALUE
     PERFORM AppendKeyValue
 
     CALL "Files-WriteAll" USING SERVER-PROPERTIES-FILE BUFFER BUFFER-LENGTH LK-FAILURE

@@ -1,8 +1,5 @@
 *> --- Copybook: shared data for client state ---
 
-*> The number of client slots available.
-78 MAX-CLIENTS                  VALUE 10.
-
 *> Maximum packet length is 2^21-1 bytes ~= 2.1 MiB,
 *> see: https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol#Packet_format
 78 RECEIVE-BUFFER-LENGTH        VALUE 2100000.
@@ -12,7 +9,7 @@
 
 *> Client data
 01 CLIENTS EXTERNAL.
-    02 CLIENT OCCURS MAX-CLIENTS TIMES.
+    02 CLIENT OCCURS 100 TIMES.
         03 CLIENT-PRESENT       BINARY-CHAR.
         03 CLIENT-HNDL          PIC X(4).
         *> Any error that occured during a send operation. If non-zero, the client is disconnected on the next tick.
