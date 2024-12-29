@@ -205,10 +205,8 @@ WORKING-STORAGE SECTION.
     01 STR                      PIC X(256).
     01 STR-LEN                  BINARY-LONG UNSIGNED.
     01 INVENTORY-INDEX          BINARY-LONG UNSIGNED.
-    01 INVENTORY-ID             BINARY-LONG.
-    01 INVENTORY-COUNT          BINARY-CHAR UNSIGNED.
-    01 INVENTORY-NBT-DATA       PIC X(1024).
-    01 INVENTORY-NBT-LENGTH     BINARY-LONG UNSIGNED.
+    01 INVENTORY-SLOT.
+        COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==INVENTORY==.
 LOCAL-STORAGE SECTION.
     COPY DD-NBT-DECODER.
 LINKAGE SECTION.
@@ -278,9 +276,7 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                     *> Start of slot compound
                     CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
                     MOVE 0 TO INVENTORY-INDEX
-                    MOVE 0 TO INVENTORY-ID
-                    MOVE 0 TO INVENTORY-COUNT
-                    MOVE 0 TO INVENTORY-NBT-LENGTH
+                    INITIALIZE INVENTORY-SLOT
 
                     *> Slot properties
                     PERFORM UNTIL EXIT
@@ -296,14 +292,14 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                             WHEN "id"
                                 *> Item ID needs to be converted from a string to a number
                                 CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
-                                CALL "Registries-Get-EntryId" USING C-MINECRAFT-ITEM STR INVENTORY-ID
+                                CALL "Registries-Get-EntryId" USING C-MINECRAFT-ITEM STR INVENTORY-SLOT-ID
 
                             WHEN "count"
-                                CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-COUNT
+                                CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-SLOT-COUNT
 
                             WHEN "tag"
                                 *> TODO decode the NBT data as a compound - requires encoding and decoding at the network layer
-                                CALL "NbtDecode-ByteBuffer" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-NBT-DATA INVENTORY-NBT-LENGTH
+                                CALL "NbtDecode-ByteBuffer" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-SLOT-NBT-DATA INVENTORY-SLOT-NBT-LENGTH
 
                             WHEN OTHER
                                 CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
@@ -314,11 +310,11 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                     CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
 
                     *> If the slot had complete data, set it in the player's inventory
-                    IF INVENTORY-INDEX > 0 AND INVENTORY-ID > 0 AND INVENTORY-COUNT > 0
-                        MOVE INVENTORY-ID TO PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, INVENTORY-INDEX)
-                        MOVE INVENTORY-COUNT TO PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER-ID, INVENTORY-INDEX)
-                        MOVE INVENTORY-NBT-DATA(1:INVENTORY-NBT-LENGTH) TO PLAYER-INVENTORY-SLOT-NBT-DATA(LK-PLAYER-ID, INVENTORY-INDEX)
-                        MOVE INVENTORY-NBT-LENGTH TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(LK-PLAYER-ID, INVENTORY-INDEX)
+                    IF INVENTORY-INDEX > 0 AND INVENTORY-SLOT-ID > 0 AND INVENTORY-SLOT-COUNT > 0
+                        MOVE INVENTORY-SLOT-ID TO PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, INVENTORY-INDEX)
+                        MOVE INVENTORY-SLOT-COUNT TO PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER-ID, INVENTORY-INDEX)
+                        MOVE INVENTORY-SLOT-NBT-DATA(1:INVENTORY-SLOT-NBT-LENGTH) TO PLAYER-INVENTORY-SLOT-NBT-DATA(LK-PLAYER-ID, INVENTORY-INDEX)
+                        MOVE INVENTORY-SLOT-NBT-LENGTH TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(LK-PLAYER-ID, INVENTORY-INDEX)
                     END-IF
                 END-PERFORM
                 CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
