@@ -1267,6 +1267,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CLIENT-STATES.
     COPY DD-CLIENTS.
     COPY DD-PLAYERS.
+    COPY DD-SERVER-PROPERTIES.
     *> temporary data
     01 ERRNO                    PIC 9(3).
     01 OTHER-CLIENT-ID          BINARY-LONG UNSIGNED.
@@ -1378,6 +1379,7 @@ WORKING-STORAGE SECTION.
     *> shared state with Server
     01 SERVER-HNDL              PIC X(4)                EXTERNAL.
     COPY DD-CLIENTS.
+    COPY DD-SERVER-PROPERTIES.
 
 PROCEDURE DIVISION.
     CALL "Server-Save"

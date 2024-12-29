@@ -1,12 +1,9 @@
 *> --- Copybook: shared data for player state ---
 
-*> The number of player slots available for concurrent players.
-78 MAX-PLAYERS VALUE 10.
-
 *> Player data. Once a new player is connected, their data is stored here. When they disconnect, the client is
 *> set to 0, but the player data remains to be reclaimed if the same player connects again.
 01 PLAYERS EXTERNAL.
-    02 PLAYER OCCURS MAX-PLAYERS TIMES.
+    02 PLAYER OCCURS 100 TIMES.
         03 PLAYER-CLIENT        BINARY-LONG UNSIGNED.
         03 PLAYER-UUID          PIC X(16).
         03 PLAYER-NAME          PIC X(16).

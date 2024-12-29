@@ -76,6 +76,7 @@ This file is generated automatically on first run with default values for all su
 * `server-port` (default: 25565)
 * `white-list` (default: false)
 * `motd` (default: "CobolCraft")
+* `max-players` (default: 10; maximum: 100)
 
 Note: By default, the server is only accessible via localhost (i.e., only on your own system via `localhost:25565`).
 To make it accessible from the outside (your local network, via VPN, port forwarding, on a rented server, ...), you
