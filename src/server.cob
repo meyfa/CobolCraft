@@ -77,7 +77,6 @@ WORKING-STORAGE SECTION.
     *> Time measurement
     01 CURRENT-TIME                 BINARY-LONG-LONG.
     01 TICK-ENDTIME                 BINARY-LONG-LONG.
-    01 TIMEOUT-MS                   BINARY-SHORT UNSIGNED.
     *> Variables for working with chunks
     01 CHUNK-X                      BINARY-LONG.
     01 CHUNK-Z                      BINARY-LONG.
@@ -408,8 +407,7 @@ ConsoleInput SECTION.
     EXIT SECTION.
 
 NetworkRead SECTION.
-    MOVE 1 TO TIMEOUT-MS
-    CALL "Socket-Poll" USING SERVER-HNDL ERRNO TEMP-HNDL TIMEOUT-MS
+    CALL "Socket-Poll" USING SERVER-HNDL ERRNO TEMP-HNDL
     EVALUATE ERRNO
         WHEN 0
             CONTINUE
@@ -611,8 +609,7 @@ ReceivePacket SECTION.
     *> If the packet length is not yet known, try to read more bytes one by one until the VarInt is valid
     IF PACKET-LENGTH(CLIENT-ID) <= 0
         MOVE 1 TO BYTE-COUNT
-        MOVE 1 TO TIMEOUT-MS
-        CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER TIMEOUT-MS
+        CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
         IF ERRNO NOT = 0
             PERFORM HandleClientError
             EXIT SECTION
@@ -653,9 +650,7 @@ ReceivePacket SECTION.
     IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID)
         *> The socket library can only read up to 64 kB at a time.
         COMPUTE BYTE-COUNT = FUNCTION MIN(PACKET-LENGTH(CLIENT-ID) - PACKET-BUFFERLEN(CLIENT-ID), 64000)
-        MOVE 1 TO TIMEOUT-MS
-        CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT
-            CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID) + 1:) TIMEOUT-MS
+        CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID) + 1:)
         IF ERRNO NOT = 0
             PERFORM HandleClientError
             EXIT SECTION

@@ -4,9 +4,9 @@ PROGRAM-ID. Socket-Listen.
 
 DATA DIVISION.
 LINKAGE SECTION.
-    01 LK-PORT          PIC X(5).
-    01 LK-LISTEN        PIC X(4).
-    01 LK-ERRNO         PIC 9(3).
+    01 LK-PORT              PIC X(5).
+    01 LK-LISTEN            PIC X(4).
+    01 LK-ERRNO             PIC 9(3).
 
 PROCEDURE DIVISION USING LK-PORT LK-LISTEN LK-ERRNO.
     CALL "CBL_GC_SOCKET" USING "00" LK-PORT LK-LISTEN GIVING LK-ERRNO.
@@ -19,8 +19,8 @@ PROGRAM-ID. Socket-Close.
 
 DATA DIVISION.
 LINKAGE SECTION.
-    01 LK-HNDL          PIC X(4).
-    01 LK-ERRNO         PIC 9(3).
+    01 LK-HNDL              PIC X(4).
+    01 LK-ERRNO             PIC 9(3).
 
 PROCEDURE DIVISION USING LK-HNDL LK-ERRNO.
     CALL "CBL_GC_SOCKET" USING "06" LK-HNDL GIVING LK-ERRNO.
@@ -29,31 +29,27 @@ END PROGRAM Socket-Close.
 
 *> --- Socket-Poll ---
 *> Poll the server socket to retrieve a connection that wants to be accepted or send data.
+*> Only connections immediately available are returned.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Socket-Poll.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> The socket library requires X(6) for the timeout parameter
-    01 TIMEOUT-PARAM        PIC 9(6).
+    01 TIMEOUT-PARAM        PIC 9(6)                VALUE 1.
 LINKAGE SECTION.
-    01 LK-SERVER-HNDL   PIC X(4).
-    01 LK-ERRNO         PIC 9(3).
-    01 LK-CLIENT-HNDL   PIC X(4).
-    01 LK-TIMEOUT-MS    BINARY-SHORT UNSIGNED.
+    01 LK-SERVER-HNDL       PIC X(4).
+    01 LK-ERRNO             PIC 9(3).
+    01 LK-CLIENT-HNDL       PIC X(4).
 
-PROCEDURE DIVISION USING LK-SERVER-HNDL LK-ERRNO LK-CLIENT-HNDL LK-TIMEOUT-MS.
-    MOVE LK-TIMEOUT-MS TO TIMEOUT-PARAM
-    CALL "CBL_GC_SOCKET" USING "10" LK-SERVER-HNDL LK-CLIENT-HNDL TIMEOUT-PARAM GIVING LK-ERRNO
-
-    GOBACK.
+PROCEDURE DIVISION USING LK-SERVER-HNDL LK-ERRNO LK-CLIENT-HNDL.
+    CALL "CBL_GC_SOCKET" USING "10" LK-SERVER-HNDL LK-CLIENT-HNDL TIMEOUT-PARAM GIVING LK-ERRNO.
 
 END PROGRAM Socket-Poll.
 
 *> --- Socket-Read ---
 *> Read a raw byte array from the socket. At most 64000 bytes can be read at once.
-*> This operation is associated with a timeout, so it may not read all the bytes requested.
-*> The number of bytes actually read is returned in LK-READ-COUNT.
+*> Only bytes that are immediately available are read, and the number is returned in LK-READ-COUNT.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Socket-Read.
 
@@ -62,22 +58,20 @@ WORKING-STORAGE SECTION.
     01 CHUNK-BUFFER         PIC X(64000).
     *> The socket library requires X(5) for the read count and X(6) for the timeout parameter
     01 READ-COUNT-PARAM     PIC 9(5).
-    01 TIMEOUT-PARAM        PIC 9(6).
+    01 TIMEOUT-PARAM        PIC 9(6)                VALUE 1.
 LINKAGE SECTION.
     01 LK-HNDL              PIC X(4).
     01 LK-ERRNO             PIC 9(3).
     01 LK-READ-COUNT        BINARY-LONG UNSIGNED.
     01 LK-BUFFER            PIC X ANY LENGTH.
-    01 LK-TIMEOUT-MS        BINARY-SHORT UNSIGNED.
 
-PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-READ-COUNT LK-BUFFER LK-TIMEOUT-MS.
+PROCEDURE DIVISION USING LK-HNDL LK-ERRNO LK-READ-COUNT LK-BUFFER.
     IF LK-READ-COUNT < 1 OR LK-READ-COUNT > 64000
         MOVE 1 TO LK-ERRNO
         GOBACK
     END-IF
 
     MOVE LK-READ-COUNT TO READ-COUNT-PARAM
-    MOVE LK-TIMEOUT-MS TO TIMEOUT-PARAM
     CALL "CBL_GC_SOCKET" USING "08" LK-HNDL READ-COUNT-PARAM LK-BUFFER TIMEOUT-PARAM GIVING LK-ERRNO
 
     *> Treat timeout as a successful read of 0 bytes
