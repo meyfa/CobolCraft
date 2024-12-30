@@ -26,12 +26,24 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install GnuCOBOL
-        run: apt-get update && apt-get install -y gnucobol build-essential zlib1g-dev
+        run: apt-get update && apt-get install -y gnucobol build-essential zlib1g-dev curl openjdk-21-jre-headless
 
       - run: cobc --version
+
+      - name: Build
+        run: make -j $(nproc)
 
       - name: Run tests
         shell: bash
         run: |
+          set -eo pipefail
           make test | tee test.log
           ! grep -q "FAIL\|ERROR" test.log
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          set -eo pipefail
+          printf 'stop\n' | make run | tee run.log
+          grep -q 'Done!' run.log
+          grep -q 'Stopping server' run.log
