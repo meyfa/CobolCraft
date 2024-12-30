@@ -116,9 +116,9 @@ The program entrypoint is `main.cob`.
 The remaining COBOL sources are located in the `src/` directory, including `src/server.cob`, which contains the bulk
 of CobolCraft.
 
+Only functionality that is not feasible in COBOL is implemented in C++, such as low-level TCP socket management,
+precise timing, or process signal handling.
 These sources are located in the `cpp/` directory and get compiled into a shared library (`.so` on Linux).
-
-TCP sockets are managed by the CBL_GC_SOCKET socket library located in the `CBL_GC_SOCKET/` directory.
 
 ### Packet Blobs
 
@@ -140,13 +140,7 @@ inter-operate successfully with the Minecraft client without distributing potent
 
 ## Legal Notices
 
-This project (except 3rd-party contents as stated below) is licensed under the MIT License.
-See LICENSE for further information.
-
-This project includes the 3rd-party CBL_GC_SOCKET shared library, licensed under the LGPL v3.
-See CBL_GC_SOCKET/COPYING.lesser for further information.
-Note that line 939 of `CBL_GC_SOCKET/cob_socket.cpp` has been modified (compared to the original distribution of that
-library) to fix improper `snprintf` usage.
+This project is licensed under the MIT License; see LICENSE for further information.
 
 "Minecraft" is a trademark of Mojang Synergies AB.
 CobolCraft is neither affiliated with nor endorsed by Mojang.
