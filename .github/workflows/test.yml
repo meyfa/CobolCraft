@@ -13,15 +13,25 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Ubuntu 24.04 has GnuCOBOL 3.1.2, while Ubuntu 24.10 has GnuCOBOL 3.2.0.
+        image-tag: ["24.04", "24.10"]
+    container:
+      image: ubuntu:${{ matrix.image-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install GnuCOBOL
-        run: "sudo apt-get install -y gnucobol"
+        run: apt-get update && apt-get install -y gnucobol build-essential zlib1g-dev
+
+      - run: cobc --version
 
       - name: Run tests
-        # By specifying "bash" explicitly, GitHub uses the "-eo pipefail" option.
-        # See: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
         shell: bash
-        run: "make test | tee test.log; (grep -q \"FAIL\\|ERROR\" test.log && exit 1 || exit 0)"
+        run: |
+          make test | tee test.log
+          ! grep -q "FAIL\|ERROR" test.log
