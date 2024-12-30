@@ -1049,6 +1049,37 @@ HandlePlay SECTION.
             END-IF
             *> TODO: "on ground" flag
 
+        *> Pick item from block
+        WHEN H'22'
+            *> location
+            CALL "Decode-Position" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-POSITION
+            *> TODO: "include data" flag
+            ADD 1 TO PACKET-POSITION
+
+            CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
+            IF TEMP-INT8 NOT = 0
+                EXIT SECTION
+            END-IF
+
+            *> Find the block's item handler
+            CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
+            CALL "GetCallback-BlockItem" USING TEMP-INT32 CALLBACK-PTR-BLOCK
+            IF CALLBACK-PTR-BLOCK = NULL
+                EXIT SECTION
+            END-IF
+
+            CALL CALLBACK-PTR-BLOCK USING TEMP-INT32 TEMP-IDENTIFIER
+            IF TEMP-IDENTIFIER = SPACES
+                EXIT SECTION
+            END-IF
+
+            CALL "Registries-Get-EntryId" USING C-MINECRAFT-ITEM TEMP-IDENTIFIER TEMP-INT32
+            IF TEMP-INT32 > 0
+                CALL "Inventory-PickItem" USING PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID)) PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) TEMP-INT32
+                CALL "SendPacket-SetHeldItem" USING CLIENT-ID PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
+                CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
+            END-IF
+
         *> Player abilities
         WHEN H'26'
             CALL "Decode-Byte" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT8

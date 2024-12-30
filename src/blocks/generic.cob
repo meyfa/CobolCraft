@@ -8,6 +8,7 @@ WORKING-STORAGE SECTION.
     01 DESTROY-PTR                  PROGRAM-POINTER.
     01 FACE-PTR                     PROGRAM-POINTER.
     01 REPLACEABLE-PTR              PROGRAM-POINTER.
+    01 ITEM-PTR                     PROGRAM-POINTER.
 LINKAGE SECTION.
     01 LK-BLOCK-STATE-ID            BINARY-LONG.
 
@@ -15,9 +16,11 @@ PROCEDURE DIVISION USING LK-BLOCK-STATE-ID.
     SET DESTROY-PTR TO ENTRY "Callback-Destroy"
     SET FACE-PTR TO ENTRY "Callback-Face"
     SET REPLACEABLE-PTR TO ENTRY "Callback-Replaceable"
+    SET ITEM-PTR TO ENTRY "Callback-Item"
     CALL "SetCallback-BlockDestroy" USING LK-BLOCK-STATE-ID DESTROY-PTR
     CALL "SetCallback-BlockFace" USING LK-BLOCK-STATE-ID FACE-PTR
     CALL "SetCallback-BlockReplaceable" USING LK-BLOCK-STATE-ID REPLACEABLE-PTR
+    CALL "SetCallback-BlockItem" USING LK-BLOCK-STATE-ID ITEM-PTR
     GOBACK.
 
     *> --- Callback-Destroy ---
@@ -67,5 +70,20 @@ PROCEDURE DIVISION USING LK-BLOCK-STATE-ID.
         GOBACK.
 
     END PROGRAM Callback-Replaceable.
+
+    *> --- Callback-Item ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-Item.
+
+    DATA DIVISION.
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-BLOCK-ITEM.
+
+    PROCEDURE DIVISION USING LK-BLOCK-STATE LK-ITEM-IDENTIFIER.
+        *> Assume the block has the same name as an item.
+        CALL "Blocks-Get-Name" USING LK-BLOCK-STATE LK-ITEM-IDENTIFIER
+        GOBACK.
+
+    END PROGRAM Callback-Item.
 
 END PROGRAM RegisterBlock-Generic.

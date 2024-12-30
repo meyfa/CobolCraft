@@ -16,3 +16,5 @@
         03 CB-PTR-FACE USAGE PROGRAM-POINTER.
         *> Called for determining whether a block state can be replaced by another block state.
         03 CB-PTR-REPLACEABLE USAGE PROGRAM-POINTER.
+        *> Called to determine the item form of a block, such as for the "pick block" action (middle-click).
+        03 CB-PTR-BLOCK-ITEM USAGE PROGRAM-POINTER.
