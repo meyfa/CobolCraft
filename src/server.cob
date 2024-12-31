@@ -51,6 +51,7 @@ WORKING-STORAGE SECTION.
     01 PACKET-POSITION              BINARY-LONG UNSIGNED.
     01 BUFFER                       PIC X(64000).
     01 BYTE-COUNT                   BINARY-LONG UNSIGNED.
+    01 BYTE-COUNT-EXPECTED          BINARY-LONG UNSIGNED.
     *> Temporary variables
     01 TEMP-INT8                    BINARY-CHAR.
     01 TEMP-INT16                   BINARY-SHORT.
@@ -605,8 +606,8 @@ ReceivePacket SECTION.
     *> Select the current client's buffer
     SET ADDRESS OF CLIENT-RECEIVE-BUFFER TO PACKET-BUFFER(CLIENT-ID)
 
-    *> If the packet length is not yet known, try to read more bytes one by one until the VarInt is valid
-    IF PACKET-LENGTH(CLIENT-ID) <= 0
+    *> Receive the packet length. This is a VarInt, so it has to be done byte by byte (up to 5 bytes).
+    PERFORM UNTIL PACKET-LENGTH(CLIENT-ID) > 0
         MOVE 1 TO BYTE-COUNT
         CALL "SocketRead" USING CLIENT-HNDL(CLIENT-ID) BYTE-COUNT BUFFER GIVING ERRNO
         IF ERRNO NOT = 0
@@ -614,55 +615,50 @@ ReceivePacket SECTION.
             EXIT SECTION
         END-IF
         IF BYTE-COUNT = 0
+            *> No data read, try again later
             EXIT SECTION
         END-IF
 
         ADD 1 TO PACKET-BUFFERLEN(CLIENT-ID)
         MOVE BUFFER(1:1) TO CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID):1)
 
-        *> If the most significant bit is set, we need to read more bytes (later).
-        *> Note: ORD(...) returns the ASCII code of the character + 1.
-        IF FUNCTION ORD(BUFFER) > 128
-            *> A VarInt can be at most 5 bytes long.
-            IF PACKET-BUFFERLEN(CLIENT-ID) >= 5
-                DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length."
+        *> Once the most significant bit is 0, the VarInt is complete.
+        IF FUNCTION ORD(BUFFER) <= 128
+            MOVE 1 TO PACKET-POSITION
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
+            IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
+                DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length: " PACKET-LENGTH(CLIENT-ID)
                 PERFORM DisconnectClient
+                EXIT SECTION
             END-IF
-            EXIT SECTION
+            MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
+            EXIT PERFORM
         END-IF
 
-        *> Otherwise, we can decode the packet length now.
-        MOVE 1 TO PACKET-POSITION
-        CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
-        IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
-            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length: " PACKET-LENGTH(CLIENT-ID)
+        IF PACKET-BUFFERLEN(CLIENT-ID) >= 5
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length."
             PERFORM DisconnectClient
             EXIT SECTION
         END-IF
+    END-PERFORM
 
-        *> Postpone reading the remaining bytes to avoid allotting too much time to a single client.
-        MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
-        EXIT SECTION
-    END-IF
-
-    *> Read more bytes if necessary.
-    IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID)
+    *> Receive the packet ID and payload
+    PERFORM UNTIL PACKET-BUFFERLEN(CLIENT-ID) >= PACKET-LENGTH(CLIENT-ID)
         *> The socket library can only read up to 64 kB at a time.
-        COMPUTE BYTE-COUNT = FUNCTION MIN(PACKET-LENGTH(CLIENT-ID) - PACKET-BUFFERLEN(CLIENT-ID), 64000)
+        MOVE FUNCTION MIN(PACKET-LENGTH(CLIENT-ID) - PACKET-BUFFERLEN(CLIENT-ID), 64000) TO BYTE-COUNT-EXPECTED BYTE-COUNT
         CALL "SocketRead" USING CLIENT-HNDL(CLIENT-ID) BYTE-COUNT CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID) + 1:) GIVING ERRNO
         IF ERRNO NOT = 0
             PERFORM HandleClientError
             EXIT SECTION
         END-IF
         ADD BYTE-COUNT TO PACKET-BUFFERLEN(CLIENT-ID)
-    END-IF
+        IF BYTE-COUNT < BYTE-COUNT-EXPECTED
+            *> Not enough data read, try again later
+            EXIT SECTION
+        END-IF
+    END-PERFORM
 
-    *> Check if we can start processing the packet now.
-    IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID)
-        EXIT SECTION
-    END-IF
-
-    *> Start decoding the packet by decoding the packet ID.
+    *> Packet received, process it
     MOVE 1 TO PACKET-POSITION
     CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-ID
 
