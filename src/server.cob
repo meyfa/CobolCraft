@@ -408,16 +408,15 @@ ConsoleInput SECTION.
 
 NetworkRead SECTION.
     CALL "Socket-Poll" USING SERVER-HNDL ERRNO TEMP-HNDL
-    EVALUATE ERRNO
-        WHEN 0
-            CONTINUE
-        WHEN 5
-            *> Timeout, nothing to do
-            EXIT SECTION
-        WHEN OTHER
-            PERFORM HandleServerError
-            EXIT SECTION
-    END-EVALUATE
+    IF ERRNO NOT = 0
+        PERFORM HandleServerError
+        EXIT SECTION
+    END-IF
+    *> Without anything to do, sleep for a millisecond to avoid busy-waiting
+    IF TEMP-HNDL = X"00000000"
+        CALL "CBL_GC_NANOSLEEP" USING 1000000
+        EXIT SECTION
+    END-IF
 
     *> Find an existing client to which the handle belongs
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS

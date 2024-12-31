@@ -9,6 +9,3 @@
 *.hpp text
 *.sh text
 *.nbt binary
-
-# Mark the socket library as vendored on GitHub
-CBL_GC_SOCKET/** linguist-vendored

@@ -1,5 +1,7 @@
 #define EXTERN_DECL extern "C"
 
+typedef int socket_t;
+
 /**
  * Get the current system time in milliseconds.
  */
@@ -67,3 +69,36 @@ EXTERN_DECL int GzipCompress(char *decompressed, unsigned long *decompressed_len
  * decompression, it contains the actual size of the decompressed data.
  */
 EXTERN_DECL int GzipDecompress(char *compressed, unsigned long *compressed_length, char *decompressed, unsigned long *decompressed_length);
+
+/**
+ * Create a server socket listening on the specified port.
+ */
+EXTERN_DECL int SocketListen(unsigned short *port, socket_t *server);
+
+/**
+ * Close a socket (server or client).
+ */
+EXTERN_DECL int SocketClose(socket_t *socket);
+
+/**
+ * Accept a connection on a server socket, returning the client socket.
+ */
+EXTERN_DECL int SocketAccept(socket_t *server, socket_t *client);
+
+/**
+ * Poll a server socket to see if there is a new client, or an existing client has data to read.
+ * In either case, the relevant client socket is returned, or 0 if there is no activity.
+ */
+EXTERN_DECL int SocketPoll(socket_t *server, socket_t *client);
+
+/**
+ * Read data from a socket. The second parameter is the number of bytes to read; after reading, it contains the
+ * actual number of bytes read. At most 64,000 bytes can be read at once.
+ */
+EXTERN_DECL int SocketRead(socket_t *socket, unsigned long *count, char *buffer);
+
+/**
+ * Write data to a socket. The second parameter is the number of bytes to write; after writing, it contains the
+ * actual number of bytes written. At most 64,000 bytes can be written at once.
+ */
+EXTERN_DECL int SocketWrite(socket_t *socket, unsigned long *count, char *buffer);

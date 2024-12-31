@@ -6,9 +6,16 @@
 #include <errno.h>
 #include <dirent.h>
 #include <zlib.h>
+#include <set>
+#include <vector>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <poll.h>
 
 #define ERRNO_PARAMS 99
 #define ERRNO_SYSTEM 98
+
+std::set<socket_t> CLIENT_SOCKETS;
 
 EXTERN_DECL int SystemTimeMillis(long long *timestamp)
 {
@@ -311,6 +318,187 @@ EXTERN_DECL int GzipDecompress(char *compressed, unsigned long *compressed_lengt
 
     *decompressed_length = stream.total_out;
     inflateEnd(&stream);
+
+    return 0;
+}
+
+static int SocketSelectRead(const std::set<socket_t>& sockets, socket_t begin_after, socket_t& selected_socket)
+{
+    std::vector<pollfd> pollfds(sockets.size());
+
+    auto socket_iterator = sockets.find(begin_after);
+    if (socket_iterator != sockets.end())
+        socket_iterator++;
+
+    for (size_t i = 0, n = sockets.size(); i < n; ++i)
+    {
+        if (socket_iterator == sockets.end())
+            socket_iterator = sockets.begin();
+        pollfds.push_back({*socket_iterator, POLLIN, 0});
+        socket_iterator++;
+    }
+
+    int poll_result = poll(pollfds.data(), pollfds.size(), 0);
+    if (poll_result == -1 || poll_result == 0)
+        return poll_result;
+
+    for (const auto& item : pollfds)
+    {
+        if (item.revents & POLLIN)
+        {
+            selected_socket = item.fd;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+EXTERN_DECL int SocketListen(unsigned short *port, socket_t *server)
+{
+    if (!port || !server)
+        return ERRNO_PARAMS;
+
+    socket_t sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == -1)
+        return ERRNO_SYSTEM;
+
+    int opt = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+        return ERRNO_SYSTEM;
+
+    sockaddr_in srv;
+    srv.sin_family = AF_INET;
+    srv.sin_port = htons(*port);
+    srv.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if (bind(sock, (sockaddr *)&srv, sizeof(srv)) == -1)
+        return ERRNO_SYSTEM;
+
+    if (listen(sock, 1) == -1)
+        return ERRNO_SYSTEM;
+
+    *server = sock;
+
+    return 0;
+}
+
+EXTERN_DECL int SocketClose(socket_t *socket)
+{
+    if (!socket)
+        return ERRNO_PARAMS;
+
+    CLIENT_SOCKETS.erase(*socket);
+
+    if (close(*socket) == -1)
+        return ERRNO_SYSTEM;
+
+    return 0;
+}
+
+EXTERN_DECL int SocketAccept(socket_t *server, socket_t *client)
+{
+    if (!server || !client)
+        return ERRNO_PARAMS;
+
+    sockaddr_in client_addr;
+    socklen_t client_addr_length = sizeof(client_addr);
+
+    *client = accept(*server, (sockaddr *)&client_addr, &client_addr_length);
+    if (*client == -1)
+        return ERRNO_SYSTEM;
+
+    CLIENT_SOCKETS.insert(*client);
+
+    return 0;
+}
+
+EXTERN_DECL int SocketPoll(socket_t *server, socket_t *client)
+{
+    // Remember the last socket that was read, so we can cycle through the sockets in the set.
+    static socket_t last_read_socket = -1;
+
+    if (!server || !client)
+        return ERRNO_PARAMS;
+
+    // Assert that no client socket was passed
+    if (CLIENT_SOCKETS.find(*server) != CLIENT_SOCKETS.end())
+        return ERRNO_PARAMS;
+
+    socket_t selected_socket;
+    std::set<socket_t> poll_sockets = CLIENT_SOCKETS;
+    poll_sockets.insert(*server);
+
+    int poll_result = SocketSelectRead(poll_sockets, last_read_socket, selected_socket);
+    if (poll_result == -1)
+        return ERRNO_SYSTEM;
+
+    if (poll_result == 0)
+    {
+        *client = 0;
+        return 0;
+    }
+
+    // If the server was selected, there is a connection to accept
+    if (selected_socket == *server)
+        return SocketAccept(server, client);
+
+    *client = selected_socket;
+    last_read_socket = selected_socket;
+
+    return 0;
+}
+
+EXTERN_DECL int SocketRead(socket_t *socket, unsigned long *count, char *buffer)
+{
+    if (!socket || !count || !buffer)
+        return ERRNO_PARAMS;
+    if (*count < 0 || *count > 64000)
+        return ERRNO_PARAMS;
+
+    if (*count == 0)
+        return 0;
+
+    // Check if the socket is ready to read
+    pollfd poll_socket = {*socket, POLLIN, 0};
+    int poll_result = poll(&poll_socket, 1, 0);
+    if (poll_result == -1)
+        return ERRNO_SYSTEM;
+
+    if (poll_result == 0)
+    {
+        *count = 0;
+        return 0;
+    }
+
+    int result = read(*socket, buffer, *count);
+    if (result == -1)
+        return ERRNO_SYSTEM;
+
+    *count = result;
+
+    return 0;
+}
+
+EXTERN_DECL int SocketWrite(socket_t *socket, unsigned long *count, char *buffer)
+{
+    if (!socket || !count || !buffer)
+        return ERRNO_PARAMS;
+    if (*count < 0 || *count > 64000)
+        return ERRNO_PARAMS;
+
+    if (*count == 0)
+        return 0;
+
+    unsigned long remaining = *count;
+    while (remaining > 0)
+    {
+        int result = write(*socket, buffer, remaining);
+        if (result == -1)
+            return ERRNO_SYSTEM;
+        remaining -= result;
+        buffer += result;
+    }
 
     return 0;
 }

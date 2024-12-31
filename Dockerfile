@@ -18,7 +18,6 @@ RUN make data
 COPY main.cob .
 COPY src ./src
 COPY cpp ./cpp
-COPY CBL_GC_SOCKET ./CBL_GC_SOCKET
 COPY blobs ./blobs
 RUN make -j $(nproc)
 
@@ -41,7 +40,7 @@ COPY --from=build /app/data/generated/reports/*.json ./data/generated/reports/
 COPY --from=build /app/data/generated/data ./data/generated/data
 
 # Include runtime dependencies
-ENV COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL
+ENV COB_PRE_LOAD=COBOLCRAFT_UTIL
 
 # Run the server within Tini (to handle signals properly)
 ENTRYPOINT ["/usr/bin/tini", "--"]

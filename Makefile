@@ -2,7 +2,6 @@
 COBC = cobc
 
 # Libraries
-SOCKET_LIB = CBL_GC_SOCKET.so
 UTIL_LIB = COBOLCRAFT_UTIL.so
 
 # Sources, copybooks, and binary
@@ -24,12 +23,11 @@ TEST_BIN = test
 
 .PHONY: all clean data run test
 
-all: $(BIN) $(SOCKET_LIB) $(UTIL_LIB) data
+all: $(BIN) $(UTIL_LIB) data
 
 clean:
 	rm -rf $(OBJECTS_DIR)
 	rm -f $(BIN)
-	rm -f $(SOCKET_LIB)
 	rm -f $(UTIL_LIB)
 	rm -f $(TEST_BIN)
 	rm -f $(JSON_DATA)
@@ -38,11 +36,7 @@ clean:
 data: $(SERVER_JAR_EXTRACTED)
 
 run: all
-	COB_PRE_LOAD=CBL_GC_SOCKET:COBOLCRAFT_UTIL ./$(BIN)
-
-$(SOCKET_LIB):
-	cd CBL_GC_SOCKET && ./build.sh
-	mv CBL_GC_SOCKET/CBL_GC_SOCKET.so .
+	COB_PRE_LOAD=COBOLCRAFT_UTIL ./$(BIN)
 
 $(UTIL_LIB): cpp/cobolcraft_util.cpp
 	g++ -shared -Wall -O2 -fPIC -lz -o $@ $<
