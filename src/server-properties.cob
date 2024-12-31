@@ -24,7 +24,7 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-FAILURE.
     *> Start with default values
-    MOVE "25565" TO SP-PORT
+    MOVE 25565 TO SP-PORT
     MOVE 0 TO SP-WHITELIST-ENABLE
     MOVE "CobolCraft" TO SP-MOTD
     *> Default value for the maximum number of players
@@ -90,8 +90,8 @@ PROCEDURE DIVISION USING LK-FAILURE.
 
                 EVALUATE ENTRY-KEY
                     WHEN "server-port"
-                        MOVE FUNCTION TRIM(ENTRY-VALUE) TO SP-PORT
-                        IF SP-PORT IS NOT NUMERIC
+                        MOVE FUNCTION NUMVAL(ENTRY-VALUE) TO SP-PORT
+                        IF SP-PORT < 1 OR SP-PORT > 65535
                             MOVE 1 TO LK-FAILURE
                             GOBACK
                         END-IF
@@ -150,7 +150,8 @@ PROCEDURE DIVISION USING LK-FAILURE.
     PERFORM AppendNewline
 
     MOVE "server-port" TO ENTRY-KEY
-    MOVE SP-PORT TO ENTRY-VALUE
+    MOVE SP-PORT TO INT-TO-STR
+    MOVE FUNCTION TRIM(INT-TO-STR) TO ENTRY-VALUE
     PERFORM AppendKeyValue
 
     MOVE "white-list" TO ENTRY-KEY
@@ -166,7 +167,7 @@ PROCEDURE DIVISION USING LK-FAILURE.
     PERFORM AppendKeyValue
 
     MOVE "max-players" TO ENTRY-KEY
-    MOVE MAX-PLAYERS   TO INT-TO-STR
+    MOVE MAX-PLAYERS TO INT-TO-STR
     MOVE FUNCTION TRIM(INT-TO-STR) TO ENTRY-VALUE
     PERFORM AppendKeyValue
 
