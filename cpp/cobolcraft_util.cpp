@@ -16,6 +16,7 @@
 #define ERRNO_SYSTEM 98
 
 std::set<socket_t> CLIENT_SOCKETS;
+constexpr int SOCKET_CHUNK_LIMIT = 64000;
 
 EXTERN_DECL int SystemTimeMillis(long long *timestamp)
 {
@@ -453,7 +454,7 @@ EXTERN_DECL int SocketRead(socket_t *socket, unsigned long *count, char *buffer)
 {
     if (!socket || !count || !buffer)
         return ERRNO_PARAMS;
-    if (*count < 0 || *count > 64000)
+    if (*count < 0 || *count > SOCKET_CHUNK_LIMIT)
         return ERRNO_PARAMS;
 
     if (*count == 0)
@@ -484,16 +485,19 @@ EXTERN_DECL int SocketWrite(socket_t *socket, unsigned long *count, char *buffer
 {
     if (!socket || !count || !buffer)
         return ERRNO_PARAMS;
-    if (*count < 0 || *count > 64000)
+    if (*count < 0)
         return ERRNO_PARAMS;
 
     if (*count == 0)
         return 0;
 
     unsigned long remaining = *count;
+    unsigned long chunk_size;
+
     while (remaining > 0)
     {
-        int result = write(*socket, buffer, remaining);
+        chunk_size = remaining > SOCKET_CHUNK_LIMIT ? SOCKET_CHUNK_LIMIT : remaining;
+        int result = write(*socket, buffer, chunk_size);
         if (result == -1)
             return ERRNO_SYSTEM;
         remaining -= result;

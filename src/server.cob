@@ -287,7 +287,7 @@ StartServer.
         MOVE CLIENT-STATE-DISCONNECTED TO CLIENT-STATE(CLIENT-ID)
     END-PERFORM
 
-    CALL "Socket-Listen" USING SP-PORT SERVER-HNDL ERRNO
+    CALL "SocketListen" USING SP-PORT SERVER-HNDL GIVING ERRNO
     PERFORM HandleServerError
 
     DISPLAY "Done! For help, type ""help"""
@@ -407,7 +407,7 @@ ConsoleInput SECTION.
     EXIT SECTION.
 
 NetworkRead SECTION.
-    CALL "Socket-Poll" USING SERVER-HNDL ERRNO TEMP-HNDL
+    CALL "SocketPoll" USING SERVER-HNDL TEMP-HNDL GIVING ERRNO
     IF ERRNO NOT = 0
         PERFORM HandleServerError
         EXIT SECTION
@@ -437,7 +437,7 @@ NetworkRead SECTION.
 
     *> If no free slot was found, close the connection
     DISPLAY "Cannot accept new connection: no free slots"
-    CALL "Socket-Close" USING TEMP-HNDL ERRNO
+    CALL "SocketClose" USING TEMP-HNDL GIVING ERRNO
     IF ERRNO NOT = 0
         PERFORM HandleServerError
     END-IF
@@ -608,7 +608,7 @@ ReceivePacket SECTION.
     *> If the packet length is not yet known, try to read more bytes one by one until the VarInt is valid
     IF PACKET-LENGTH(CLIENT-ID) <= 0
         MOVE 1 TO BYTE-COUNT
-        CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT BUFFER
+        CALL "SocketRead" USING CLIENT-HNDL(CLIENT-ID) BYTE-COUNT BUFFER GIVING ERRNO
         IF ERRNO NOT = 0
             PERFORM HandleClientError
             EXIT SECTION
@@ -649,7 +649,7 @@ ReceivePacket SECTION.
     IF PACKET-BUFFERLEN(CLIENT-ID) < PACKET-LENGTH(CLIENT-ID)
         *> The socket library can only read up to 64 kB at a time.
         COMPUTE BYTE-COUNT = FUNCTION MIN(PACKET-LENGTH(CLIENT-ID) - PACKET-BUFFERLEN(CLIENT-ID), 64000)
-        CALL "Socket-Read" USING CLIENT-HNDL(CLIENT-ID) ERRNO BYTE-COUNT CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID) + 1:)
+        CALL "SocketRead" USING CLIENT-HNDL(CLIENT-ID) BYTE-COUNT CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID) + 1:) GIVING ERRNO
         IF ERRNO NOT = 0
             PERFORM HandleClientError
             EXIT SECTION
@@ -1309,7 +1309,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
 
     MOVE 0 TO CLIENT-PRESENT(LK-CLIENT-ID)
 
-    CALL "Socket-Close" USING CLIENT-HNDL(LK-CLIENT-ID) ERRNO
+    CALL "SocketClose" USING CLIENT-HNDL(LK-CLIENT-ID) GIVING ERRNO
     IF ERRNO NOT = 0
         DISPLAY "Error closing client socket: " ERRNO
     END-IF
@@ -1426,7 +1426,7 @@ PROCEDURE DIVISION.
         END-IF
     END-PERFORM
 
-    CALL "Socket-Close" USING SERVER-HNDL ERRNO
+    CALL "SocketClose" USING SERVER-HNDL GIVING ERRNO
     IF ERRNO NOT = 0
         DISPLAY "Error closing server socket: " ERRNO
     END-IF
