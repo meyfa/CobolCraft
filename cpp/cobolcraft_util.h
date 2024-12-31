@@ -99,6 +99,6 @@ EXTERN_DECL int SocketRead(socket_t *socket, unsigned long *count, char *buffer)
 
 /**
  * Write data to a socket. The second parameter is the number of bytes to write; after writing, it contains the
- * actual number of bytes written. At most 64,000 bytes can be written at once.
+ * actual number of bytes written. Any number of bytes can be written, but the call may block if the socket is full.
  */
 EXTERN_DECL int SocketWrite(socket_t *socket, unsigned long *count, char *buffer);
