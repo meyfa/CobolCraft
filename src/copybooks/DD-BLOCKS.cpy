@@ -1,7 +1,10 @@
 *> --- Copybook: shared data for block states ---
+
+78 BLOCKS-CAPACITY VALUE 2000.
+
 01 BLOCKS EXTERNAL.
     02 BLOCKS-COUNT BINARY-LONG UNSIGNED.
-    02 BLOCK-ENTRY OCCURS 2000 TIMES.
+    02 BLOCK-ENTRY OCCURS BLOCKS-CAPACITY TIMES.
         03 BLOCK-ENTRY-NAME PIC X(100).
         *> The value of "definition"."type". For example, "minecraft:slab" for slab blocks.
         03 BLOCK-ENTRY-TYPE PIC X(100).
@@ -19,3 +22,10 @@
         03 BLOCK-ENTRY-MINIMUM-STATE-ID BINARY-LONG UNSIGNED.
         03 BLOCK-ENTRY-MAXIMUM-STATE-ID BINARY-LONG UNSIGNED.
         03 BLOCK-ENTRY-DEFAULT-STATE-ID BINARY-LONG UNSIGNED.
+    *> This table is sorted (SORT) by the block name, and is used for binary search (SEARCH ALL) to find the block's
+    *> index in the BLOCK-ENTRY table.
+    02 BLOCK-NAMES OCCURS BLOCKS-CAPACITY TIMES
+            ASCENDING KEY IS BLOCK-NAMES-ENTRY-NAME
+            INDEXED BY BLOCK-NAMES-INDEX.
+        03 BLOCK-NAMES-ENTRY-NAME PIC X(100).
+        03 BLOCK-NAMES-ENTRY-INDEX BINARY-LONG UNSIGNED.
