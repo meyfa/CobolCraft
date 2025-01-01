@@ -34,13 +34,9 @@ RUN apt-get update && \
 
 # Copy the build results
 COPY --from=build /app/cobolcraft .
-COPY --from=build /app/*.so .
 COPY --from=build /app/blobs ./blobs
 COPY --from=build /app/data/generated/reports/*.json ./data/generated/reports/
 COPY --from=build /app/data/generated/data ./data/generated/data
-
-# Include runtime dependencies
-ENV COB_PRE_LOAD=COBOLCRAFT_UTIL
 
 # Run the server within Tini (to handle signals properly)
 ENTRYPOINT ["/usr/bin/tini", "--"]

@@ -1,8 +1,6 @@
 # Compiler
 COBC = cobc
-
-# Libraries
-UTIL_LIB = COBOLCRAFT_UTIL.so
+CC = g++
 
 # Sources, copybooks, and binary
 SRC = $(wildcard src/*.cob src/*/*.cob)
@@ -11,6 +9,10 @@ OBJECTS_DIR = out
 OBJECTS = $(patsubst src/%.cob, out/%.o, $(SRC))
 CPY_DIR = src/copybooks
 CPY = $(wildcard src/copybooks/*.cpy)
+CPP_SRC = $(wildcard cpp/*.cpp)
+CPP_HEADERS = $(wildcard cpp/*.h)
+CPP_OBJECTS = $(patsubst cpp/%.cpp, out/cpp/%.o, $(CPP_SRC))
+
 BIN = cobolcraft
 
 # Data extraction from Mojang's server.jar
@@ -23,12 +25,11 @@ TEST_BIN = test
 
 .PHONY: all clean data run test
 
-all: $(BIN) $(UTIL_LIB) data
+all: $(BIN) data
 
 clean:
 	rm -rf $(OBJECTS_DIR)
 	rm -f $(BIN)
-	rm -f $(UTIL_LIB)
 	rm -f $(TEST_BIN)
 	rm -f $(JSON_DATA)
 	rm -rf data
@@ -36,10 +37,7 @@ clean:
 data: $(SERVER_JAR_EXTRACTED)
 
 run: all
-	COB_PRE_LOAD=COBOLCRAFT_UTIL ./$(BIN)
-
-$(UTIL_LIB): cpp/cobolcraft_util.cpp
-	g++ -shared -Wall -O2 -fPIC -lz -o $@ $<
+	./$(BIN)
 
 $(SERVER_JAR_EXTRACTED):
 	mkdir -p data
@@ -50,9 +48,13 @@ $(OBJECTS): out/%.o: src/%.cob $(CPY)
 	@mkdir -p $(@D)
 	$(COBC) -c -O2 -debug -Wall -fnotrunc --free -I $(CPY_DIR) -o $@ $<
 
-$(BIN): $(CPY) $(MAIN_SRC) $(OBJECTS)
-	$(COBC) -x -O2 -debug -Wall -fnotrunc --free -I $(CPY_DIR) -o $@ $(MAIN_SRC) $(OBJECTS)
+$(CPP_OBJECTS): $(CPP_SRC) $(CPP_HEADERS)
+	@mkdir -p $(@D)
+	$(CC) -c -Wall -O2 -fPIC -o $@ $<
 
-test: $(TEST_SRC) $(SRC) $(CPY) $(UTIL_LIB)
-	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -I $(CPY_DIR) -o $@ $(TEST_SRC) $(SRC)
-	COB_PRE_LOAD=COBOLCRAFT_UTIL ./$(TEST_BIN)
+$(BIN): $(CPY) $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS)
+	$(COBC) -x -O2 -debug -Wall -fnotrunc --free -lstdc++ -lz -I $(CPY_DIR) -o $@ $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS)
+
+test: $(CPY) $(TEST_SRC) $(OBJECTS) $(CPP_OBJECTS)
+	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -lz -I $(CPY_DIR) -o $@ $(TEST_SRC) $(OBJECTS) $(CPP_OBJECTS)
+	./$(TEST_BIN)
