@@ -360,7 +360,7 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-STATE LK-BUFFER.
     IF LK-LEVEL < 1 OR LK-STACK-TYPE(LK-LEVEL) NOT = X"09"
         DISPLAY "ERROR: Missing list start tag."
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     *> Fix up the list type and value count.
@@ -420,7 +420,7 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-STATE LK-BUFFER.
     IF LK-LEVEL > 0
         DISPLAY "ERROR: Root compound must be at level 0."
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     *> The root compound is a special case of the named compound.
@@ -450,7 +450,7 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-STATE LK-BUFFER.
     IF LK-LEVEL < 1 OR LK-STACK-TYPE(LK-LEVEL) NOT = X"0A"
         DISPLAY "ERROR: Missing compound start tag."
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     *> Write the end tag.

@@ -110,12 +110,12 @@ LoadRegistries.
     CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read: " FUNCTION TRIM(FILE-REGISTRIES)
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
     CALL "Registries-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to parse registries"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     *> Create additional registries not exported by the report generator.
@@ -139,12 +139,12 @@ LoadBlocks.
     CALL "Files-ReadAll" USING FILE-BLOCKS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read: " FUNCTION TRIM(FILE-BLOCKS)
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
     CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to parse blocks"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
     .
 
@@ -153,7 +153,7 @@ LoadDatapack.
     CALL "Datapack-Load" USING FILE-DATAPACK-ROOT VANILLA-DATAPACK-NAME DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to load datapack"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     *> Sanity check: There shouldn't be any empty registries now.
@@ -163,7 +163,7 @@ LoadDatapack.
         IF REGISTRY-LENGTH <= 0
             CALL "Registries-Iterate-Name" USING REGISTRY-INDEX TEMP-IDENTIFIER
             DISPLAY "Error: Empty registry '" FUNCTION TRIM(TEMP-IDENTIFIER) "'!"
-            STOP RUN
+            STOP RUN RETURNING 1
         END-IF
     END-PERFORM
     .
@@ -175,7 +175,7 @@ RegisterItems.
     CALL "Registries-GetRegistryIndex" USING C-MINECRAFT-ITEM REGISTRY-INDEX
     IF REGISTRY-INDEX <= 0
         DISPLAY "Failed to find " FUNCTION TRIM(C-MINECRAFT-ITEM) " registry"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
     CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
     PERFORM VARYING REGISTRY-ENTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-ENTRY-INDEX > REGISTRY-LENGTH
@@ -241,21 +241,21 @@ LoadProperties.
     CALL "ServerProperties-Read" USING DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read server.properties"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     *> Always write out server.properties to ensure that any missing properties are added
     CALL "ServerProperties-Write" USING DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to write server.properties"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     DISPLAY "Loading whitelist"
     CALL "Whitelist-Read" USING DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read whitelist"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
     .
 
@@ -265,7 +265,7 @@ GenerateWorld.
     CALL "World-Load" USING TEMP-INT8
     IF TEMP-INT8 NOT = 0
         DISPLAY "Failed to load world"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
     *> prepare player data
     CALL "Players-Init"
@@ -280,7 +280,7 @@ StartServer.
     CALL "SetConsoleNonBlocking" GIVING ERRNO
     IF ERRNO NOT = 0
         DISPLAY "Could not set console to non-blocking mode."
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
@@ -373,7 +373,7 @@ ServerLoop.
         CALL "World-UnloadChunks" USING VIEW-DISTANCE TEMP-INT8
         IF TEMP-INT8 NOT = 0
             DISPLAY "Failure unloading chunks"
-            STOP RUN
+            STOP RUN RETURNING 1
         END-IF
 
         *> Read console command
@@ -1262,7 +1262,7 @@ DisconnectClient SECTION.
 HandleServerError SECTION.
     IF ERRNO NOT = 0
         DISPLAY "Server socket error: " ERRNO
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
 
     EXIT SECTION.
@@ -1378,7 +1378,7 @@ PROCEDURE DIVISION.
     CALL "World-Save" USING SAVE-FAILURE
     IF SAVE-FAILURE NOT = 0
         DISPLAY "Failed to save world"
-        STOP RUN
+        STOP RUN RETURNING 1
     END-IF
     *> save player data
     CALL "Players-Save"
