@@ -117,8 +117,9 @@ The remaining COBOL sources are located in the `src/` directory, including `src/
 of CobolCraft.
 
 Only functionality that is not feasible in COBOL is implemented in C++, such as low-level TCP socket management,
-precise timing, or process signal handling.
-These sources are located in the `cpp/` directory and get compiled into a shared library (`.so` on Linux).
+precise timing, or process signal handling, and is located in the `cpp/` directory.
+
+All sources (COBOL and C++) are compiled into a single `cobolcraft` binary.
 
 ### Packet Blobs
 
