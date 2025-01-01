@@ -23,6 +23,9 @@ SERVER_JAR_EXTRACTED = data/versions/1.21.4/server-1.21.4.jar
 TEST_SRC = test.cob $(wildcard tests/*.cob)
 TEST_BIN = test
 
+# Common compiler options
+COBC_OPTS = -O2 -debug -Wall -fnotrunc --free -fstatic-call
+
 .PHONY: all clean data run test
 
 all: $(BIN) data
@@ -46,15 +49,15 @@ $(SERVER_JAR_EXTRACTED):
 
 $(OBJECTS): out/%.o: src/%.cob $(CPY)
 	@mkdir -p $(@D)
-	$(COBC) -c -O2 -debug -Wall -fnotrunc --free -I $(CPY_DIR) -o $@ $<
+	$(COBC) -c $(COBC_OPTS) -I $(CPY_DIR) -o $@ $<
 
 $(CPP_OBJECTS): $(CPP_SRC) $(CPP_HEADERS)
 	@mkdir -p $(@D)
 	$(CC) -c -Wall -O2 -fPIC -o $@ $<
 
 $(BIN): $(CPY) $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS)
-	$(COBC) -x -O2 -debug -Wall -fnotrunc --free -lstdc++ -lz -I $(CPY_DIR) -o $@ $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS)
+	$(COBC) -x $(COBC_OPTS) -I $(CPY_DIR) -lstdc++ -lz -o $@ $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS)
 
 test: $(CPY) $(TEST_SRC) $(OBJECTS) $(CPP_OBJECTS)
-	$(COBC) -x -debug -Wall -fnotrunc --free -lstdc++ -lz -I $(CPY_DIR) -o $@ $(TEST_SRC) $(OBJECTS) $(CPP_OBJECTS)
+	$(COBC) -x $(COBC_OPTS) -I $(CPY_DIR) -lstdc++ -lz -o $@ $(TEST_SRC) $(OBJECTS) $(CPP_OBJECTS)
 	./$(TEST_BIN)
