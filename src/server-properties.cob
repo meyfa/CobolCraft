@@ -57,7 +57,7 @@ PROCEDURE DIVISION USING LK-FAILURE.
                 INITIALIZE ENTRY-KEY
                 MOVE 1 TO ENTRY-OFFSET
                 PERFORM UNTIL BUFFER-POS > BUFFER-LENGTH
-                    IF BUFFER(BUFFER-POS:1) = "=" OR BUFFER(BUFFER-POS:1) = " " OR BUFFER(BUFFER-POS:1) = NEWLINE
+                    IF BUFFER(BUFFER-POS:1) = "=" OR " " OR NEWLINE
                         EXIT PERFORM
                     END-IF
                     MOVE BUFFER(BUFFER-POS:1) TO ENTRY-KEY(ENTRY-OFFSET:1)

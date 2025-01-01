@@ -77,7 +77,7 @@ PROCEDURE DIVISION.
         END-EVALUATE
 
         *> for ceiling/floor buttons, use the player's yaw to determine the facing
-        IF FACING = "up" OR FACING = "down"
+        IF FACING = "up" OR "down"
             EVALUATE FUNCTION MOD(PLAYER-YAW(LK-PLAYER) + 45, 360)
                 WHEN < 90
                     MOVE "south" TO PLACE-PROPERTY-VALUE(2)

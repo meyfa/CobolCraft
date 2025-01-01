@@ -22,7 +22,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-GAMEMODE LK-FLYING.
 
     *> flags bitmask: 0x01 invulnerable, 0x02 flying, 0x04 allow flying, 0x08 creative mode (instant break)
     MOVE 0 TO TEMP-INT8
-    IF LK-GAMEMODE = 1 OR LK-GAMEMODE = 3
+    IF LK-GAMEMODE = 1 OR 3
         ADD H'05' TO TEMP-INT8
     END-IF
     IF LK-GAMEMODE = 1

@@ -58,7 +58,7 @@ PROCEDURE DIVISION.
 
         *> TODO change torch facing if not legal (missing solid block) while another facing would be legal
 
-        IF FACING = "up" OR FACING = "down"
+        IF FACING = "up" OR "down"
             *> Check for solid block below
             MOVE BLOCK-POSITION TO TARGET-BLOCK-POSITION
             SUBTRACT 1 FROM TARGET-BLOCK-Y
