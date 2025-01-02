@@ -111,13 +111,31 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
     MOVE "Inventory" TO TAG-NAME
     MOVE 9 TO NAME-LEN
     CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-    PERFORM VARYING INVENTORY-INDEX FROM 1 BY 1 UNTIL INVENTORY-INDEX > 46
+
+    *> Skip the first slot, as it is the crafting output
+    PERFORM VARYING INVENTORY-INDEX FROM 2 BY 1 UNTIL INVENTORY-INDEX > 46
         IF PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, INVENTORY-INDEX) > 0 AND PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER-ID, INVENTORY-INDEX) > 0
             CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED
 
             MOVE "Slot" TO TAG-NAME
             MOVE 4 TO NAME-LEN
             COMPUTE INT8 = INVENTORY-INDEX - 1
+            EVALUATE INT8
+                WHEN 36 THRU 44
+                    SUBTRACT 36 FROM INT8
+                WHEN 8
+                    MOVE 100 TO INT8
+                WHEN 7
+                    MOVE 101 TO INT8
+                WHEN 6
+                    MOVE 102 TO INT8
+                WHEN 5
+                    MOVE 103 TO INT8
+                WHEN 45
+                    MOVE -106 TO INT8
+                WHEN 1 THRU 4
+                    ADD 79 TO INT8
+            END-EVALUATE
             CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN INT8
 
             MOVE "id" TO TAG-NAME
@@ -287,6 +305,22 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                         EVALUATE TAG-NAME(1:NAME-LEN)
                             WHEN "Slot"
                                 CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER INT8
+                                EVALUATE INT8
+                                    WHEN 0 THRU 8
+                                        ADD 36 TO INT8
+                                    WHEN 100
+                                        MOVE 8 TO INT8
+                                    WHEN 101
+                                        MOVE 7 TO INT8
+                                    WHEN 102
+                                        MOVE 6 TO INT8
+                                    WHEN 103
+                                        MOVE 5 TO INT8
+                                    WHEN -106
+                                        MOVE 45 TO INT8
+                                    WHEN 80 THRU 83
+                                        SUBTRACT 79 FROM INT8
+                                END-EVALUATE
                                 COMPUTE INVENTORY-INDEX = INT8 + 1
 
                             WHEN "id"
