@@ -32,7 +32,9 @@ LINKAGE SECTION.
             *> block IDs (16x16x16) - X increases fastest, then Z, then Y
             03 LK-BLOCK OCCURS 4096 TIMES.
                 04 LK-BLOCK-ID      BINARY-LONG UNSIGNED.
-            03 LK-BIOME-ID      BINARY-LONG UNSIGNED.
+            *> biome IDs (4x4x4)
+            03 LK-BIOME OCCURS 64 TIMES.
+                04 LK-BIOME-ID      BINARY-LONG UNSIGNED.
         02 LK-CHUNK-BLOCK-ENTITY-COUNT BINARY-LONG UNSIGNED.
         *> block entity IDs for each block
         02 LK-CHUNK-BLOCK-ENTITIES.
@@ -169,6 +171,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
         01 INT16                BINARY-SHORT.
         01 INT32                BINARY-LONG.
         01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
+        01 BIOME-INDEX          BINARY-LONG UNSIGNED.
         01 PALETTE-ENTRY-LENGTH BINARY-LONG UNSIGNED        VALUE 8.
         01 PALETTE-ENTRY        BINARY-LONG-LONG UNSIGNED.
         01 PALETTE-ENTRY-BYTES  REDEFINES PALETTE-ENTRY PIC X(8).
@@ -178,7 +181,8 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
             02 LK-NON-AIR           BINARY-LONG UNSIGNED.
             02 LK-BLOCK OCCURS 4096 TIMES.
                 03 LK-BLOCK-ID          BINARY-LONG UNSIGNED.
-            02 LK-BIOME-ID          BINARY-LONG UNSIGNED.
+            02 LK-BIOME OCCURS 64 TIMES.
+                04 LK-BIOME-ID      BINARY-LONG UNSIGNED.
         01 LK-BUFFER            PIC X ANY LENGTH.
         01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
 
@@ -206,7 +210,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
             MOVE X"0F" TO LK-BUFFER(LK-BUFFERPOS:1)
             ADD 1 TO LK-BUFFERPOS
             *> - palette: empty, since we have a direct palette
-            *> - data array length: (4096 / 4 = 1024)
+            *> - data array length: ceil((4096 entries) / floor(64 / (15 bits))) = 1024
             MOVE 1024 TO INT32
             CALL "Encode-VarInt" USING INT32 LK-BUFFER LK-BUFFERPOS
             *> - data array: block ids - x increases fastest, then z, then y
@@ -221,16 +225,25 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
         END-IF
 
         *> biomes
-        *> - bits per entry: 0 = single-valued
-        MOVE X"00" TO LK-BUFFER(LK-BUFFERPOS:1)
+        *> - bits per entry: 7 = direct palette
+        MOVE X"07" TO LK-BUFFER(LK-BUFFERPOS:1)
         ADD 1 TO LK-BUFFERPOS
-        *> - palette: id of the biome
-        *> TODO: use actual biome data
-        CALL "Encode-VarInt" USING LK-BIOME-ID LK-BUFFER LK-BUFFERPOS
-        *> - data array length: 0, since we have a single-valued palette
-        MOVE 0 TO INT32
+        *> - palette: empty, since we have a direct palette
+        *> - data array length: ceil(64 entries / floor(64 / (7 bits))) = 8
+        MOVE 8 TO INT32
         CALL "Encode-VarInt" USING INT32 LK-BUFFER LK-BUFFERPOS
-        *> - data array: empty
+        *> - data array: biome ids - x increases fastest, then z, then y
+        *> TODO make this code generic - 64 is not divisible by 9, so we need to handle the last entry separately
+        PERFORM VARYING BIOME-INDEX FROM 0 BY 9 UNTIL BIOME-INDEX >= 63
+            COMPUTE PALETTE-ENTRY = LK-BIOME-ID(BIOME-INDEX + 1) + 128 * (LK-BIOME-ID(BIOME-INDEX + 2) + 128 * (LK-BIOME-ID(BIOME-INDEX + 3)
+                + 128 * (LK-BIOME-ID(BIOME-INDEX + 4) + 128 * (LK-BIOME-ID(BIOME-INDEX + 5) + 128 * (LK-BIOME-ID(BIOME-INDEX + 6)
+                + 128 * (LK-BIOME-ID(BIOME-INDEX + 7) + 128 * (LK-BIOME-ID(BIOME-INDEX + 8) + 128 * LK-BIOME-ID(BIOME-INDEX + 9))))))))
+            MOVE FUNCTION REVERSE(PALETTE-ENTRY-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
+            ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
+        END-PERFORM
+        COMPUTE PALETTE-ENTRY = LK-BIOME-ID(BIOME-INDEX + 1)
+        MOVE FUNCTION REVERSE(PALETTE-ENTRY-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
+        ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
 
         GOBACK.
 

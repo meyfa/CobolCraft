@@ -725,3 +725,61 @@ PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-UUID.
     GOBACK.
 
 END PROGRAM NbtDecode-UUID.
+
+*> --- NbtDecode-SkipUntilTag ---
+*> A utility procedure to skip until a tag with a given name is found. If found, the offset will be set to the
+*> start of the tag. Otherwise, the offset will be at the end of the compound, and the "at end" flag will be set.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-SkipUntilTag.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 TAG-NAME             PIC X(256).
+    01 NAME-LEN             BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER            PIC X ANY LENGTH.
+    01 LK-TAG-NAME          PIC X ANY LENGTH.
+    01 LK-AT-END            BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-TAG-NAME LK-AT-END.
+    PERFORM UNTIL EXIT
+        CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER LK-AT-END TAG-NAME NAME-LEN
+        IF LK-AT-END > 0
+            GOBACK
+        END-IF
+        IF TAG-NAME(1:NAME-LEN) = LK-TAG-NAME
+            EXIT PERFORM
+        END-IF
+        CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER
+    END-PERFORM
+    MOVE 0 TO LK-AT-END
+    GOBACK.
+
+END PROGRAM NbtDecode-SkipUntilTag.
+
+*> --- NbtDecode-SkipRemainingTags ---
+*> A utility procedure to skip all remaining tags in a compound.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. NbtDecode-SkipRemainingTags.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 AT-END               BINARY-CHAR UNSIGNED.
+    01 TAG-NAME             PIC X(256).
+    01 NAME-LEN             BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+    01 LK-BUFFER            PIC X ANY LENGTH.
+
+PROCEDURE DIVISION USING LK-STATE LK-BUFFER.
+    PERFORM UNTIL EXIT
+        CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER AT-END TAG-NAME NAME-LEN
+        IF AT-END > 0
+            GOBACK
+        END-IF
+        CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER
+    END-PERFORM
+    GOBACK.
+
+END PROGRAM NbtDecode-SkipRemainingTags.
