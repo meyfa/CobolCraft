@@ -149,7 +149,7 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
             MOVE 5 TO NAME-LEN
             CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER-ID, INVENTORY-INDEX)
 
-            *> TODO encode the NBT data as a compound - requires encoding and decoding at the network layer
+            *> TODO encode the structured components
             MOVE PLAYER-INVENTORY-SLOT-NBT-LENGTH(LK-PLAYER-ID, INVENTORY-INDEX) TO INT32
             IF INT32 > 0
                 MOVE "tag" TO TAG-NAME
@@ -296,6 +296,9 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                     CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
                     MOVE 0 TO INVENTORY-INDEX
                     INITIALIZE INVENTORY-SLOT
+                    *> default structured components (0x00 = nothing to add, 0x00 = nothing to remove)
+                    MOVE 2 TO INVENTORY-SLOT-NBT-LENGTH
+                    MOVE X"0000" TO INVENTORY-SLOT-NBT-DATA(1:INVENTORY-SLOT-NBT-LENGTH)
 
                     *> Slot properties
                     PERFORM UNTIL EXIT
@@ -332,8 +335,8 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                             WHEN "count"
                                 CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-SLOT-COUNT
 
+                            *> TODO use "components" instead, and decode it as a compound
                             WHEN "tag"
-                                *> TODO decode the NBT data as a compound - requires encoding and decoding at the network layer
                                 CALL "NbtDecode-ByteBuffer" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-SLOT-NBT-DATA INVENTORY-SLOT-NBT-LENGTH
 
                             WHEN OTHER
