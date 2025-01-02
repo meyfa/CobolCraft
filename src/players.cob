@@ -267,7 +267,8 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
         EVALUATE TAG-NAME(1:NAME-LEN)
             *> UUID (4 integers, MSB to LSB)
             WHEN "UUID"
-                CALL "NbtDecode-UUID" USING NBT-DECODER-STATE NBT-BUFFER LK-PLAYER-UUID
+                *> ignored, as we already have the UUID
+                CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
 
             WHEN "playerGameType"
                 CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-GAMEMODE(LK-PLAYER-ID)
