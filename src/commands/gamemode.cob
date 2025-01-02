@@ -4,6 +4,7 @@ PROGRAM-ID. RegisterCommand-GameMode.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-COMMAND-CONSTANTS.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "gamemode".
     01 COMMAND-HELP                 PIC X(255)                  VALUE "/gamemode <gamemode> - change your game mode".
     01 PTR                          PROGRAM-POINTER.
@@ -14,7 +15,7 @@ PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
     CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
 
-    CALL "AddCommandArgument-Simple" USING NODE-ROOT "gamemode" NODE-GAMEMODE
+    CALL "AddCommandArgument" USING NODE-ROOT "gamemode" CMD-PARSER-GAMEMODE OMITTED NODE-GAMEMODE
     CALL "SetCommandExecutable" USING NODE-GAMEMODE
 
     GOBACK.

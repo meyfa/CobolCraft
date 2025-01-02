@@ -4,6 +4,7 @@ PROGRAM-ID. RegisterCommand-Say.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-COMMAND-CONSTANTS.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "say".
     01 COMMAND-HELP                 PIC X(255)                  VALUE "/say <message> - broadcast a message".
     01 PTR                          PROGRAM-POINTER.
@@ -14,7 +15,7 @@ PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
     CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
 
-    CALL "AddCommandArgument-Greedy" USING NODE-ROOT "message" NODE-MESSAGE
+    CALL "AddCommandArgument" USING NODE-ROOT "message" CMD-PARSER-STRING CMD-STRING-GREEDY NODE-MESSAGE
     CALL "SetCommandExecutable" USING NODE-MESSAGE
 
     GOBACK.
