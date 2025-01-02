@@ -6,10 +6,11 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-COMMAND-CONSTANTS.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "gamemode".
-    01 COMMAND-HELP                 PIC X(255)                  VALUE "/gamemode <gamemode> - change your game mode".
+    01 COMMAND-HELP                 PIC X(255)                  VALUE "/gamemode <gamemode> [player] - change your game mode".
     01 PTR                          PROGRAM-POINTER.
     01 NODE-ROOT                    BINARY-LONG UNSIGNED.
     01 NODE-GAMEMODE                BINARY-LONG UNSIGNED.
+    01 NODE-PLAYER                  BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
@@ -17,6 +18,10 @@ PROCEDURE DIVISION.
 
     CALL "AddCommandArgument" USING NODE-ROOT "gamemode" CMD-PARSER-GAMEMODE OMITTED NODE-GAMEMODE
     CALL "SetCommandExecutable" USING NODE-GAMEMODE
+
+    *> Uses entity parser (instead of game profile parser) to restrict to online players
+    CALL "AddCommandArgument" USING NODE-GAMEMODE "player" CMD-PARSER-ENTITY CMD-ENTITY-SINGLE-PLAYER NODE-PLAYER
+    CALL "SetCommandExecutable" USING NODE-PLAYER
 
     GOBACK.
 
@@ -28,6 +33,7 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-CLIENTS.
         COPY DD-PLAYERS.
+        COPY DD-SERVER-PROPERTIES.
         01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
         01 BUFFER                   PIC X(255).
         01 PLAYER-ID                BINARY-LONG UNSIGNED.
@@ -45,20 +51,34 @@ PROCEDURE DIVISION.
         COPY DD-CALLBACK-COMMAND-EXECUTE.
 
     PROCEDURE DIVISION USING LK-CLIENT-ID LK-PARTS LK-PRINT-USAGE.
-        IF LK-PART-COUNT NOT = 2
+        IF LK-PART-COUNT < 2 OR > 3
             MOVE 1 TO LK-PRINT-USAGE
             GOBACK
         END-IF
 
         EVALUATE LK-CLIENT-ID
             WHEN 0
-                *> TODO handle console
-                MOVE "This command is not available from the console" TO BUFFER
-                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
-                GOBACK
+                *> Console requires a player argument
+                IF LK-PART-COUNT < 3
+                    MOVE 1 TO LK-PRINT-USAGE
+                    GOBACK
+                END-IF
             WHEN OTHER
                 MOVE CLIENT-PLAYER(LK-CLIENT-ID) TO PLAYER-ID
         END-EVALUATE
+
+        IF LK-PART-COUNT = 3
+            PERFORM VARYING PLAYER-ID FROM 1 BY 1 UNTIL PLAYER-ID > MAX-PLAYERS
+                IF PLAYER-NAME(PLAYER-ID) = LK-PART-VALUE(3)
+                    EXIT PERFORM
+                END-IF
+            END-PERFORM
+            IF PLAYER-ID > MAX-PLAYERS
+                MOVE "Player not found" TO BUFFER
+                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                GOBACK
+            END-IF
+        END-IF
 
         EVALUATE LK-PART-VALUE(2)
             WHEN "survival"
@@ -76,16 +96,22 @@ PROCEDURE DIVISION.
                 GOBACK
         END-EVALUATE
 
-        INITIALIZE BUFFER
-        STRING "Set own game mode to " FUNCTION TRIM(GAMEMODE-STRING(PLAYER-GAMEMODE(PLAYER-ID) + 1)) INTO BUFFER
-        CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
-
         *> game event 3: change game mode
         MOVE 3 TO GAME-EVENT-TYPE
         MOVE PLAYER-GAMEMODE(PLAYER-ID) TO GAME-EVENT-VALUE
-        CALL "SendPacket-GameEvent" USING LK-CLIENT-ID GAME-EVENT-TYPE GAME-EVENT-VALUE
+        CALL "SendPacket-GameEvent" USING PLAYER-CLIENT(PLAYER-ID) GAME-EVENT-TYPE GAME-EVENT-VALUE
 
-        CALL "SendPacket-PlayerAbilities" USING LK-CLIENT-ID PLAYER-GAMEMODE(PLAYER-ID) PLAYER-FLYING(PLAYER-ID)
+        CALL "SendPacket-PlayerAbilities" USING PLAYER-CLIENT(PLAYER-ID) PLAYER-GAMEMODE(PLAYER-ID) PLAYER-FLYING(PLAYER-ID)
+
+        IF PLAYER-CLIENT(PLAYER-ID) = LK-CLIENT-ID
+            INITIALIZE BUFFER
+            STRING "Set own game mode to " FUNCTION TRIM(GAMEMODE-STRING(PLAYER-GAMEMODE(PLAYER-ID) + 1)) INTO BUFFER
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+        ELSE
+            INITIALIZE BUFFER
+            STRING "Set " FUNCTION TRIM(PLAYER-NAME(PLAYER-ID)) "'s game mode to " FUNCTION TRIM(GAMEMODE-STRING(PLAYER-GAMEMODE(PLAYER-ID) + 1)) INTO BUFFER
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+        END-IF
 
         GOBACK.
 
