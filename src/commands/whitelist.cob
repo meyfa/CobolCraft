@@ -4,6 +4,7 @@ PROGRAM-ID. RegisterCommand-Whitelist.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-COMMAND-CONSTANTS.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "whitelist".
     01 COMMAND-HELP                 PIC X(255)                  VALUE "/whitelist (reload|list|add|remove) [player] - manage the whitelist".
     01 PTR                          PROGRAM-POINTER.
@@ -15,18 +16,18 @@ PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
     CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
 
-    CALL "AddCommandNode-Literal" USING NODE-ROOT "reload" NODE-OPERATION
+    CALL "AddCommandLiteral" USING NODE-ROOT "reload" NODE-OPERATION
     CALL "SetCommandExecutable" USING NODE-OPERATION
 
-    CALL "AddCommandNode-Literal" USING NODE-ROOT "list" NODE-OPERATION
+    CALL "AddCommandLiteral" USING NODE-ROOT "list" NODE-OPERATION
     CALL "SetCommandExecutable" USING NODE-OPERATION
 
-    CALL "AddCommandNode-Literal" USING NODE-ROOT "add" NODE-OPERATION
-    CALL "AddCommandArgument-Simple" USING NODE-OPERATION "player" NODE-ARGUMENT
+    CALL "AddCommandLiteral" USING NODE-ROOT "add" NODE-OPERATION
+    CALL "AddCommandArgument" USING NODE-OPERATION "player" CMD-PARSER-GAME-PROFILE OMITTED NODE-ARGUMENT
     CALL "SetCommandExecutable" USING NODE-ARGUMENT
 
-    CALL "AddCommandNode-Literal" USING NODE-ROOT "remove" NODE-OPERATION
-    CALL "AddCommandArgument-Simple" USING NODE-OPERATION "player" NODE-ARGUMENT
+    CALL "AddCommandLiteral" USING NODE-ROOT "remove" NODE-OPERATION
+    CALL "AddCommandArgument" USING NODE-OPERATION "player" CMD-PARSER-GAME-PROFILE OMITTED NODE-ARGUMENT
     CALL "SetCommandExecutable" USING NODE-ARGUMENT
 
     GOBACK.

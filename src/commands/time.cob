@@ -4,6 +4,7 @@ PROGRAM-ID. RegisterCommand-Time.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-COMMAND-CONSTANTS.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "time".
     01 COMMAND-HELP                 PIC X(255)                  VALUE "/time set (day|noon|night|midnight|<time>) - change the time".
     01 PTR                          PROGRAM-POINTER.
@@ -15,21 +16,21 @@ PROCEDURE DIVISION.
     SET PTR TO ENTRY "Callback-Execute"
     CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
 
-    CALL "AddCommandNode-Literal" USING NODE-ROOT "set" NODE-OPERATION
+    CALL "AddCommandLiteral" USING NODE-ROOT "set" NODE-OPERATION
 
-    CALL "AddCommandNode-Literal" USING NODE-OPERATION "day" NODE-ARGUMENT
+    CALL "AddCommandLiteral" USING NODE-OPERATION "day" NODE-ARGUMENT
     CALL "SetCommandExecutable" USING NODE-ARGUMENT
 
-    CALL "AddCommandNode-Literal" USING NODE-OPERATION "noon" NODE-ARGUMENT
+    CALL "AddCommandLiteral" USING NODE-OPERATION "noon" NODE-ARGUMENT
     CALL "SetCommandExecutable" USING NODE-ARGUMENT
 
-    CALL "AddCommandNode-Literal" USING NODE-OPERATION "night" NODE-ARGUMENT
+    CALL "AddCommandLiteral" USING NODE-OPERATION "night" NODE-ARGUMENT
     CALL "SetCommandExecutable" USING NODE-ARGUMENT
 
-    CALL "AddCommandNode-Literal" USING NODE-OPERATION "midnight" NODE-ARGUMENT
+    CALL "AddCommandLiteral" USING NODE-OPERATION "midnight" NODE-ARGUMENT
     CALL "SetCommandExecutable" USING NODE-ARGUMENT
 
-    CALL "AddCommandArgument-Simple" USING NODE-OPERATION "time" NODE-ARGUMENT
+    CALL "AddCommandArgument" USING NODE-OPERATION "time" CMD-PARSER-STRING CMD-STRING-SINGLE NODE-ARGUMENT
     CALL "SetCommandExecutable" USING NODE-ARGUMENT
 
     GOBACK.
