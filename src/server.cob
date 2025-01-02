@@ -930,6 +930,12 @@ HandleConfiguration SECTION.
             *> Send available commands list
             CALL "SendPacket-Commands" USING CLIENT-ID
 
+            *> Set op permission level to 4 (full permissions) - mainly so the gamemode switcher works
+            *> TODO: implement a proper permission system
+            MOVE 28 TO TEMP-INT8
+            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
+            CALL "SendPacket-EntityEvent" USING CLIENT-ID TEMP-INT32 TEMP-INT8
+
             *> send the new player to all other players
             MOVE CLIENT-ID TO TEMP-INT16
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
