@@ -9,6 +9,13 @@
     78 CMD-STRING-QUOTABLE-PHRASE   VALUE X"01".
     78 CMD-STRING-GREEDY            VALUE X"02".
 
+78 CMD-PARSER-ENTITY            VALUE "minecraft:entity".
+    *> bit flags: 0x01 = single entity/player, 0x02 = only allow players
+    78 CMD-ENTITY-ANY-ANY           VALUE X"00".
+    78 CMD-ENTITY-SINGLE-ANY        VALUE X"01".
+    78 CMD-ENTITY-ANY-PLAYER        VALUE X"02".
+    78 CMD-ENTITY-SINGLE-PLAYER     VALUE X"03".
+
 78 CMD-PARSER-GAME-PROFILE      VALUE "minecraft:game_profile".
 
 78 CMD-PARSER-GAMEMODE          VALUE "minecraft:gamemode".
