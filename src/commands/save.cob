@@ -22,7 +22,6 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
         01 BUFFER                   PIC X(255).
     LINKAGE SECTION.
         COPY DD-CALLBACK-COMMAND-EXECUTE.
@@ -34,12 +33,12 @@ PROCEDURE DIVISION.
         END-IF
 
         MOVE "Saving world" TO BUFFER
-        CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+        CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
 
         CALL "Server-Save"
 
         MOVE "World saved" TO BUFFER
-        CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+        CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
 
         GOBACK.
 

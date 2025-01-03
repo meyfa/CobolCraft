@@ -43,7 +43,6 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-CLIENTS.
         COPY DD-PLAYERS.
-        01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
         01 BUFFER                   PIC X(255).
         01 TEMP-INT64               BINARY-LONG-LONG.
         01 TEMP-INT64-PIC           PIC -(19)9.
@@ -74,7 +73,7 @@ PROCEDURE DIVISION.
         MOVE TEMP-INT64 TO TEMP-INT64-PIC
         INITIALIZE BUFFER
         STRING "Set the time to " FUNCTION TRIM(TEMP-INT64-PIC) INTO BUFFER
-        CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+        CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
 
         GOBACK.
 

@@ -46,7 +46,6 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-WHITELIST.
         COPY DD-SERVER-PROPERTIES.
-        01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
         01 BUFFER                   PIC X(255).
         01 BUFFER-POS               BINARY-LONG UNSIGNED.
         01 BYTE-COUNT               BINARY-LONG UNSIGNED.
@@ -63,11 +62,11 @@ PROCEDURE DIVISION.
             CALL "Whitelist-Read" USING FAILURE
             IF FAILURE NOT = 0
                 MOVE "Error reloading the whitelist" TO BUFFER
-                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
                 GOBACK
             END-IF
             MOVE "Reloaded the whitelist" TO BUFFER
-            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
         END-IF
 
@@ -75,7 +74,7 @@ PROCEDURE DIVISION.
             MOVE 1 TO SP-WHITELIST-ENABLE
             PERFORM WriteServerProperties
             MOVE "Whitelist enabled" TO BUFFER
-            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
         END-IF
 
@@ -83,14 +82,14 @@ PROCEDURE DIVISION.
             MOVE 0 TO SP-WHITELIST-ENABLE
             PERFORM WriteServerProperties
             MOVE "Whitelist disabled" TO BUFFER
-            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
         END-IF
 
         IF LK-PART-COUNT = 2 AND LK-PART-VALUE(2) = "list"
             IF WHITELIST-LENGTH = 0
                 MOVE "There are no whitelisted players" TO BUFFER
-                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
                 GOBACK
             END-IF
             MOVE WHITELIST-LENGTH TO TEMP-INT64-PIC
@@ -106,7 +105,7 @@ PROCEDURE DIVISION.
                 MOVE WHITELIST-NAME(WHITELIST-INDEX)(1:BYTE-COUNT) TO BUFFER(BUFFER-POS:BYTE-COUNT)
                 ADD BYTE-COUNT TO BUFFER-POS
             END-PERFORM
-            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
         END-IF
 
@@ -122,7 +121,7 @@ PROCEDURE DIVISION.
                     INITIALIZE BUFFER
                     STRING "Added " FUNCTION TRIM(TEMP-NAME) " to the whitelist" INTO BUFFER
                 END-IF
-                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
                 GOBACK
             END-IF
 
@@ -134,7 +133,7 @@ PROCEDURE DIVISION.
                     INITIALIZE BUFFER
                     STRING "Removed " FUNCTION TRIM(TEMP-NAME) " from the whitelist" INTO BUFFER
                 END-IF
-                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
                 GOBACK
             END-IF
         END-IF
@@ -147,7 +146,7 @@ PROCEDURE DIVISION.
         CALL "ServerProperties-Write" USING FAILURE
         IF FAILURE NOT = 0
             MOVE "Error writing server.properties" TO BUFFER
-            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
         END-IF
         EXIT SECTION.

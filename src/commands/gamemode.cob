@@ -34,7 +34,6 @@ PROCEDURE DIVISION.
         COPY DD-CLIENTS.
         COPY DD-PLAYERS.
         COPY DD-SERVER-PROPERTIES.
-        01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
         01 BUFFER                   PIC X(255).
         01 PLAYER-ID                BINARY-LONG UNSIGNED.
         01 GAME-EVENT-TYPE          BINARY-CHAR UNSIGNED.
@@ -75,7 +74,7 @@ PROCEDURE DIVISION.
             END-PERFORM
             IF PLAYER-ID > MAX-PLAYERS
                 MOVE "Player not found" TO BUFFER
-                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
                 GOBACK
             END-IF
         END-IF
@@ -106,11 +105,11 @@ PROCEDURE DIVISION.
         IF PLAYER-CLIENT(PLAYER-ID) = LK-CLIENT-ID
             INITIALIZE BUFFER
             STRING "Set own game mode to " FUNCTION TRIM(GAMEMODE-STRING(PLAYER-GAMEMODE(PLAYER-ID) + 1)) INTO BUFFER
-            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
         ELSE
             INITIALIZE BUFFER
             STRING "Set " FUNCTION TRIM(PLAYER-NAME(PLAYER-ID)) "'s game mode to " FUNCTION TRIM(GAMEMODE-STRING(PLAYER-GAMEMODE(PLAYER-ID) + 1)) INTO BUFFER
-            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
         END-IF
 
         GOBACK.
