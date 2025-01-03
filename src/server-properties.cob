@@ -5,24 +5,62 @@ PROGRAM-ID. ServerProperties-Read.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    *> constants
     01 SERVER-PROPERTIES-FILE   PIC X(32)                   VALUE "server.properties".
-    01 NEWLINE                  PIC X                       VALUE X"0A".
-    *> shared data
-    COPY DD-SERVER-PROPERTIES.
-    *> file buffer
     01 READ-FAILURE             BINARY-CHAR UNSIGNED.
     01 BUFFER                   PIC X(64000).
     01 BUFFER-LENGTH            BINARY-LONG UNSIGNED.
-    *> parser state
+LINKAGE SECTION.
+    01 LK-FAILURE               BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-FAILURE.
+    CALL "Files-ReadAll" USING SERVER-PROPERTIES-FILE BUFFER BUFFER-LENGTH READ-FAILURE
+    IF READ-FAILURE NOT = 0
+        INITIALIZE BUFFER
+        MOVE 0 TO BUFFER-LENGTH
+    END-IF
+    CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH LK-FAILURE
+    GOBACK.
+
+END PROGRAM ServerProperties-Read.
+
+*> --- ServerProperties-Write ---
+*> Write the server.properties file.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. ServerProperties-Write.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 SERVER-PROPERTIES-FILE   PIC X(32)                   VALUE "server.properties".
+    01 BUFFER                   PIC X(64000).
+    01 BUFFER-LENGTH            BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-FAILURE               BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-FAILURE.
+    CALL "ServerProperties-Serialize" USING BUFFER BUFFER-LENGTH LK-FAILURE
+    CALL "Files-WriteAll" USING SERVER-PROPERTIES-FILE BUFFER BUFFER-LENGTH LK-FAILURE
+    GOBACK.
+
+END PROGRAM ServerProperties-Write.
+
+*> --- ServerProperties-Deserialize ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. ServerProperties-Deserialize.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-SERVER-PROPERTIES.
+    01 NEWLINE                  PIC X                       VALUE X"0A".
     01 BUFFER-POS               BINARY-LONG UNSIGNED.
     01 ENTRY-OFFSET             BINARY-LONG UNSIGNED.
     01 ENTRY-KEY                PIC X(255).
     01 ENTRY-VALUE              PIC X(255).
 LINKAGE SECTION.
+    01 LK-BUFFER                PIC X ANY LENGTH.
+    01 LK-BUFFER-LENGTH         BINARY-LONG UNSIGNED.
     01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
-PROCEDURE DIVISION USING LK-FAILURE.
+PROCEDURE DIVISION USING LK-BUFFER LK-BUFFER-LENGTH LK-FAILURE.
     *> Start with default values
     MOVE 25565 TO SP-PORT
     MOVE 0 TO SP-WHITELIST-ENABLE
@@ -31,19 +69,13 @@ PROCEDURE DIVISION USING LK-FAILURE.
     MOVE 10 TO MAX-PLAYERS
     MOVE 10 TO MAX-CLIENTS
 
-    *> Attempt to read file, but ignore if missing
-    CALL "Files-ReadAll" USING SERVER-PROPERTIES-FILE BUFFER BUFFER-LENGTH READ-FAILURE
-    IF READ-FAILURE NOT = 0
-        GOBACK
-    END-IF
-
-    PERFORM VARYING BUFFER-POS FROM 1 BY 1 UNTIL BUFFER-POS > BUFFER-LENGTH
-        EVALUATE BUFFER(BUFFER-POS:1)
+    PERFORM VARYING BUFFER-POS FROM 1 BY 1 UNTIL BUFFER-POS > LK-BUFFER-LENGTH
+        EVALUATE LK-BUFFER(BUFFER-POS:1)
             WHEN "#"
                 *> skip to the end of the line
-                PERFORM UNTIL BUFFER-POS >= BUFFER-LENGTH
+                PERFORM UNTIL BUFFER-POS >= LK-BUFFER-LENGTH
                     ADD 1 TO BUFFER-POS
-                    IF BUFFER(BUFFER-POS:1) = NEWLINE
+                    IF LK-BUFFER(BUFFER-POS:1) = NEWLINE
                         EXIT PERFORM
                     END-IF
                 END-PERFORM
@@ -56,11 +88,11 @@ PROCEDURE DIVISION USING LK-FAILURE.
                 *> read key
                 INITIALIZE ENTRY-KEY
                 MOVE 1 TO ENTRY-OFFSET
-                PERFORM UNTIL BUFFER-POS > BUFFER-LENGTH
-                    IF BUFFER(BUFFER-POS:1) = "=" OR " " OR NEWLINE
+                PERFORM UNTIL BUFFER-POS > LK-BUFFER-LENGTH
+                    IF LK-BUFFER(BUFFER-POS:1) = "=" OR " " OR NEWLINE
                         EXIT PERFORM
                     END-IF
-                    MOVE BUFFER(BUFFER-POS:1) TO ENTRY-KEY(ENTRY-OFFSET:1)
+                    MOVE LK-BUFFER(BUFFER-POS:1) TO ENTRY-KEY(ENTRY-OFFSET:1)
                     ADD 1 TO BUFFER-POS
                     ADD 1 TO ENTRY-OFFSET
                 END-PERFORM
@@ -69,8 +101,8 @@ PROCEDURE DIVISION USING LK-FAILURE.
                 *> TODO handle multiple equals signs
 
                 *> skip spaces and the equals sign
-                PERFORM UNTIL BUFFER-POS > BUFFER-LENGTH
-                    IF BUFFER(BUFFER-POS:1) NOT = " " AND BUFFER(BUFFER-POS:1) NOT = "="
+                PERFORM UNTIL BUFFER-POS > LK-BUFFER-LENGTH
+                    IF LK-BUFFER(BUFFER-POS:1) NOT = " " AND LK-BUFFER(BUFFER-POS:1) NOT = "="
                         EXIT PERFORM
                     END-IF
                     ADD 1 TO BUFFER-POS
@@ -79,11 +111,11 @@ PROCEDURE DIVISION USING LK-FAILURE.
                 *> read value
                 INITIALIZE ENTRY-VALUE
                 MOVE 1 TO ENTRY-OFFSET
-                PERFORM UNTIL BUFFER-POS > BUFFER-LENGTH
-                    IF BUFFER(BUFFER-POS:1) = NEWLINE
+                PERFORM UNTIL BUFFER-POS > LK-BUFFER-LENGTH
+                    IF LK-BUFFER(BUFFER-POS:1) = NEWLINE
                         EXIT PERFORM
                     END-IF
-                    MOVE BUFFER(BUFFER-POS:1) TO ENTRY-VALUE(ENTRY-OFFSET:1)
+                    MOVE LK-BUFFER(BUFFER-POS:1) TO ENTRY-VALUE(ENTRY-OFFSET:1)
                     ADD 1 TO BUFFER-POS
                     ADD 1 TO ENTRY-OFFSET
                 END-PERFORM
@@ -118,34 +150,29 @@ PROCEDURE DIVISION USING LK-FAILURE.
 
     GOBACK.
 
-END PROGRAM ServerProperties-Read.
+END PROGRAM ServerProperties-Deserialize.
 
-*> --- ServerProperties-Write ---
-*> Write the server.properties file.
+*> --- ServerProperties-Serialize ---
 IDENTIFICATION DIVISION.
-PROGRAM-ID. ServerProperties-Write.
+PROGRAM-ID. ServerProperties-Serialize.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    *> constants
-    01 SERVER-PROPERTIES-FILE   PIC X(32)                   VALUE "server.properties".
-    01 NEWLINE                  PIC X                       VALUE X"0A".
-    *> shared data
     COPY DD-SERVER-PROPERTIES.
-    *> file buffer
-    01 BUFFER                   PIC X(64000).
-    01 BUFFER-LENGTH            BINARY-LONG UNSIGNED.
+    01 NEWLINE                  PIC X                       VALUE X"0A".
     *> temporary data
     01 ENTRY-KEY                PIC X(255).
     01 ENTRY-VALUE              PIC X(255).
     01 INT-TO-STR               PIC -(9)9.
     01 BYTE-COUNT               BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
+    01 LK-BUFFER                PIC X ANY LENGTH.
+    01 LK-BUFFER-LENGTH         BINARY-LONG UNSIGNED.
     01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
-PROCEDURE DIVISION USING LK-FAILURE.
-    MOVE "#CobolCraft server properties" TO BUFFER
-    MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
+PROCEDURE DIVISION USING LK-BUFFER LK-BUFFER-LENGTH LK-FAILURE.
+    MOVE "#CobolCraft server properties" TO LK-BUFFER
+    MOVE FUNCTION STORED-CHAR-LENGTH(LK-BUFFER) TO LK-BUFFER-LENGTH
 
     PERFORM AppendNewline
 
@@ -171,30 +198,28 @@ PROCEDURE DIVISION USING LK-FAILURE.
     MOVE FUNCTION TRIM(INT-TO-STR) TO ENTRY-VALUE
     PERFORM AppendKeyValue
 
-    CALL "Files-WriteAll" USING SERVER-PROPERTIES-FILE BUFFER BUFFER-LENGTH LK-FAILURE
-
     GOBACK.
 
 AppendKeyValue SECTION.
     MOVE FUNCTION STORED-CHAR-LENGTH(ENTRY-KEY) TO BYTE-COUNT
-    MOVE ENTRY-KEY TO BUFFER(BUFFER-LENGTH + 1:BYTE-COUNT)
-    ADD BYTE-COUNT TO BUFFER-LENGTH
+    MOVE ENTRY-KEY TO LK-BUFFER(LK-BUFFER-LENGTH + 1:BYTE-COUNT)
+    ADD BYTE-COUNT TO LK-BUFFER-LENGTH
 
-    MOVE "=" TO BUFFER(BUFFER-LENGTH + 1:1)
-    ADD 1 TO BUFFER-LENGTH
+    MOVE "=" TO LK-BUFFER(LK-BUFFER-LENGTH + 1:1)
+    ADD 1 TO LK-BUFFER-LENGTH
 
     MOVE FUNCTION STORED-CHAR-LENGTH(ENTRY-VALUE) TO BYTE-COUNT
-    MOVE ENTRY-VALUE TO BUFFER(BUFFER-LENGTH + 1:BYTE-COUNT)
-    ADD BYTE-COUNT TO BUFFER-LENGTH
+    MOVE ENTRY-VALUE TO LK-BUFFER(LK-BUFFER-LENGTH + 1:BYTE-COUNT)
+    ADD BYTE-COUNT TO LK-BUFFER-LENGTH
 
     PERFORM AppendNewline
 
     EXIT SECTION.
 
 AppendNewline SECTION.
-    MOVE NEWLINE TO BUFFER(BUFFER-LENGTH + 1:1)
-    ADD 1 TO BUFFER-LENGTH
+    MOVE NEWLINE TO LK-BUFFER(LK-BUFFER-LENGTH + 1:1)
+    ADD 1 TO LK-BUFFER-LENGTH
 
     EXIT SECTION.
 
-END PROGRAM ServerProperties-Write.
+END PROGRAM ServerProperties-Serialize.

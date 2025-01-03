@@ -12,6 +12,7 @@ PROCEDURE DIVISION.
     CALL "Test-JsonParse"
     CALL "Test-JsonEncode"
     CALL "Test-Region"
+    CALL "Test-ServerProperties"
     STOP RUN.
 
 END PROGRAM TestMain.
