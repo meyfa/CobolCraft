@@ -89,10 +89,7 @@ PROCEDURE DIVISION.
 
         IF LK-PART-COUNT = 3
             MOVE LK-PART-VALUE(3) TO TEMP-NAME
-            MOVE FUNCTION STORED-CHAR-LENGTH(TEMP-NAME) TO BYTE-COUNT
-            *> TODO refactor this to a subroutine (currently duplicated with server)
-            MOVE X"00000000000000000000000000000000" TO TEMP-UUID
-            MOVE TEMP-NAME(1:BYTE-COUNT) TO TEMP-UUID(1:BYTE-COUNT)
+            CALL "Players-NameToUUID" USING TEMP-NAME TEMP-UUID
 
             IF LK-PART-VALUE(2) = "add"
                 CALL "Whitelist-Add" USING TEMP-UUID TEMP-NAME FAILURE
