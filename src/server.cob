@@ -731,7 +731,8 @@ HandleLogin SECTION.
     EVALUATE PACKET-ID
         *> Login start
         WHEN H'00'
-            *> Decode username and UUID
+            *> Decode username
+            MOVE SPACES TO TEMP-PLAYER-NAME
             CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-PLAYER-NAME-LEN TEMP-PLAYER-NAME
             MOVE CLIENT-RECEIVE-BUFFER(PACKET-POSITION:16) TO TEMP-UUID
             ADD 16 TO PACKET-POSITION
@@ -744,11 +745,11 @@ HandleLogin SECTION.
 
             *> Check username against the whitelist
             IF SP-WHITELIST-ENABLE > 0
-                CALL "Whitelist-Check" USING TEMP-UUID TEMP-PLAYER-NAME TEMP-PLAYER-NAME-LEN TEMP-INT8
+                CALL "Whitelist-Check" USING TEMP-UUID TEMP-PLAYER-NAME TEMP-INT8
                 IF TEMP-INT8 = 0
                     MOVE "You are not white-listed on this server!" TO BUFFER
                     MOVE 40 TO BYTE-COUNT
-                    DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
+                    DISPLAY "Disconnecting " FUNCTION TRIM(TEMP-PLAYER-NAME) ": " BUFFER(1:BYTE-COUNT)
                     CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                     PERFORM DisconnectClient
                     EXIT SECTION
@@ -776,7 +777,7 @@ HandleLogin SECTION.
             IF CLIENT-PLAYER(CLIENT-ID) = 0
                 MOVE "The server is full" TO BUFFER
                 MOVE 18 TO BYTE-COUNT
-                DISPLAY "Disconnecting " TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) ": " BUFFER(1:BYTE-COUNT)
+                DISPLAY "Disconnecting " FUNCTION TRIM(TEMP-PLAYER-NAME) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                 PERFORM DisconnectClient
                 EXIT SECTION

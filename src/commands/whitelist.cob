@@ -95,24 +95,24 @@ PROCEDURE DIVISION.
             MOVE TEMP-NAME(1:BYTE-COUNT) TO TEMP-UUID(1:BYTE-COUNT)
 
             IF LK-PART-VALUE(2) = "add"
-                CALL "Whitelist-Add" USING TEMP-UUID TEMP-NAME BYTE-COUNT FAILURE
+                CALL "Whitelist-Add" USING TEMP-UUID TEMP-NAME FAILURE
                 IF FAILURE NOT = 0
                     MOVE "Player is already whitelisted" TO BUFFER
                 ELSE
                     INITIALIZE BUFFER
-                    STRING "Added " FUNCTION TRIM(TEMP-NAME(1:BYTE-COUNT)) " to the whitelist" INTO BUFFER
+                    STRING "Added " FUNCTION TRIM(TEMP-NAME) " to the whitelist" INTO BUFFER
                 END-IF
                 CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
                 GOBACK
             END-IF
 
             IF LK-PART-VALUE(2) = "remove"
-                CALL "Whitelist-Remove" USING TEMP-UUID TEMP-NAME BYTE-COUNT FAILURE
+                CALL "Whitelist-Remove" USING TEMP-UUID TEMP-NAME FAILURE
                 IF FAILURE NOT = 0
                     MOVE "Player is not whitelisted" TO BUFFER
                 ELSE
                     INITIALIZE BUFFER
-                    STRING "Removed " FUNCTION TRIM(TEMP-NAME(1:BYTE-COUNT)) " from the whitelist" INTO BUFFER
+                    STRING "Removed " FUNCTION TRIM(TEMP-NAME) " from the whitelist" INTO BUFFER
                 END-IF
                 CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
                 GOBACK
