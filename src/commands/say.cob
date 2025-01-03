@@ -28,7 +28,6 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-CLIENTS.
         COPY DD-PLAYERS.
-        01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
         01 BUFFER                   PIC X(1024).
         01 BYTE-COUNT               BINARY-LONG UNSIGNED.
         01 PLAYER-ID                BINARY-LONG UNSIGNED.
@@ -60,7 +59,7 @@ PROCEDURE DIVISION.
         END-PERFORM
 
         *> broadcast it
-        CALL "BroadcastChatMessage" USING BUFFER BYTE-COUNT C-COLOR-WHITE
+        CALL "BroadcastChatMessage" USING BUFFER BYTE-COUNT OMITTED
 
         GOBACK.
 

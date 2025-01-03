@@ -37,8 +37,6 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> shared data
     COPY DD-COMMANDS.
-    *> constants
-    01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
     *> command parsing
     01 OFFSET                   BINARY-LONG UNSIGNED.
     01 INPUT-LENGTH             BINARY-LONG UNSIGNED.
@@ -119,7 +117,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
             *> TOOD synthesize the usage string from the node structure
             INITIALIZE BUFFER
             STRING "Usage: " COMMAND-HELP(COMMAND-INDEX) INTO BUFFER
-            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             EXIT SECTION
         END-IF
     END-PERFORM
@@ -127,7 +125,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
     *> Command not found
     INITIALIZE BUFFER
     STRING "Unknown command: " PART-VALUE(1)(1:PART-LENGTH(1)) INTO BUFFER
-    CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+    CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
 
     GOBACK.
 
