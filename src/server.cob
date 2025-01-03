@@ -734,14 +734,10 @@ HandleLogin SECTION.
             *> Decode username
             MOVE SPACES TO TEMP-PLAYER-NAME
             CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-PLAYER-NAME-LEN TEMP-PLAYER-NAME
-            MOVE CLIENT-RECEIVE-BUFFER(PACKET-POSITION:16) TO TEMP-UUID
-            ADD 16 TO PACKET-POSITION
 
-            *> For testing, we want to allow the same UUID to connect multiple times with different usernames.
-            *> Since this is an offline server, we can simply generate our own UUID to achieve this.
-            *> For lack of a better implementation, we will simply use the bytes of the username as the UUID.
-            MOVE X"00000000000000000000000000000000" TO TEMP-UUID
-            MOVE TEMP-PLAYER-NAME(1:TEMP-PLAYER-NAME-LEN) TO TEMP-UUID(1:TEMP-PLAYER-NAME-LEN)
+            *> Ignore UUID and generate our own
+            ADD 16 TO PACKET-POSITION
+            CALL "Players-NameToUUID" USING TEMP-PLAYER-NAME TEMP-UUID
 
             *> Check username against the whitelist
             IF SP-WHITELIST-ENABLE > 0

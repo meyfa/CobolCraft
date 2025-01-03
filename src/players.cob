@@ -413,6 +413,28 @@ PROCEDURE DIVISION.
 
 END PROGRAM Players-Save.
 
+*> --- Players-NameToUUID ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Players-NameToUUID.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 NAME-LEN                 BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-PLAYER-NAME           PIC X ANY LENGTH.
+    01 LK-PLAYER-UUID           PIC X(16).
+
+PROCEDURE DIVISION USING LK-PLAYER-NAME LK-PLAYER-UUID.
+    *> For testing, we want to allow the same UUID to connect multiple times with different usernames.
+    *> Since this is an offline server, we can simply generate our own UUID to achieve this.
+    *> For lack of a better implementation, we will simply use the bytes of the username as the UUID.
+    MOVE ALL X"00" TO LK-PLAYER-UUID
+    MOVE FUNCTION STORED-CHAR-LENGTH(LK-PLAYER-NAME) TO NAME-LEN
+    MOVE LK-PLAYER-NAME(1:NAME-LEN) TO LK-PLAYER-UUID(1:NAME-LEN)
+    GOBACK.
+
+END PROGRAM Players-NameToUUID.
+
 *> --- Players-FindConnectedByUUID ---
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Players-FindConnectedByUUID.
