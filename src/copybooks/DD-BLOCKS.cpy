@@ -29,3 +29,5 @@
             INDEXED BY BLOCK-NAMES-INDEX.
         03 BLOCK-NAMES-ENTRY-NAME PIC X(100).
         03 BLOCK-NAMES-ENTRY-INDEX BINARY-LONG UNSIGNED.
+    *> For fast access, keep track of the highest block ID that has been assigned.
+    02 BLOCKS-MAXIMUM-STATE-ID BINARY-LONG UNSIGNED.

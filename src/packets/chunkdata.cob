@@ -4,37 +4,48 @@ PROGRAM-ID. SendPacket-ChunkData.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'28'.
+    01 PACKET-ID                BINARY-LONG                 VALUE H'28'.
     *> buffer used to store the packet data
-    01 PAYLOAD          PIC X(512000).
-    01 PAYLOADPOS       BINARY-LONG UNSIGNED.
-    01 PAYLOADLEN       BINARY-LONG UNSIGNED.
+    01 PAYLOAD                  PIC X(512000).
+    01 PAYLOADPOS               BINARY-LONG UNSIGNED.
+    01 PAYLOADLEN               BINARY-LONG UNSIGNED.
+    *> constants
+    01 C-MINECRAFT-WORLDGEN-BIOME PIC X(24) VALUE "minecraft:worldgen/biome".
+    01 BLOCK-COUNT              BINARY-SHORT                VALUE 4096.
+    *> length of tables for palette encoding
+    01 BLOCK-STATES-LENGTH      BINARY-LONG UNSIGNED        VALUE 4096.
+    01 BIOMES-LENGTH            BINARY-LONG UNSIGNED        VALUE 64.
+    *> highest possible ID values; determines the number of bits per entry
+    01 MAX-BLOCK-STATE-ID       BINARY-LONG UNSIGNED.
+    01 MAX-BIOME-ID             BINARY-LONG UNSIGNED.
     *> temporary data
-    01 UINT8            BINARY-CHAR UNSIGNED.
-    01 INT16            BINARY-SHORT.
-    01 INT32            BINARY-LONG.
-    01 CHUNK-SEC        BINARY-LONG UNSIGNED.
-    01 CHUNK-DATA       PIC X(256000).
-    01 CHUNK-DATA-POS   BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX      BINARY-LONG UNSIGNED.
-    01 ENTITY-COUNT     BINARY-LONG UNSIGNED.
-    01 BLOCK-X          BINARY-CHAR UNSIGNED.
-    01 BLOCK-Z          BINARY-CHAR UNSIGNED.
+    01 UINT8                    BINARY-CHAR UNSIGNED.
+    01 INT16                    BINARY-SHORT.
+    01 INT32                    BINARY-LONG.
+    01 CHUNK-SEC                BINARY-LONG UNSIGNED.
+    01 CHUNK-DATA               PIC X(256000).
+    01 CHUNK-DATA-POS           BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 ENTITY-COUNT             BINARY-LONG UNSIGNED.
+    01 BLOCK-X                  BINARY-CHAR UNSIGNED.
+    01 BLOCK-Z                  BINARY-CHAR UNSIGNED.
 LINKAGE SECTION.
-    01 LK-CLIENT        BINARY-LONG UNSIGNED.
+    01 LK-CLIENT                BINARY-LONG UNSIGNED.
     01 LK-CHUNK.
-        02 LK-CHUNK-PRESENT BINARY-CHAR UNSIGNED.
-        02 LK-CHUNK-DIRTY   BINARY-CHAR UNSIGNED.
-        02 LK-CHUNK-X       BINARY-LONG.
-        02 LK-CHUNK-Z       BINARY-LONG.
-        02 LK-CHUNK-SECTION OCCURS 24 TIMES.
-            03 LK-NON-AIR       BINARY-LONG UNSIGNED.
+        02 LK-CHUNK-PRESENT         BINARY-CHAR UNSIGNED.
+        02 LK-CHUNK-DIRTY           BINARY-CHAR UNSIGNED.
+        02 LK-CHUNK-X               BINARY-LONG.
+        02 LK-CHUNK-Z               BINARY-LONG.
+        02 LK-CHUNK-SECTION         OCCURS 24 TIMES.
+            03 LK-NON-AIR               BINARY-LONG UNSIGNED.
             *> block IDs (16x16x16) - X increases fastest, then Z, then Y
-            03 LK-BLOCK OCCURS 4096 TIMES.
-                04 LK-BLOCK-ID      BINARY-LONG UNSIGNED.
+            03 LK-BLOCKS.
+                04 LK-BLOCK OCCURS 4096 TIMES.
+                    05 LK-BLOCK-ID              BINARY-LONG UNSIGNED.
             *> biome IDs (4x4x4)
-            03 LK-BIOME OCCURS 64 TIMES.
-                04 LK-BIOME-ID      BINARY-LONG UNSIGNED.
+            03 LK-BIOMES.
+                04 LK-BIOME OCCURS 64 TIMES.
+                    05 LK-BIOME-ID              BINARY-LONG UNSIGNED.
         02 LK-CHUNK-BLOCK-ENTITY-COUNT BINARY-LONG UNSIGNED.
         *> block entity IDs for each block
         02 LK-CHUNK-BLOCK-ENTITIES.
@@ -42,6 +53,12 @@ LINKAGE SECTION.
             03 LK-CHUNK-BLOCK-ENTITY-ID OCCURS 98304 TIMES BINARY-CHAR.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
+    CALL "Blocks-Get-MaximumStateId" USING MAX-BLOCK-STATE-ID
+
+    CALL "Registries-GetRegistryIndex" USING C-MINECRAFT-WORLDGEN-BIOME INT32
+    CALL "Registries-GetRegistryLength" USING INT32 MAX-BIOME-ID
+    SUBTRACT 1 FROM MAX-BIOME-ID
+
     MOVE 1 TO PAYLOADPOS
 
     *> chunk x
@@ -56,8 +73,17 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
 
     *> construct chunk data
     MOVE 1 TO CHUNK-DATA-POS
-    PERFORM VARYING CHUNK-SEC FROM 0 BY 1 UNTIL CHUNK-SEC >= 24
-        CALL "EncodeChunkSection" USING CHUNK-SEC LK-CHUNK-SECTION(CHUNK-SEC + 1) CHUNK-DATA CHUNK-DATA-POS
+    PERFORM VARYING CHUNK-SEC FROM 1 BY 1 UNTIL CHUNK-SEC > 24
+        *> block count
+        CALL "Encode-Short" USING BLOCK-COUNT CHUNK-DATA CHUNK-DATA-POS
+        *> block states
+        IF LK-NON-AIR(CHUNK-SEC) = 0
+            CALL "EncodePalette-SingleValued" USING CHUNK-DATA CHUNK-DATA-POS LK-BLOCK-ID(CHUNK-SEC, 1)
+        ELSE
+            CALL "EncodePalette" USING CHUNK-DATA CHUNK-DATA-POS BLOCK-STATES-LENGTH LK-BLOCKS(CHUNK-SEC) MAX-BLOCK-STATE-ID
+        END-IF
+        *> biomes
+        CALL "EncodePalette" USING CHUNK-DATA CHUNK-DATA-POS BIOMES-LENGTH LK-BIOMES(CHUNK-SEC) MAX-BIOME-ID
     END-PERFORM
 
     *> data prefixed by VarInt size
@@ -162,91 +188,90 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
     CALL "SendPacket" USING LK-CLIENT PACKET-ID PAYLOAD PAYLOADLEN
     GOBACK.
 
-    *> --- EncodeChunkSection ---
+    *> --- EncodePalette-SingleValued ----
     IDENTIFICATION DIVISION.
-    PROGRAM-ID. EncodeChunkSection.
+    PROGRAM-ID. EncodePalette-SingleValued.
+
+    DATA DIVISION.
+    LINKAGE SECTION.
+        01 LK-BUFFER                PIC X ANY LENGTH.
+        01 LK-BUFFERPOS             BINARY-LONG UNSIGNED.
+        01 LK-PALETTE-VALUE         BINARY-LONG.
+
+    PROCEDURE DIVISION USING LK-BUFFER LK-BUFFERPOS LK-PALETTE-VALUE.
+        *> bits per entry: 0 = single-valued
+        MOVE X"00" TO LK-BUFFER(LK-BUFFERPOS:1)
+        ADD 1 TO LK-BUFFERPOS
+        *> palette entry
+        CALL "Encode-VarInt" USING LK-PALETTE-VALUE LK-BUFFER LK-BUFFERPOS
+        *> data array length
+        MOVE X"00" TO LK-BUFFER(LK-BUFFERPOS:1)
+        ADD 1 TO LK-BUFFERPOS
+        GOBACK.
+
+    END PROGRAM EncodePalette-SingleValued.
+
+    *> --- EncodePalette ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. EncodePalette.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        01 INT16                BINARY-SHORT.
-        01 INT32                BINARY-LONG.
-        01 BLOCK-INDEX          BINARY-LONG UNSIGNED.
-        01 BIOME-INDEX          BINARY-LONG UNSIGNED.
-        01 PALETTE-ENTRY-LENGTH BINARY-LONG UNSIGNED        VALUE 8.
-        01 PALETTE-ENTRY        BINARY-LONG-LONG UNSIGNED.
-        01 PALETTE-ENTRY-BYTES  REDEFINES PALETTE-ENTRY PIC X(8).
+        *> palette entries are 8-byte signed integers
+        01 PALETTE-ENTRY-LENGTH     BINARY-LONG UNSIGNED        VALUE 8.
+        01 TEMP-UINT32              BINARY-LONG UNSIGNED.
+        01 BITS-PER-ENTRY           BINARY-CHAR UNSIGNED.
+        01 IDS-PER-ENTRY            BINARY-LONG UNSIGNED.
+        01 DATA-ARRAY-LENGTH        BINARY-LONG.
+        01 IDX                      BINARY-LONG UNSIGNED.
+        01 SHIFT-MULTIPLIER         BINARY-LONG-LONG UNSIGNED.
+        01 CURRENT-MULTIPLIER       BINARY-LONG-LONG UNSIGNED.
+        01 LONG                     BINARY-LONG-LONG UNSIGNED.
+        01 LONG-BYTES               REDEFINES LONG PIC X(8).
     LINKAGE SECTION.
-        01 LK-CHUNK-SEC         BINARY-LONG UNSIGNED.
-        01 LK-SECTION.
-            02 LK-NON-AIR           BINARY-LONG UNSIGNED.
-            02 LK-BLOCK OCCURS 4096 TIMES.
-                03 LK-BLOCK-ID          BINARY-LONG UNSIGNED.
-            02 LK-BIOME OCCURS 64 TIMES.
-                04 LK-BIOME-ID      BINARY-LONG UNSIGNED.
-        01 LK-BUFFER            PIC X ANY LENGTH.
-        01 LK-BUFFERPOS         BINARY-LONG UNSIGNED.
+        01 LK-BUFFER                PIC X ANY LENGTH.
+        01 LK-BUFFERPOS             BINARY-LONG UNSIGNED.
+        01 LK-IDS-LENGTH            BINARY-LONG UNSIGNED.
+        01 LK-IDS.
+            02 LK-ID OCCURS 1 TO 4096 TIMES DEPENDING ON LK-IDS-LENGTH BINARY-LONG UNSIGNED.
+        01 LK-MAX-ID                BINARY-LONG UNSIGNED.
 
-    PROCEDURE DIVISION USING LK-CHUNK-SEC LK-SECTION LK-BUFFER LK-BUFFERPOS.
-        *> block count (16x16x16)
-        MOVE 4096 TO INT16
-        CALL "Encode-Short" USING INT16 LK-BUFFER LK-BUFFERPOS
+    PROCEDURE DIVISION USING LK-BUFFER LK-BUFFERPOS LK-IDS-LENGTH LK-IDS LK-MAX-ID.
+        *> TODO: implement indirect palette to save bandwidth
 
-        *> TODO: implement an actual palette to save bandwidth, and improve performance
+        *> Direct palette is indicated by bits per entry = ceil(log2(id count))
+        CALL "LeadingZeros32" USING LK-MAX-ID TEMP-UINT32
+        COMPUTE BITS-PER-ENTRY = 32 - TEMP-UINT32
 
-        IF LK-NON-AIR = 0
-            *> shortcut if the section is empty
-            *> - bits per entry: 0 = single-valued
-            MOVE X"00" TO LK-BUFFER(LK-BUFFERPOS:1)
-            ADD 1 TO LK-BUFFERPOS
-            *> - palette: 0 = id of the air block
-            MOVE X"00" TO LK-BUFFER(LK-BUFFERPOS:1)
-            ADD 1 TO LK-BUFFERPOS
-            *> - data array length: 0, since we have a single-valued palette
-            MOVE X"00" TO LK-BUFFER(LK-BUFFERPOS:1)
-            ADD 1 TO LK-BUFFERPOS
-        ELSE
-            *> block states
-            *> - bits per entry: 15 = direct palette
-            MOVE X"0F" TO LK-BUFFER(LK-BUFFERPOS:1)
-            ADD 1 TO LK-BUFFERPOS
-            *> - palette: empty, since we have a direct palette
-            *> - data array length: ceil((4096 entries) / floor(64 / (15 bits))) = 1024
-            MOVE 1024 TO INT32
-            CALL "Encode-VarInt" USING INT32 LK-BUFFER LK-BUFFERPOS
-            *> - data array: block ids - x increases fastest, then z, then y
-            PERFORM VARYING BLOCK-INDEX FROM 0 BY 4 UNTIL BLOCK-INDEX >= 4096
-                *> Each block uses 15 bits, and 4 blocks are packed into a 64-bit long starting from the least
-                *> significant bit. Since only 60 bits are used, the 4 most significant bits become padding (0).
-                COMPUTE PALETTE-ENTRY = LK-BLOCK-ID(BLOCK-INDEX + 1) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 2) + 32768 * (LK-BLOCK-ID(BLOCK-INDEX + 3) + 32768 * LK-BLOCK-ID(BLOCK-INDEX + 4)))
-                *> The following code is an inlined version of Encode-UnsignedLong (improves performance by 20%)
-                MOVE FUNCTION REVERSE(PALETTE-ENTRY-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
-                ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
-            END-PERFORM
-        END-IF
-
-        *> biomes
-        *> - bits per entry: 7 = direct palette
-        MOVE X"07" TO LK-BUFFER(LK-BUFFERPOS:1)
+        MOVE FUNCTION CHAR(BITS-PER-ENTRY + 1) TO LK-BUFFER(LK-BUFFERPOS:1)
         ADD 1 TO LK-BUFFERPOS
-        *> - palette: empty, since we have a direct palette
-        *> - data array length: ceil(64 entries / floor(64 / (7 bits))) = 8
-        MOVE 8 TO INT32
-        CALL "Encode-VarInt" USING INT32 LK-BUFFER LK-BUFFERPOS
-        *> - data array: biome ids - x increases fastest, then z, then y
-        *> TODO make this code generic - 64 is not divisible by 9, so we need to handle the last entry separately
-        PERFORM VARYING BIOME-INDEX FROM 0 BY 9 UNTIL BIOME-INDEX >= 63
-            COMPUTE PALETTE-ENTRY = LK-BIOME-ID(BIOME-INDEX + 1) + 128 * (LK-BIOME-ID(BIOME-INDEX + 2) + 128 * (LK-BIOME-ID(BIOME-INDEX + 3)
-                + 128 * (LK-BIOME-ID(BIOME-INDEX + 4) + 128 * (LK-BIOME-ID(BIOME-INDEX + 5) + 128 * (LK-BIOME-ID(BIOME-INDEX + 6)
-                + 128 * (LK-BIOME-ID(BIOME-INDEX + 7) + 128 * (LK-BIOME-ID(BIOME-INDEX + 8) + 128 * LK-BIOME-ID(BIOME-INDEX + 9))))))))
-            MOVE FUNCTION REVERSE(PALETTE-ENTRY-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
+
+        *> Here would be the palette (list of unique IDs), but this is empty for direct palettes.
+
+        *> The data array length is the number of longs (8-byte integers) needed to store all IDs.
+        *>     => ceil((length of ids table) / floor((64 bits per long) / (bits per entry)))
+        DIVIDE 64 BY BITS-PER-ENTRY GIVING IDS-PER-ENTRY
+        DIVIDE LK-IDS-LENGTH BY IDS-PER-ENTRY GIVING DATA-ARRAY-LENGTH ROUNDED MODE IS TOWARD-GREATER
+        CALL "Encode-VarInt" USING DATA-ARRAY-LENGTH LK-BUFFER LK-BUFFERPOS
+
+        *> Data array: pack as many IDs as possible into each long starting from the least significant bit
+        MOVE 1 TO IDX
+        COMPUTE SHIFT-MULTIPLIER = 2 ** BITS-PER-ENTRY
+        PERFORM DATA-ARRAY-LENGTH TIMES
+            MOVE 0 TO LONG
+            MOVE 1 TO CURRENT-MULTIPLIER
+            PERFORM FUNCTION MIN(IDS-PER-ENTRY, LK-IDS-LENGTH + 1 - IDX) TIMES
+                COMPUTE LONG = LONG + LK-ID(IDX) * CURRENT-MULTIPLIER
+                COMPUTE CURRENT-MULTIPLIER = CURRENT-MULTIPLIER * SHIFT-MULTIPLIER
+                ADD 1 TO IDX
+            END-PERFORM
+            *> Encode-UnsignedLong (inlined for performance)
+            MOVE FUNCTION REVERSE(LONG-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
             ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
         END-PERFORM
-        COMPUTE PALETTE-ENTRY = LK-BIOME-ID(BIOME-INDEX + 1)
-        MOVE FUNCTION REVERSE(PALETTE-ENTRY-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
-        ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
 
         GOBACK.
 
-    END PROGRAM EncodeChunkSection.
+    END PROGRAM EncodePalette.
 
 END PROGRAM SendPacket-ChunkData.
