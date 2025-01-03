@@ -232,6 +232,7 @@ RegisterCommands.
 
     CALL "RegisterCommand-GameMode"
     CALL "RegisterCommand-Help"
+    CALL "RegisterCommand-Kill"
     CALL "RegisterCommand-Say"
     CALL "RegisterCommand-Save"
     CALL "RegisterCommand-Stop"
@@ -347,7 +348,7 @@ ServerLoop.
                         MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
                         CALL "SendPacket-EntityPositionSync" USING CLIENT-ID TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                         CALL "SendPacket-SetHeadRotation" USING CLIENT-ID TEMP-INT32 PLAYER-YAW(TEMP-INT32)
-                        *> index(byte), type(VarInt), value(VarInt); terminator is 0xFF
+                        *> index(byte), type(VarInt), value(VarInt)
                         *> index of pose: 6, type of pose: 21
                         *> value of standing: 0, value of sneaking: 5
                         MOVE X"06" TO BUFFER(1:1)
@@ -357,8 +358,14 @@ ServerLoop.
                         ELSE
                             MOVE X"00" TO BUFFER(3:1)
                         END-IF
-                        MOVE X"FF" TO BUFFER(4:1)
-                        MOVE 4 TO BYTE-COUNT
+                        *> index of health: 9, type of health: float(3)
+                        MOVE X"09" TO BUFFER(4:1)
+                        MOVE X"03" TO BUFFER(5:1)
+                        MOVE 6 TO BYTE-COUNT
+                        CALL "Encode-Float" USING PLAYER-HEALTH(TEMP-INT32) BUFFER BYTE-COUNT
+                        *> terminator is 0xFF
+                        MOVE X"FF" TO BUFFER(10:1)
+                        MOVE 10 TO BYTE-COUNT
                         CALL "SendPacket-SetEntityMetadata" USING CLIENT-ID TEMP-INT32 BYTE-COUNT BUFFER
                         COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR(TEMP-INT32) + 1
                         CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 PLAYER-INVENTORY-SLOT(TEMP-INT32, TEMP-INT8)
@@ -858,98 +865,11 @@ HandleConfiguration SECTION.
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
             CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE PLAYER-GAMEMODE(TEMP-INT32) MAX-PLAYERS
 
-            *> send world time
-            CALL "World-GetAge" USING TEMP-INT64
-            CALL "World-GetTime" USING TEMP-INT64-2
-            CALL "SendPacket-UpdateTime" USING CLIENT-ID TEMP-INT64 TEMP-INT64-2
-
-            *> send game event "start waiting for level chunks"
-            MOVE 13 TO TEMP-INT8
-            MOVE 0 TO TEMP-FLOAT
-            CALL "SendPacket-GameEvent" USING CLIENT-ID TEMP-INT8 TEMP-FLOAT
-
-            *> Note: The official server sends a lot of additional packets in this phase, but they seem to be optional.
-            *> For example: set ticking state (rate=20, frozen=false); step tick (steps=0 [sic.])
-            *> We will skip these for now.
-
-            *> send inventory
-            CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
-
-            *> send selected hotbar slot
-            CALL "SendPacket-SetHeldItem" USING CLIENT-ID PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
-
-            *> send "Set Center Chunk"
-            DIVIDE PLAYER-X(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-X(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
-            DIVIDE PLAYER-Z(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-Z(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
-            CALL "SendPacket-SetCenterChunk" USING CLIENT-ID CENTER-CHUNK-X(CLIENT-ID) CENTER-CHUNK-Z(CLIENT-ID)
-
-            *> enqueue 3x3 chunks around the player first
-            COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - 1
-            COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + 1
-            COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - 1
-            COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + 1
-            PERFORM VARYING CHUNK-X FROM CHUNK-START-X BY 1 UNTIL CHUNK-X > CHUNK-END-X
-                PERFORM VARYING CHUNK-Z FROM CHUNK-START-Z BY 1 UNTIL CHUNK-Z > CHUNK-END-Z
-                    PERFORM EnqueueChunk
-                END-PERFORM
-            END-PERFORM
-
-            *> now enqueue all chunks in the view distance
-            COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - VIEW-DISTANCE
-            COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + VIEW-DISTANCE
-            COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - VIEW-DISTANCE
-            COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + VIEW-DISTANCE
-            PERFORM VARYING CHUNK-X FROM CHUNK-START-X BY 1 UNTIL CHUNK-X > CHUNK-END-X
-                PERFORM VARYING CHUNK-Z FROM CHUNK-START-Z BY 1 UNTIL CHUNK-Z > CHUNK-END-Z
-                    *> Note: EnqueueChunk will automatically skip duplicates
-                    PERFORM EnqueueChunk
-                END-PERFORM
-            END-PERFORM
-
-            *> send the 3x3 chunks around the player immediately, the rest in the next ticks
-            PERFORM 9 TIMES
-                PERFORM ProcessChunkQueue
-            END-PERFORM
-
-            *> send the player list (including the new player) to the new player, and spawn player entities
-            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
-                IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = CLIENT-STATE-PLAY
-                    MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
-                    CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32)
-                    IF TEMP-INT16 NOT = CLIENT-ID
-                        CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
-                    END-IF
-                END-IF
-            END-PERFORM
-
-            *> Send abilities (flying, etc.)
-            CALL "SendPacket-PlayerAbilities" USING CLIENT-ID PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID))
-
-            *> Send position ("Synchronize Player Position"). The client must confirm the teleportation.
-            ADD 1 TO TELEPORT-SENT(CLIENT-ID)
-            CALL "SendPacket-SetPlayerPosition" USING CLIENT-ID PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID)) TELEPORT-SENT(CLIENT-ID)
+            *> perform all actions to spawn the player, load initial chunks, etc.
+            PERFORM SpawnPlayer
 
             *> Send available commands list
             CALL "SendPacket-Commands" USING CLIENT-ID
-
-            *> Set op permission level to 4 (full permissions) - mainly so the gamemode switcher works
-            *> TODO: implement a proper permission system
-            MOVE 28 TO TEMP-INT8
-            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            CALL "SendPacket-EntityEvent" USING CLIENT-ID TEMP-INT32 TEMP-INT8
-
-            *> send the new player to all other players
-            MOVE CLIENT-ID TO TEMP-INT16
-            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-                IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND CLIENT-ID NOT = TEMP-INT16
-                    *> add the new player to the player list
-                    CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32)
-                    *> spawn a player entity
-                    CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
-                END-IF
-            END-PERFORM
-            MOVE TEMP-INT16 TO CLIENT-ID
 
             *> send join message to all other players
             INITIALIZE BUFFER
@@ -1006,6 +926,31 @@ HandlePlay SECTION.
                 END-IF
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
+
+        *> Client command
+        WHEN H'0A'
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
+
+            *> command 0 = perform respawn
+            IF TEMP-INT32 NOT = 0
+                EXIT SECTION
+            END-IF
+
+            IF PLAYER-HEALTH(CLIENT-PLAYER(CLIENT-ID)) > 0
+                EXIT SECTION
+            END-IF
+
+            *> TODO deduplicate all of this with players.cob
+            MOVE 20 TO PLAYER-HEALTH(CLIENT-PLAYER(CLIENT-ID))
+            MOVE 20 TO PLAYER-FOOD-LEVEL(CLIENT-PLAYER(CLIENT-ID))
+            MOVE 5 TO PLAYER-SATURATION(CLIENT-PLAYER(CLIENT-ID))
+            INITIALIZE PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID))
+            MOVE 64 TO PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
+            INITIALIZE PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID))
+
+            CALL "SendPacket-Respawn" USING CLIENT-ID PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID))
+
+            PERFORM SpawnPlayer
 
         *> KeepAlive response
         WHEN H'1A'
@@ -1257,6 +1202,104 @@ HandlePlay SECTION.
             *> Acknowledge the action
             CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
     END-EVALUATE
+
+    EXIT SECTION.
+
+SpawnPlayer SECTION.
+    *> send world time
+    CALL "World-GetAge" USING TEMP-INT64
+    CALL "World-GetTime" USING TEMP-INT64-2
+    CALL "SendPacket-UpdateTime" USING CLIENT-ID TEMP-INT64 TEMP-INT64-2
+
+    *> send game event "start waiting for level chunks"
+    MOVE 13 TO TEMP-INT8
+    MOVE 0 TO TEMP-FLOAT
+    CALL "SendPacket-GameEvent" USING CLIENT-ID TEMP-INT8 TEMP-FLOAT
+
+    *> Note: The official server sends a lot of additional packets in this phase, but they seem to be optional.
+    *> For example: set ticking state (rate=20, frozen=false); step tick (steps=0 [sic.])
+    *> We will skip these for now.
+
+    *> send health
+    CALL "SendPacket-SetHealth" USING CLIENT-ID PLAYER-HEALTH(CLIENT-PLAYER(CLIENT-ID)) PLAYER-FOOD-LEVEL(CLIENT-PLAYER(CLIENT-ID)) PLAYER-SATURATION(CLIENT-PLAYER(CLIENT-ID))
+
+    *> send inventory
+    CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
+
+    *> send selected hotbar slot
+    CALL "SendPacket-SetHeldItem" USING CLIENT-ID PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
+
+    *> send "Set Center Chunk"
+    DIVIDE PLAYER-X(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-X(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
+    DIVIDE PLAYER-Z(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-Z(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
+    CALL "SendPacket-SetCenterChunk" USING CLIENT-ID CENTER-CHUNK-X(CLIENT-ID) CENTER-CHUNK-Z(CLIENT-ID)
+
+    *> enqueue 3x3 chunks around the player first
+    MOVE 0 TO CHUNK-QUEUE-BEGIN(CLIENT-ID)
+    MOVE 0 TO CHUNK-QUEUE-END(CLIENT-ID)
+    COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - 1
+    COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + 1
+    COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - 1
+    COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + 1
+    PERFORM VARYING CHUNK-X FROM CHUNK-START-X BY 1 UNTIL CHUNK-X > CHUNK-END-X
+        PERFORM VARYING CHUNK-Z FROM CHUNK-START-Z BY 1 UNTIL CHUNK-Z > CHUNK-END-Z
+            PERFORM EnqueueChunk
+        END-PERFORM
+    END-PERFORM
+
+    *> now enqueue all chunks in the view distance
+    COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - VIEW-DISTANCE
+    COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + VIEW-DISTANCE
+    COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - VIEW-DISTANCE
+    COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + VIEW-DISTANCE
+    PERFORM VARYING CHUNK-X FROM CHUNK-START-X BY 1 UNTIL CHUNK-X > CHUNK-END-X
+        PERFORM VARYING CHUNK-Z FROM CHUNK-START-Z BY 1 UNTIL CHUNK-Z > CHUNK-END-Z
+            *> Note: EnqueueChunk will automatically skip duplicates
+            PERFORM EnqueueChunk
+        END-PERFORM
+    END-PERFORM
+
+    *> send the 3x3 chunks around the player immediately, the rest in the next ticks
+    PERFORM 9 TIMES
+        PERFORM ProcessChunkQueue
+    END-PERFORM
+
+    *> send the player list (including the new player) to the new player, and spawn player entities
+    PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
+        IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = CLIENT-STATE-PLAY
+            MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
+            CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32)
+            IF TEMP-INT16 NOT = CLIENT-ID
+                CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+            END-IF
+        END-IF
+    END-PERFORM
+
+    *> Send abilities (flying, etc.)
+    CALL "SendPacket-PlayerAbilities" USING CLIENT-ID PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID))
+
+    *> Set op permission level to 4 (full permissions) - mainly so the gamemode switcher works
+    *> TODO: implement a proper permission system
+    MOVE 28 TO TEMP-INT8
+    MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
+    CALL "SendPacket-EntityEvent" USING CLIENT-ID TEMP-INT32 TEMP-INT8
+
+    *> Send position ("Synchronize Player Position"). The client must confirm the teleportation.
+    ADD 1 TO TELEPORT-SENT(CLIENT-ID)
+    CALL "SendPacket-SetPlayerPosition" USING CLIENT-ID PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID)) TELEPORT-SENT(CLIENT-ID)
+
+    *> send the new player to all other players
+    MOVE CLIENT-ID TO TEMP-INT16
+    MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+        IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND CLIENT-ID NOT = TEMP-INT16
+            *> add the new player to the player list
+            CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32)
+            *> spawn a player entity
+            CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
+        END-IF
+    END-PERFORM
+    MOVE TEMP-INT16 TO CLIENT-ID
 
     EXIT SECTION.
 
