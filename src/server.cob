@@ -29,9 +29,13 @@ WORKING-STORAGE SECTION.
     *> The server sends (2 * VIEW-DISTANCE + 1) * (2 * VIEW-DISTANCE + 1) chunks around the player.
     *> TODO: Improve performance so this can be increased to a reasonable value.
     01 VIEW-DISTANCE                BINARY-LONG             VALUE 3.
-    *> The amount of milliseconds between autosaves, and the last autosave timestamp.
-    01 AUTOSAVE-INTERVAL            BINARY-LONG             VALUE 300000.
+    *> The amount of microseconds between autosaves, and the last autosave timestamp.
+    01 AUTOSAVE-INTERVAL            BINARY-LONG-LONG        VALUE 300000000.
     01 LAST-AUTOSAVE                BINARY-LONG-LONG.
+    *> Microsecond intervals
+    01 GAME-TICK-INTERVAL           BINARY-LONG-LONG        VALUE 50000.    *> 1/20th of a second
+    01 KEEPALIVE-SEND-INTERVAL      BINARY-LONG-LONG        VALUE 1000000.  *> 1s
+    01 KEEPALIVE-RECV-TIMEOUT       BINARY-LONG-LONG        VALUE 15000000. *> 15s
     *> A large buffer to hold JSON data before parsing.
     01 DATA-BUFFER                  PIC X(10000000).
     01 DATA-BUFFER-LEN              BINARY-LONG UNSIGNED.
@@ -75,7 +79,7 @@ WORKING-STORAGE SECTION.
     01 CALLBACK-PTR-ITEM            PROGRAM-POINTER.
     01 CALLBACK-PTR-BLOCK           PROGRAM-POINTER.
     01 SEQUENCE-ID                  BINARY-LONG.
-    *> Time measurement
+    *> Time measurement (microseconds)
     01 CURRENT-TIME                 BINARY-LONG-LONG.
     01 TICK-ENDTIME                 BINARY-LONG-LONG.
     *> Variables for working with chunks
@@ -270,7 +274,7 @@ GenerateWorld.
     *> prepare player data
     CALL "Players-Init"
     *> don't autosave immediately
-    CALL "SystemTimeMillis" USING LAST-AUTOSAVE
+    CALL "SystemTimeMicros" USING LAST-AUTOSAVE
     .
 
 StartServer.
@@ -297,8 +301,8 @@ StartServer.
 ServerLoop.
     *> Loop forever - each iteration is one game tick (1/20th of a second).
     PERFORM UNTIL EXIT
-        CALL "SystemTimeMillis" USING CURRENT-TIME
-        COMPUTE TICK-ENDTIME = CURRENT-TIME + (1000 / 20)
+        CALL "SystemTimeMicros" USING CURRENT-TIME
+        COMPUTE TICK-ENDTIME = CURRENT-TIME + GAME-TICK-INTERVAL
 
         COMPUTE TEMP-INT64 = CURRENT-TIME - LAST-AUTOSAVE
         IF TEMP-INT64 >= AUTOSAVE-INTERVAL
@@ -380,9 +384,10 @@ ServerLoop.
         PERFORM ConsoleInput
 
         *> The remaining time of this tick can be used for accepting connections and receiving packets.
+        CALL "SystemTimeMicros" USING CURRENT-TIME
         PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME
             PERFORM NetworkRead
-            CALL "SystemTimeMillis" USING CURRENT-TIME
+            CALL "SystemTimeMicros" USING CURRENT-TIME
         END-PERFORM
 
         MOVE X"00000000" TO TEMP-HNDL
@@ -413,9 +418,10 @@ NetworkRead SECTION.
         PERFORM HandleServerError
         EXIT SECTION
     END-IF
-    *> Without anything to do, sleep for a millisecond to avoid busy-waiting
+    *> Without anything to do, sleep up to 1ms to avoid busy-waiting
     IF TEMP-HNDL = X"00000000"
-        CALL "CBL_GC_NANOSLEEP" USING 1000000
+        COMPUTE TEMP-INT64 = 1000 * FUNCTION MIN(1000, FUNCTION MAX(1, TICK-ENDTIME - CURRENT-TIME))
+        CALL "CBL_GC_NANOSLEEP" USING TEMP-INT64
         EXIT SECTION
     END-IF
 
@@ -464,7 +470,7 @@ KeepAlive SECTION.
 
     *> If the client has not responded to keepalive within 15 seconds, disconnect
     COMPUTE TEMP-INT64 = CURRENT-TIME - KEEPALIVE-RECV(CLIENT-ID)
-    IF TEMP-INT64 >= 15000
+    IF TEMP-INT64 >= KEEPALIVE-RECV-TIMEOUT
         DISPLAY "[client=" CLIENT-ID "] Timeout"
         PERFORM DisconnectClient
         EXIT SECTION
@@ -472,7 +478,7 @@ KeepAlive SECTION.
 
     *> Send keepalive packet every second, but only in play state
     COMPUTE TEMP-INT64 = CURRENT-TIME - KEEPALIVE-SENT(CLIENT-ID)
-    IF CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND TEMP-INT64 >= 1000
+    IF CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND TEMP-INT64 >= KEEPALIVE-SEND-INTERVAL
         MOVE CURRENT-TIME TO KEEPALIVE-SENT(CLIENT-ID)
         CALL "SendPacket-KeepAlive" USING CLIENT-ID KEEPALIVE-SENT(CLIENT-ID)
     END-IF

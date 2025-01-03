@@ -18,6 +18,17 @@
 std::set<socket_t> CLIENT_SOCKETS;
 constexpr int SOCKET_CHUNK_LIMIT = 64000;
 
+EXTERN_DECL int SystemTimeMicros(long long *timestamp)
+{
+    if (!timestamp)
+    {
+        return ERRNO_PARAMS;
+    }
+    auto time = std::chrono::system_clock::now().time_since_epoch();
+    *timestamp = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+    return 0;
+}
+
 EXTERN_DECL int SystemTimeMillis(long long *timestamp)
 {
     if (!timestamp)

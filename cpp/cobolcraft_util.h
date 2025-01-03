@@ -3,6 +3,11 @@
 typedef int socket_t;
 
 /**
+ * Get the current system time in microseconds.
+ */
+EXTERN_DECL int SystemTimeMicros(long long *timestamp);
+
+/**
  * Get the current system time in milliseconds.
  */
 EXTERN_DECL int SystemTimeMillis(long long *timestamp);
