@@ -1,5 +1,6 @@
 * text=auto eol=lf
 *.txt text
+*.md text
 *.json text
 *.cob text
 *.cpy text

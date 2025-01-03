@@ -33,4 +33,4 @@
 /.dockerignore
 /Dockerfile
 /renovate.json
-/README.md
+/*.md
