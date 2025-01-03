@@ -50,7 +50,8 @@ PROCEDURE DIVISION.
         01 BUFFER-POS               BINARY-LONG UNSIGNED.
         01 BYTE-COUNT               BINARY-LONG UNSIGNED.
         01 WHITELIST-INDEX          BINARY-LONG UNSIGNED.
-        01 FAILURE                  BINARY-CHAR UNSIGNED.
+        01 IO-FAILURE               BINARY-CHAR UNSIGNED.
+        01 STATE-FAILURE            BINARY-CHAR UNSIGNED.
         01 TEMP-UUID                PIC X(16).
         01 TEMP-NAME                PIC X(16).
         01 TEMP-INT64-PIC           PIC -(19)9.
@@ -59,12 +60,8 @@ PROCEDURE DIVISION.
 
     PROCEDURE DIVISION USING LK-CLIENT-ID LK-PARTS LK-PRINT-USAGE.
         IF LK-PART-COUNT = 2 AND LK-PART-VALUE(2) = "reload"
-            CALL "Whitelist-Read" USING FAILURE
-            IF FAILURE NOT = 0
-                MOVE "Error reloading the whitelist" TO BUFFER
-                CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
-                GOBACK
-            END-IF
+            CALL "Whitelist-Read" USING IO-FAILURE
+            PERFORM HandleDiskFailure
             MOVE "Reloaded the whitelist" TO BUFFER
             CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
@@ -72,7 +69,8 @@ PROCEDURE DIVISION.
 
         IF LK-PART-COUNT = 2 AND LK-PART-VALUE(2) = "on"
             MOVE 1 TO SP-WHITELIST-ENABLE
-            PERFORM WriteServerProperties
+            CALL "ServerProperties-Write" USING IO-FAILURE
+            PERFORM HandleDiskFailure
             MOVE "Whitelist enabled" TO BUFFER
             CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
@@ -80,7 +78,8 @@ PROCEDURE DIVISION.
 
         IF LK-PART-COUNT = 2 AND LK-PART-VALUE(2) = "off"
             MOVE 0 TO SP-WHITELIST-ENABLE
-            PERFORM WriteServerProperties
+            CALL "ServerProperties-Write" USING IO-FAILURE
+            PERFORM HandleDiskFailure
             MOVE "Whitelist disabled" TO BUFFER
             CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
@@ -114,8 +113,9 @@ PROCEDURE DIVISION.
             CALL "Players-NameToUUID" USING TEMP-NAME TEMP-UUID
 
             IF LK-PART-VALUE(2) = "add"
-                CALL "Whitelist-Add" USING TEMP-UUID TEMP-NAME FAILURE
-                IF FAILURE NOT = 0
+                CALL "Whitelist-Add" USING TEMP-UUID TEMP-NAME STATE-FAILURE IO-FAILURE
+                PERFORM HandleDiskFailure
+                IF STATE-FAILURE NOT = 0
                     MOVE "Player is already whitelisted" TO BUFFER
                 ELSE
                     INITIALIZE BUFFER
@@ -126,8 +126,9 @@ PROCEDURE DIVISION.
             END-IF
 
             IF LK-PART-VALUE(2) = "remove"
-                CALL "Whitelist-Remove" USING TEMP-UUID TEMP-NAME FAILURE
-                IF FAILURE NOT = 0
+                CALL "Whitelist-Remove" USING TEMP-UUID TEMP-NAME STATE-FAILURE IO-FAILURE
+                PERFORM HandleDiskFailure
+                IF STATE-FAILURE NOT = 0
                     MOVE "Player is not whitelisted" TO BUFFER
                 ELSE
                     INITIALIZE BUFFER
@@ -142,10 +143,9 @@ PROCEDURE DIVISION.
 
         GOBACK.
 
-    WriteServerProperties SECTION.
-        CALL "ServerProperties-Write" USING FAILURE
-        IF FAILURE NOT = 0
-            MOVE "Error writing server.properties" TO BUFFER
+    HandleDiskFailure SECTION.
+        IF IO-FAILURE NOT = 0
+            MOVE "Input/output error" TO BUFFER
             CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
         END-IF
