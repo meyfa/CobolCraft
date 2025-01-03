@@ -6,7 +6,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-COMMAND-CONSTANTS.
     01 COMMAND-NAME                 PIC X(100)                  VALUE "whitelist".
-    01 COMMAND-HELP                 PIC X(255)                  VALUE "/whitelist (reload|list|add|remove) [player] - manage the whitelist".
+    01 COMMAND-HELP                 PIC X(255)                  VALUE "/whitelist (reload|on|off|list|add|remove) [player] - manage the whitelist".
     01 PTR                          PROGRAM-POINTER.
     01 NODE-ROOT                    BINARY-LONG UNSIGNED.
     01 NODE-OPERATION               BINARY-LONG UNSIGNED.
@@ -17,6 +17,12 @@ PROCEDURE DIVISION.
     CALL "RegisterCommand" USING COMMAND-NAME COMMAND-HELP PTR NODE-ROOT
 
     CALL "AddCommandLiteral" USING NODE-ROOT "reload" NODE-OPERATION
+    CALL "SetCommandExecutable" USING NODE-OPERATION
+
+    CALL "AddCommandLiteral" USING NODE-ROOT "on" NODE-OPERATION
+    CALL "SetCommandExecutable" USING NODE-OPERATION
+
+    CALL "AddCommandLiteral" USING NODE-ROOT "off" NODE-OPERATION
     CALL "SetCommandExecutable" USING NODE-OPERATION
 
     CALL "AddCommandLiteral" USING NODE-ROOT "list" NODE-OPERATION
@@ -39,6 +45,7 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-WHITELIST.
+        COPY DD-SERVER-PROPERTIES.
         01 C-COLOR-WHITE            PIC X(16)                   VALUE "white".
         01 BUFFER                   PIC X(255).
         01 BUFFER-POS               BINARY-LONG UNSIGNED.
@@ -60,6 +67,22 @@ PROCEDURE DIVISION.
                 GOBACK
             END-IF
             MOVE "Reloaded the whitelist" TO BUFFER
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            GOBACK
+        END-IF
+
+        IF LK-PART-COUNT = 2 AND LK-PART-VALUE(2) = "on"
+            MOVE 1 TO SP-WHITELIST-ENABLE
+            PERFORM WriteServerProperties
+            MOVE "Whitelist enabled" TO BUFFER
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            GOBACK
+        END-IF
+
+        IF LK-PART-COUNT = 2 AND LK-PART-VALUE(2) = "off"
+            MOVE 0 TO SP-WHITELIST-ENABLE
+            PERFORM WriteServerProperties
+            MOVE "Whitelist disabled" TO BUFFER
             CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
             GOBACK
         END-IF
@@ -119,6 +142,15 @@ PROCEDURE DIVISION.
         MOVE 1 TO LK-PRINT-USAGE
 
         GOBACK.
+
+    WriteServerProperties SECTION.
+        CALL "ServerProperties-Write" USING FAILURE
+        IF FAILURE NOT = 0
+            MOVE "Error writing server.properties" TO BUFFER
+            CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER C-COLOR-WHITE
+            GOBACK
+        END-IF
+        EXIT SECTION.
 
     END PROGRAM Callback-Execute.
 
