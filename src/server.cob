@@ -74,7 +74,6 @@ WORKING-STORAGE SECTION.
         02 TEMP-CURSOR-Y            FLOAT-SHORT.
         02 TEMP-CURSOR-Z            FLOAT-SHORT.
     01 TEMP-PLAYER-NAME             PIC X(16).
-    01 TEMP-PLAYER-NAME-LEN         BINARY-LONG UNSIGNED.
     01 TEMP-IDENTIFIER              PIC X(100).
     01 CALLBACK-PTR-ITEM            PROGRAM-POINTER.
     01 CALLBACK-PTR-BLOCK           PROGRAM-POINTER.
@@ -739,7 +738,7 @@ HandleLogin SECTION.
         WHEN H'00'
             *> Decode username
             MOVE SPACES TO TEMP-PLAYER-NAME
-            CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-PLAYER-NAME-LEN TEMP-PLAYER-NAME
+            CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32 TEMP-PLAYER-NAME
 
             *> Ignore UUID and generate our own
             ADD 16 TO PACKET-POSITION
@@ -765,14 +764,14 @@ HandleLogin SECTION.
                 MOVE PLAYER-CLIENT(TEMP-INT8) TO CLIENT-ID
                 MOVE "You logged in from another location" TO BUFFER
                 MOVE 35 TO BYTE-COUNT
-                DISPLAY "Disconnecting " PLAYER-NAME(TEMP-INT8)(1:PLAYER-NAME-LENGTH(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
+                DISPLAY "Disconnecting " FUNCTION TRIM(PLAYER-NAME(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                 PERFORM DisconnectClient
                 MOVE TEMP-INT64 TO CLIENT-ID
             END-IF
 
             *> Try to find an existing player for the UUID, or find a free slot to add a new player.
-            CALL "Players-Connect" USING CLIENT-ID TEMP-UUID TEMP-PLAYER-NAME TEMP-PLAYER-NAME-LEN TEMP-INT8
+            CALL "Players-Connect" USING CLIENT-ID TEMP-UUID TEMP-PLAYER-NAME TEMP-INT8
             MOVE TEMP-INT8 TO CLIENT-PLAYER(CLIENT-ID)
 
             *> If no player slot was found, the server is full
@@ -786,7 +785,7 @@ HandleLogin SECTION.
             END-IF
 
             *> Send login success. This should result in a "login acknowledged" packet by the client.
-            CALL "SendPacket-LoginSuccess" USING CLIENT-ID PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))
+            CALL "SendPacket-LoginSuccess" USING CLIENT-ID PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))
 
         *> Login acknowledge
         WHEN H'03'
@@ -916,7 +915,7 @@ HandleConfiguration SECTION.
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
                 IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = CLIENT-STATE-PLAY
                     MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
-                    CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) PLAYER-NAME-LENGTH(TEMP-INT32)
+                    CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32)
                     IF TEMP-INT16 NOT = CLIENT-ID
                         CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                     END-IF
@@ -945,19 +944,17 @@ HandleConfiguration SECTION.
             PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
                 IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND CLIENT-ID NOT = TEMP-INT16
                     *> add the new player to the player list
-                    CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) PLAYER-NAME-LENGTH(TEMP-INT32)
+                    CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32)
                     *> spawn a player entity
                     CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                 END-IF
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
 
-            *> send "<username> joined the game" to all clients in play state, except the current client
-            MOVE 0 TO BYTE-COUNT
-            MOVE PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID)) TO BUFFER
-            ADD PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID)) TO BYTE-COUNT
-            MOVE " joined the game" TO BUFFER(BYTE-COUNT + 1:16)
-            ADD 16 TO BYTE-COUNT
+            *> send join message to all other players
+            INITIALIZE BUFFER
+            STRING FUNCTION TRIM(PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))) " joined the game" INTO BUFFER
+            MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BYTE-COUNT
             CALL "BroadcastChatMessageExcept" USING CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
 
         WHEN H'07'
@@ -999,7 +996,7 @@ HandlePlay SECTION.
                 EXIT SECTION
             END-IF
             *> display the message in the server console
-            DISPLAY "<" PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))(1:PLAYER-NAME-LENGTH(CLIENT-PLAYER(CLIENT-ID))) "> " BUFFER(1:BYTE-COUNT)
+            DISPLAY "<" FUNCTION TRIM(PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))) "> " BUFFER(1:BYTE-COUNT)
             *> send the message to all clients in play state
             MOVE CLIENT-ID TO TEMP-INT16
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
@@ -1322,11 +1319,9 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
     *> If the client was playing, send a leave message to all other clients, and remove the player from their world
     IF CLIENT-STATE(LK-CLIENT-ID) = CLIENT-STATE-PLAY
         *> send "<username> left the game" to all clients in play state, except the current client
-        MOVE 0 TO BYTE-COUNT
-        MOVE PLAYER-NAME(CLIENT-PLAYER(LK-CLIENT-ID)) TO BUFFER
-        ADD PLAYER-NAME-LENGTH(CLIENT-PLAYER(LK-CLIENT-ID)) TO BYTE-COUNT
-        MOVE " left the game" TO BUFFER(BYTE-COUNT + 1:14)
-        ADD 14 TO BYTE-COUNT
+        INITIALIZE BUFFER
+        STRING FUNCTION TRIM(PLAYER-NAME(CLIENT-PLAYER(LK-CLIENT-ID))) " left the game" INTO BUFFER
+        MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BYTE-COUNT
         CALL "BroadcastChatMessageExcept" USING LK-CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
 
         *> remove the player from the player list, and despawn the player entity

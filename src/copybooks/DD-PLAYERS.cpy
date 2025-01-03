@@ -7,7 +7,6 @@
         03 PLAYER-CLIENT        BINARY-LONG UNSIGNED.
         03 PLAYER-UUID          PIC X(16).
         03 PLAYER-NAME          PIC X(16).
-        03 PLAYER-NAME-LENGTH   BINARY-LONG UNSIGNED.
         *> Survival: 0, Creative: 1, Adventure: 2, Spectator: 3
         03 PLAYER-GAMEMODE      BINARY-CHAR UNSIGNED.
         03 PLAYER-POSITION.
