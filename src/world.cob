@@ -447,6 +447,8 @@ PROGRAM-ID. World-LoadChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 C-MINECRAFT-CHUNK-STATUS PIC X(32) VALUE "minecraft:chunk_status".
+    01 C-MINECRAFT-SURFACE      PIC X(32) VALUE "minecraft:surface".
     01 C-MINECRAFT-BLOCK_ENTITY_TYPE PIC X(32) VALUE "minecraft:block_entity_type".
     01 NBT-BUFFER               PIC X(1048576).
     01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
@@ -461,6 +463,9 @@ WORKING-STORAGE SECTION.
     01 STR-LEN                  BINARY-LONG UNSIGNED.
     01 INT8                     BINARY-CHAR.
     01 INT32                    BINARY-LONG.
+    01 CHUNK-STATUS             PIC X(64).
+    01 CHUNK-STATUS-ID          BINARY-LONG.
+    01 ACCEPTED-CHUNK-STATUS-ID BINARY-LONG.
     01 CHUNK-X                  BINARY-LONG.
     01 CHUNK-Z                  BINARY-LONG.
     01 CHUNK-SECTION-MIN-Y      BINARY-LONG.
@@ -493,7 +498,9 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
     MOVE 1 TO NBT-DECODER-OFFSET
     CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER
 
-    *> Do a first pass to get the chunk X, Z, and Y values.
+    MOVE SPACES TO CHUNK-STATUS
+
+    *> Do a first pass to get the chunk X, Z, and Y values, as well as the chunk generation status.
     *> The way we write NBT, they should come before any larger pieces of data, but this is not strictly guaranteed.
     MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
     MOVE 0 TO SEEK-FOUND
@@ -512,6 +519,9 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
             WHEN "yPos"
                 CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER CHUNK-SECTION-MIN-Y
                 ADD 1 TO SEEK-FOUND
+            WHEN "Status"
+                CALL "NbtDecode-String" USING NBT-SEEK-STATE NBT-BUFFER STR STR-LEN
+                MOVE STR(1:STR-LEN) TO CHUNK-STATUS
             WHEN OTHER
                 CALL "NbtDecode-Skip" USING NBT-SEEK-STATE NBT-BUFFER
         END-EVALUATE
@@ -519,6 +529,27 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
             EXIT PERFORM
         END-IF
     END-PERFORM
+
+    *> We are unable to continue generating partially-generated chunks ("proto-chunks"). Since we don't require light
+    *> or heightmap data, any chunk that has progressed to at least the "surface" stage is acceptable.
+    IF CHUNK-STATUS NOT = SPACES
+        CALL "Registries-Get-EntryId" USING C-MINECRAFT-CHUNK-STATUS CHUNK-STATUS CHUNK-STATUS-ID
+        IF CHUNK-STATUS-ID < 0
+            DISPLAY "Unknown chunk status: " FUNCTION TRIM(CHUNK-STATUS)
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+        CALL "Registries-Get-EntryId" USING C-MINECRAFT-CHUNK-STATUS C-MINECRAFT-SURFACE ACCEPTED-CHUNK-STATUS-ID
+        IF ACCEPTED-CHUNK-STATUS-ID < 0
+            DISPLAY "Unknown chunk status: " FUNCTION TRIM(C-MINECRAFT-SURFACE)
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+        IF CHUNK-STATUS-ID < ACCEPTED-CHUNK-STATUS-ID
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+    END-IF
 
     *> Allocate a chunk slot
     CALL "World-AllocateChunk" USING CHUNK-X CHUNK-Z CHUNK-INDEX
