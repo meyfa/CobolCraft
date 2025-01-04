@@ -1,13 +1,15 @@
-# --- Build stage ---
 # Need to use ubuntu instead of debian to get a recent Java version
-FROM ubuntu:noble AS build
+FROM docker.io/library/ubuntu:noble AS base
 
 WORKDIR /app
 
-# Install packages required for building
-ENV DEBIAN_FRONTEND=noninteractive
+# --- BUILD STAGE ---
+FROM base AS build
+
+# Install build dependencies
 RUN apt-get update && \
-    apt-get install -y gcc g++ make gnucobol zlib1g-dev curl openjdk-21-jre-headless && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        gcc g++ make gnucobol3 zlib1g-dev curl openjdk-21-jre-headless && \
     rm -rf /var/lib/apt/lists/*
 
 # Perform data extraction first to allow Docker to cache this layer
@@ -21,15 +23,13 @@ COPY cpp ./cpp
 COPY blobs ./blobs
 RUN make -j $(nproc)
 
-# --- Runtime stage ---
-FROM ubuntu:noble
+# --- DEPLOY STAGE ---
+FROM base AS deploy
 
-WORKDIR /app
-
-# Install runtime packages
-ENV DEBIAN_FRONTEND=noninteractive
+# Install runtime dependencies
 RUN apt-get update && \
-    apt-get install -y gnucobol zlib1g tini && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        libcob4 zlib1g tini && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy the build results
