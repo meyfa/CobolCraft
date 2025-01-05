@@ -23,8 +23,11 @@ SERVER_JAR_EXTRACTED = data/versions/1.21.4/server-1.21.4.jar
 TEST_SRC = test.cob $(wildcard tests/*.cob)
 TEST_BIN = test
 
+# GnuCOBOL >=3.2 added functions that drastically improve performance. Set this to 32 to enable them.
+GCVERSION=31
+
 # Common compiler options
-COBC_OPTS = -O2 -debug -Wall -fnotrunc --free -fstatic-call
+COBC_OPTS = -O2 -debug -Wall -fnotrunc --free -fstatic-call -DGCVERSION=$(GCVERSION)
 
 .PHONY: all clean data run test
 
