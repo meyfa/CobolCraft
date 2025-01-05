@@ -255,20 +255,36 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
         CALL "Encode-VarInt" USING DATA-ARRAY-LENGTH LK-BUFFER LK-BUFFERPOS
 
         *> Data array: pack as many IDs as possible into each long starting from the least significant bit
-        MOVE 1 TO IDX
-        COMPUTE SHIFT-MULTIPLIER = 2 ** BITS-PER-ENTRY
-        PERFORM DATA-ARRAY-LENGTH TIMES
-            MOVE 0 TO LONG
-            MOVE 1 TO CURRENT-MULTIPLIER
-            PERFORM FUNCTION MIN(IDS-PER-ENTRY, LK-IDS-LENGTH + 1 - IDX) TIMES
-                COMPUTE LONG = LONG + LK-ID(IDX) * CURRENT-MULTIPLIER
-                COMPUTE CURRENT-MULTIPLIER = CURRENT-MULTIPLIER * SHIFT-MULTIPLIER
-                ADD 1 TO IDX
+        >>IF GCVERSION >= 32
+            MOVE 1 TO IDX
+            PERFORM DATA-ARRAY-LENGTH TIMES
+                MOVE 0 TO LONG
+                MOVE 0 TO CURRENT-MULTIPLIER
+                PERFORM FUNCTION MIN(IDS-PER-ENTRY, LK-IDS-LENGTH + 1 - IDX) TIMES
+                    COMPUTE LONG = LONG B-OR (LK-ID(IDX) B-SHIFT-L CURRENT-MULTIPLIER)
+                    COMPUTE CURRENT-MULTIPLIER = CURRENT-MULTIPLIER + BITS-PER-ENTRY
+                    ADD 1 TO IDX
+                END-PERFORM
+                *> Encode-UnsignedLong (inlined for performance)
+                MOVE FUNCTION REVERSE(LONG-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
+                ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
             END-PERFORM
-            *> Encode-UnsignedLong (inlined for performance)
-            MOVE FUNCTION REVERSE(LONG-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
-            ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
-        END-PERFORM
+        >>ELSE
+            MOVE 1 TO IDX
+            COMPUTE SHIFT-MULTIPLIER = 2 ** BITS-PER-ENTRY
+            PERFORM DATA-ARRAY-LENGTH TIMES
+                MOVE 0 TO LONG
+                MOVE 1 TO CURRENT-MULTIPLIER
+                PERFORM FUNCTION MIN(IDS-PER-ENTRY, LK-IDS-LENGTH + 1 - IDX) TIMES
+                    COMPUTE LONG = LONG + LK-ID(IDX) * CURRENT-MULTIPLIER
+                    COMPUTE CURRENT-MULTIPLIER = CURRENT-MULTIPLIER * SHIFT-MULTIPLIER
+                    ADD 1 TO IDX
+                END-PERFORM
+                *> Encode-UnsignedLong (inlined for performance)
+                MOVE FUNCTION REVERSE(LONG-BYTES) TO LK-BUFFER(LK-BUFFERPOS:PALETTE-ENTRY-LENGTH)
+                ADD PALETTE-ENTRY-LENGTH TO LK-BUFFERPOS
+            END-PERFORM
+        >>END-IF
 
         GOBACK.
 

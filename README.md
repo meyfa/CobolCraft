@@ -43,16 +43,28 @@ However, it is possible to use Docker for a platform-independent deployment.
 
 To deploy on Linux, make sure all prerequisites are installed:
 
-* `cobc` (e.g., from the `gnucobol` APT package on Debian)
+* GnuCOBOL 3.1.2 or later (e.g., from the `gnucobol` package on Debian/Ubuntu)
+    - 3.2 or later is highly recommended for performance reasons - check `cobc -version`
 * `make`
-* `g++`
-* `zlib` (e.g. `zlib1g-dev` on Debian)
+* `gcc`, `g++`
+* `zlib` (e.g. `zlib1g-dev` on Debian/Ubuntu)
 * `curl` (needed to download the official server .jar)
-* a recent version of Java (needed to extract data from the server .jar)
+* Java 21 or later (needed to extract data from the server .jar)
 
-Then execute `make` to build, followed by `make run` to start a server on port 25565.
+Run the following commands to build and run CobolCraft:
 
-Or, using Docker:
+```sh
+# GnuCOBOL 3.2 or later
+make -j$(nproc) GCVERSION=32
+
+# GnuCOBOL 3.1
+make -j$(nproc)
+
+# start the server
+make run
+```
+
+Or, run CobolCraft using Docker:
 
 ```sh
 # pull the image from Docker Hub
