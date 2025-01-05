@@ -1,5 +1,4 @@
-# Need to use ubuntu instead of debian to get a recent Java version
-FROM docker.io/library/ubuntu:noble AS base
+FROM docker.io/library/ubuntu:oracular AS base
 
 WORKDIR /app
 
@@ -21,7 +20,7 @@ COPY main.cob .
 COPY src ./src
 COPY cpp ./cpp
 COPY blobs ./blobs
-RUN make -j $(nproc)
+RUN make -j $(nproc) GCVERSION=32
 
 # --- DEPLOY STAGE ---
 FROM base AS deploy
