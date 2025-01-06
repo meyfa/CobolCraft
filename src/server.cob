@@ -230,6 +230,8 @@ RegisterBlocks.
 RegisterCommands.
     DISPLAY "Registering commands"
 
+    CALL "Commands-Init"
+
     CALL "RegisterCommand-GameMode"
     CALL "RegisterCommand-Help"
     CALL "RegisterCommand-Kill"
