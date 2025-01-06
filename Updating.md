@@ -71,6 +71,7 @@ synchronization issues (since the client predicts many actions even if the serve
 * switching hotbar items, adding/removing armor, changing offhand item (should be visible to other players)
 * picking blocks (middle-click)
 * world time (day/night cycle)
+* server tick time on debug screen (F3 + 2)
 
 ## Save Files
 
