@@ -511,8 +511,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-PLAYER-UUID LK-PLAYER-NAME LK-PLAYER-ID
             INITIALIZE PLAYER(LK-PLAYER-ID)
             *> TODO make the default game mode configurable
             MOVE 1 TO PLAYER-GAMEMODE(LK-PLAYER-ID)
-            *> TODO Invent a better spawn location system
-            MOVE 64 TO PLAYER-Y(LK-PLAYER-ID)
+            CALL "World-FindSpawnLocation" USING PLAYER-POSITION(LK-PLAYER-ID)
             MOVE 20 TO PLAYER-HEALTH(LK-PLAYER-ID)
             MOVE 20 TO PLAYER-FOOD-LEVEL(LK-PLAYER-ID)
             MOVE 5 TO PLAYER-SATURATION(LK-PLAYER-ID)
