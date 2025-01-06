@@ -79,8 +79,19 @@ WORKING-STORAGE SECTION.
     01 CALLBACK-PTR-BLOCK           PROGRAM-POINTER.
     01 SEQUENCE-ID                  BINARY-LONG.
     *> Time measurement (microseconds)
+    78 NANOSECOND-SCALE             VALUE 1000.
     01 CURRENT-TIME                 BINARY-LONG-LONG.
+    01 TICK-STARTTIME               BINARY-LONG-LONG.
     01 TICK-ENDTIME                 BINARY-LONG-LONG.
+    01 TICK-MAIN-DURATION           BINARY-LONG-LONG.
+    01 TICK-SLEEP-DURATION          BINARY-LONG-LONG.
+    *> Debug samples
+    01 DEBUG-SUBSCRIPTION-VALIDITY  BINARY-LONG-LONG        VALUE 10000000. *> 10s
+    01 DEBUG-SAMPLE.
+        02 DEBUG-SAMPLE-FULL        BINARY-LONG-LONG.
+        02 DEBUG-SAMPLE-MAIN        BINARY-LONG-LONG.
+        02 DEBUG-SAMPLE-TASKS       BINARY-LONG-LONG.
+        02 DEBUG-SAMPLE-IDLE        BINARY-LONG-LONG.
     *> Variables for working with chunks
     01 CHUNK-X                      BINARY-LONG.
     01 CHUNK-Z                      BINARY-LONG.
@@ -304,7 +315,8 @@ ServerLoop.
     *> Loop forever - each iteration is one game tick (1/20th of a second).
     PERFORM UNTIL EXIT
         CALL "SystemTimeMicros" USING CURRENT-TIME
-        COMPUTE TICK-ENDTIME = CURRENT-TIME + GAME-TICK-INTERVAL
+        MOVE CURRENT-TIME TO TICK-STARTTIME
+        COMPUTE TICK-ENDTIME = TICK-STARTTIME + GAME-TICK-INTERVAL
 
         COMPUTE TEMP-INT64 = CURRENT-TIME - LAST-AUTOSAVE
         IF TEMP-INT64 >= AUTOSAVE-INTERVAL
@@ -388,15 +400,28 @@ ServerLoop.
             STOP RUN RETURNING 1
         END-IF
 
+        *> Send debug sample for the past tick
+        PERFORM SendDebugSamples
+
+        CALL "SystemTimeMicros" USING CURRENT-TIME
+        COMPUTE TICK-MAIN-DURATION = CURRENT-TIME - TICK-STARTTIME
+
         *> Read console command
         PERFORM ConsoleInput
 
         *> The remaining time of this tick can be used for accepting connections and receiving packets.
         CALL "SystemTimeMicros" USING CURRENT-TIME
+        MOVE 0 TO TICK-SLEEP-DURATION
         PERFORM UNTIL CURRENT-TIME >= TICK-ENDTIME
             PERFORM NetworkRead
             CALL "SystemTimeMicros" USING CURRENT-TIME
         END-PERFORM
+
+        *> debug samples are measured in nanoseconds
+        COMPUTE DEBUG-SAMPLE-FULL = (CURRENT-TIME - TICK-STARTTIME) * NANOSECOND-SCALE
+        COMPUTE DEBUG-SAMPLE-MAIN = TICK-MAIN-DURATION * NANOSECOND-SCALE
+        COMPUTE DEBUG-SAMPLE-IDLE = TICK-SLEEP-DURATION * NANOSECOND-SCALE
+        COMPUTE DEBUG-SAMPLE-TASKS = DEBUG-SAMPLE-FULL - DEBUG-SAMPLE-MAIN - DEBUG-SAMPLE-IDLE
 
         MOVE X"00000000" TO TEMP-HNDL
         MOVE 0 TO CLIENT-ID
@@ -428,7 +453,9 @@ NetworkRead SECTION.
     END-IF
     *> Without anything to do, sleep up to 1ms to avoid busy-waiting
     IF TEMP-HNDL = X"00000000"
-        COMPUTE TEMP-INT64 = 1000 * FUNCTION MIN(1000, FUNCTION MAX(1, TICK-ENDTIME - CURRENT-TIME))
+        MOVE FUNCTION MIN(1000, FUNCTION MAX(1, TICK-ENDTIME - CURRENT-TIME)) TO TEMP-INT64
+        ADD TEMP-INT64 TO TICK-SLEEP-DURATION
+        COMPUTE TEMP-INT64 = TEMP-INT64 * NANOSECOND-SCALE
         CALL "CBL_GC_NANOSLEEP" USING TEMP-INT64
         EXIT SECTION
     END-IF
@@ -609,6 +636,15 @@ ProcessChunkQueue SECTION.
         END-IF
     END-PERFORM
 
+    EXIT SECTION.
+
+SendDebugSamples SECTION.
+    COMPUTE TEMP-INT64 = TICK-STARTTIME - DEBUG-SUBSCRIPTION-VALIDITY
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+        IF CLIENT-PRESENT(CLIENT-ID) NOT = 0 AND DEBUG-SUBSCRIBE-TIME(CLIENT-ID) > TEMP-INT64
+            CALL "SendPacket-DebugSample" USING CLIENT-ID DEBUG-SAMPLE
+        END-IF
+    END-PERFORM
     EXIT SECTION.
 
 ReceivePacket SECTION.
@@ -952,6 +988,14 @@ HandlePlay SECTION.
             CALL "SendPacket-Respawn" USING CLIENT-ID PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID))
 
             PERFORM SpawnPlayer
+
+        *> Debug sample subscription
+        WHEN H'15'
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
+            *> TODO limit to operators
+            IF TEMP-INT32 = 0
+                MOVE CURRENT-TIME TO DEBUG-SUBSCRIBE-TIME(CLIENT-ID)
+            END-IF
 
         *> KeepAlive response
         WHEN H'1A'
