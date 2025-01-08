@@ -12,6 +12,7 @@ WORKING-STORAGE SECTION.
     01 FILE-DATAPACK-ROOT           PIC X(255)              VALUE "data/generated/data/".
     *> Constants
     COPY DD-CLIENT-STATES.
+    COPY DD-PACKET-DIRECTIONS.
     01 C-MINECRAFT-WORLDGEN-BIOME   PIC X(50)               VALUE "minecraft:worldgen/biome".
     01 C-MINECRAFT-CHAT_TYPE        PIC X(50)               VALUE "minecraft:chat_type".
     01 C-MINECRAFT-TRIM_PATTERN     PIC X(50)               VALUE "minecraft:trim_pattern".
@@ -53,6 +54,7 @@ WORKING-STORAGE SECTION.
     COPY DD-PLAYERS.
     *> Incoming/outgoing packet data
     01 PACKET-ID                    BINARY-LONG.
+    01 PACKET-NAME                  PIC X(128).
     01 PACKET-POSITION              BINARY-LONG UNSIGNED.
     01 BUFFER                       PIC X(64000).
     01 BYTE-COUNT                   BINARY-LONG UNSIGNED.
@@ -727,7 +729,14 @@ ReceivePacket SECTION.
     MOVE 1 TO PACKET-POSITION
     CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-ID
 
-    EVALUATE CLIENT-STATE(CLIENT-ID)
+    MOVE CLIENT-STATE(CLIENT-ID) TO TEMP-INT32
+    CALL "Packets-GetReference" USING TEMP-INT32 PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
+    IF PACKET-NAME = SPACES
+        PERFORM DisconnectClient
+        EXIT SECTION
+    END-IF
+
+    EVALUATE TEMP-INT32
         WHEN CLIENT-STATE-HANDSHAKE
             PERFORM HandleHandshake
         WHEN CLIENT-STATE-STATUS
@@ -739,7 +748,7 @@ ReceivePacket SECTION.
         WHEN CLIENT-STATE-PLAY
             PERFORM HandlePlay
         WHEN OTHER
-            DISPLAY "Invalid client state: " CLIENT-STATE(CLIENT-ID)
+            DISPLAY "Invalid client state: " TEMP-INT32
             PERFORM DisconnectClient
             EXIT SECTION
     END-EVALUATE
@@ -751,8 +760,8 @@ ReceivePacket SECTION.
     EXIT SECTION.
 
 HandleHandshake SECTION.
-    IF PACKET-ID NOT = H'00'
-        DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
+    IF PACKET-NAME NOT = "minecraft:intention"
+        DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
         PERFORM DisconnectClient
         EXIT SECTION
     END-IF
@@ -768,9 +777,8 @@ HandleHandshake SECTION.
     EXIT SECTION.
 
 HandleStatus SECTION.
-    EVALUATE PACKET-ID
-        *> Status request
-        WHEN H'00'
+    EVALUATE PACKET-NAME
+        WHEN "minecraft:status_request"
             *> count the number of current players
             MOVE 0 TO TEMP-INT32
             PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
@@ -780,22 +788,21 @@ HandleStatus SECTION.
             END-PERFORM
             CALL "SendPacket-Status" USING CLIENT-ID SP-MOTD MAX-PLAYERS TEMP-INT32
 
-        *> Ping request: respond with the same payload and close the connection
-        WHEN H'01'
+        WHEN "minecraft:ping_request"
+            *> respond with the same payload and close the connection
             CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT64
             CALL "SendPacket-PingResponse" USING CLIENT-ID TEMP-INT64
             PERFORM DisconnectClient
 
         WHEN OTHER
-            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE.
 
     EXIT SECTION.
 
 HandleLogin SECTION.
-    EVALUATE PACKET-ID
-        *> Login start
-        WHEN H'00'
+    EVALUATE PACKET-NAME
+        WHEN "minecraft:hello"
             *> Decode username
             MOVE SPACES TO TEMP-PLAYER-NAME
             CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32 TEMP-PLAYER-NAME
@@ -847,8 +854,7 @@ HandleLogin SECTION.
             *> Send login success. This should result in a "login acknowledged" packet by the client.
             CALL "SendPacket-LoginSuccess" USING CLIENT-ID PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))
 
-        *> Login acknowledge
-        WHEN H'03'
+        WHEN "minecraft:login_acknowledged"
             *> Must not happen before login start
             IF CLIENT-PLAYER(CLIENT-ID) = 0
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected login acknowledge"
@@ -860,15 +866,14 @@ HandleLogin SECTION.
             MOVE CLIENT-STATE-CONFIGURATION TO CLIENT-STATE(CLIENT-ID)
 
         WHEN OTHER
-            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE
 
     EXIT SECTION.
 
 HandleConfiguration SECTION.
-    EVALUATE PACKET-ID
-        *> Client information
-        WHEN H'00'
+    EVALUATE PACKET-NAME
+        WHEN "minecraft:client_information"
             *> Note: payload of this packet is ignored for now
 
             *> Send brand
@@ -898,13 +903,11 @@ HandleConfiguration SECTION.
             *> We now expect an acknowledge packet
             MOVE 1 TO CONFIG-FINISH(CLIENT-ID)
 
-        *> Serverbound plugin message
-        WHEN H'02'
+        WHEN "minecraft:custom_payload"
             *> Not implemented
             CONTINUE
 
-        *> Acknowledge finish configuration
-        WHEN H'03'
+        WHEN "minecraft:finish_configuration"
             IF CONFIG-FINISH(CLIENT-ID) = 0
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected acknowledge finish configuration"
                 PERFORM DisconnectClient
@@ -930,27 +933,25 @@ HandleConfiguration SECTION.
             MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BYTE-COUNT
             CALL "BroadcastChatMessageExcept" USING CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
 
-        WHEN H'07'
-            *> Serverbound known packs
+        WHEN "minecraft:select_known_packs"
+            *> Not implemented
             CONTINUE
 
         WHEN OTHER
-            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet ID: " PACKET-ID
+            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE.
 
     EXIT SECTION.
 
 HandlePlay SECTION.
-    EVALUATE PACKET-ID
-        *> Confirm teleportation
-        WHEN H'00'
+    EVALUATE PACKET-NAME
+        WHEN "minecraft:accept_teleportation"
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 > TELEPORT-RECV(CLIENT-ID) AND TEMP-INT32 <= TELEPORT-SENT(CLIENT-ID)
                 MOVE TEMP-INT32 TO TELEPORT-RECV(CLIENT-ID)
             END-IF
 
-        *> Chat command
-        WHEN H'05'
+        WHEN "minecraft:chat_command"
             CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION BYTE-COUNT BUFFER
             *> Command may not be longer than 256 characters
             IF BYTE-COUNT > 256
@@ -960,8 +961,7 @@ HandlePlay SECTION.
             *> Handle the command
             CALL "HandleCommand" USING CLIENT-ID BUFFER BYTE-COUNT
 
-        *> Chat message
-        WHEN H'07'
+        WHEN "minecraft:chat"
             CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION BYTE-COUNT BUFFER
             *> Message may not be longer than 256 characters
             IF BYTE-COUNT > 256
@@ -980,8 +980,7 @@ HandlePlay SECTION.
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
 
-        *> Client command
-        WHEN H'0A'
+        WHEN "minecraft:client_command"
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
 
             *> command 0 = perform respawn
@@ -1004,20 +1003,17 @@ HandlePlay SECTION.
 
             PERFORM SpawnPlayer
 
-        *> Debug sample subscription
-        WHEN H'15'
+        WHEN "minecraft:debug_sample_subscription"
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             *> TODO limit to operators
             IF TEMP-INT32 = 0
                 MOVE CURRENT-TIME TO DEBUG-SUBSCRIBE-TIME(CLIENT-ID)
             END-IF
 
-        *> KeepAlive response
-        WHEN H'1A'
+        WHEN "minecraft:keep_alive"
             CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
 
-        *> Set player position
-        WHEN H'1C'
+        WHEN "minecraft:move_player_pos"
             *> Ignore movement packets until the client acknowledges the last sent teleport packet
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
@@ -1027,8 +1023,7 @@ HandlePlay SECTION.
             CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
 
-        *> Set player position and rotation
-        WHEN H'1D'
+        WHEN "minecraft:move_player_pos_rot"
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
@@ -1039,8 +1034,7 @@ HandlePlay SECTION.
             CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
 
-        *> Set player rotation
-        WHEN H'1E'
+        WHEN "minecraft:move_player_rot"
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
@@ -1048,15 +1042,13 @@ HandlePlay SECTION.
             CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
             *> TODO: "on ground" flag
 
-        *> Set player on ground
-        WHEN H'1F'
+        WHEN "minecraft:move_player_status_only"
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
                 EXIT SECTION
             END-IF
             *> TODO: "on ground" flag
 
-        *> Pick item from block
-        WHEN H'22'
+        WHEN "minecraft:pick_item_from_block"
             *> location
             CALL "Decode-Position" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-POSITION
             *> TODO: "include data" flag
@@ -1086,15 +1078,13 @@ HandlePlay SECTION.
                 CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
             END-IF
 
-        *> Player abilities
-        WHEN H'26'
+        WHEN "minecraft:player_abilities"
             CALL "Decode-Byte" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT8
             *> flying = bitmask & 0x02
             COMPUTE TEMP-INT8 = TEMP-INT8 / 2
             COMPUTE PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID)) = FUNCTION MOD(TEMP-INT8, 2)
 
-        *> Player action
-        WHEN H'27'
+        WHEN "minecraft:player_action"
             *> Status (= the action), block position, face, sequence number.
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             CALL "Decode-Position" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-POSITION
@@ -1121,8 +1111,7 @@ HandlePlay SECTION.
                     CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
             END-EVALUATE
 
-        *> Player command
-        WHEN H'28'
+        WHEN "minecraft:player_command"
             *> entity ID (why does this exist? should always be the player's entity ID - skip it)
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             *> action ID
@@ -1136,15 +1125,13 @@ HandlePlay SECTION.
                     MOVE 0 TO PLAYER-SNEAKING(CLIENT-PLAYER(CLIENT-ID))
             END-EVALUATE
 
-        *> Set held item
-        WHEN H'33'
+        WHEN "minecraft:set_carried_item"
             CALL "Decode-Short" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT16
             IF TEMP-INT16 >= 0 AND TEMP-INT16 <= 8
                 MOVE TEMP-INT16 TO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
             END-IF
 
-        *> Set creative mode slot
-        WHEN H'36'
+        WHEN "minecraft:set_creative_mode_slot"
             *> slot ID
             CALL "Decode-Short" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT16
             *> TODO: spawn item entity when slot ID is -1
@@ -1169,8 +1156,7 @@ HandlePlay SECTION.
                 END-IF
             END-IF
 
-        *> Swing arm
-        WHEN H'3A'
+        WHEN "minecraft:swing"
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 1
@@ -1188,8 +1174,7 @@ HandlePlay SECTION.
             END-PERFORM
             MOVE TEMP-INT16 TO CLIENT-ID
 
-        *> Use item on block
-        WHEN H'3C'
+        WHEN "minecraft:use_item_on"
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0
@@ -1235,8 +1220,7 @@ HandlePlay SECTION.
             *> Acknowledge the action
             CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
 
-        *> Use item
-        WHEN H'3D'
+        WHEN "minecraft:use_item"
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             IF TEMP-INT32 = 0
