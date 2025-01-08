@@ -1642,9 +1642,9 @@ PROCEDURE DIVISION USING LK-POSITION.
                     ADD 1 TO AIR-COUNT
                 WHEN OTHER
                     IF AIR-COUNT >= 2
-                        MOVE POS-X TO LK-X
-                        ADD 1 TO POS-Y GIVING LK-Y
-                        MOVE POS-Z TO LK-Z
+                        COMPUTE LK-X = POS-X + 0.5
+                        COMPUTE LK-Y = POS-Y + 1
+                        COMPUTE LK-Z = POS-Z + 0.5
                         GOBACK
                     END-IF
                     MOVE 0 TO AIR-COUNT
