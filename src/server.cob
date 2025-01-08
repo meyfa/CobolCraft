@@ -8,6 +8,7 @@ WORKING-STORAGE SECTION.
     *> File names
     01 FILE-REGISTRIES              PIC X(255)              VALUE "data/generated/reports/registries.json".
     01 FILE-BLOCKS                  PIC X(255)              VALUE "data/generated/reports/blocks.json".
+    01 FILE-PACKETS                 PIC X(255)              VALUE "data/generated/reports/packets.json".
     01 FILE-DATAPACK-ROOT           PIC X(255)              VALUE "data/generated/data/".
     *> Constants
     COPY DD-CLIENT-STATES.
@@ -158,6 +159,20 @@ LoadBlocks.
     CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to parse blocks"
+        STOP RUN RETURNING 1
+    END-IF
+    .
+
+LoadPackets.
+    DISPLAY "Loading packets"
+    CALL "Files-ReadAll" USING FILE-PACKETS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-PACKETS)
+        STOP RUN RETURNING 1
+    END-IF
+    CALL "Packets-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to parse packets"
         STOP RUN RETURNING 1
     END-IF
     .

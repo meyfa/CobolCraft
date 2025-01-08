@@ -1,0 +1,7 @@
+*> --- Copybook: lookup table for numeric packet IDs by their reference ---
+
+01 PACKET-IDS EXTERNAL.
+    02 PACKET-ID-COUNT          BINARY-LONG UNSIGNED.
+    02 PACKET-ID-ENTRY OCCURS 0 TO 512 TIMES DEPENDING ON PACKET-ID-COUNT.
+        03 PACKET-ID-REFERENCE  PIC X(128).
+        03 PACKET-ID-NUMBER     BINARY-LONG.
