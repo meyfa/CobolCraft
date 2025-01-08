@@ -3,7 +3,7 @@ COBC = cobc
 CC = g++
 
 # Sources, copybooks, and binary
-SRC = $(wildcard src/*.cob src/*/*.cob)
+SRC = $(wildcard src/*.cob src/*/*.cob src/*/*/*.cob)
 MAIN_SRC = main.cob
 OBJECTS_DIR = out
 OBJECTS = $(patsubst src/%.cob, out/%.o, $(SRC))
