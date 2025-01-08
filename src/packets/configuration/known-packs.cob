@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-KnownPacks.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                BINARY-LONG             VALUE H'0E'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "configuration/clientbound/minecraft:select_known_packs".
     *> known pack data
     01 PACK-NAMESPACE           PIC X(9)                VALUE "minecraft".
     01 PACK-ID                  PIC X(4)                VALUE "core".
@@ -18,6 +18,8 @@ LINKAGE SECTION.
     01 LK-CLIENT                BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> count

@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-Respawn.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                    BINARY-LONG                 VALUE H'4C'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:respawn".
     *> constants
     01 C-MINECRAFT-DIMENSION_TYPE   PIC X(24)                   VALUE "minecraft:dimension_type".
     01 C-MINECRAFT-OVERWORLD        PIC X(19)                   VALUE "minecraft:overworld".
@@ -18,6 +18,8 @@ LINKAGE SECTION.
     01 LK-GAMEMODE                  BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-GAMEMODE.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> TODO deduplicate with login-play.cob

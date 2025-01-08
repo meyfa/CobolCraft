@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-RemovePlayer.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'3F'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:player_info_remove".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(1024).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -15,6 +15,8 @@ LINKAGE SECTION.
     01 LK-UUID          PIC X(16).
 
 PROCEDURE DIVISION USING LK-CLIENT LK-UUID.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> number of players

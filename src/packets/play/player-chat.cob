@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-PlayerChat.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                    BINARY-LONG                 VALUE H'3B'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:player_chat".
     01 C-MINECRAFT-CHAT_TYPE        PIC X(19)                   VALUE "minecraft:chat_type".
     01 C-MINECRAFT-CHAT             PIC X(14)                   VALUE "minecraft:chat".
     *> temporary data used during encoding
@@ -21,6 +21,8 @@ LINKAGE SECTION.
     01 LK-MESSAGE-LEN               BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-SENDER-UUID LK-SENDER-NAME LK-MESSAGE LK-MESSAGE-LEN.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> --- header ---

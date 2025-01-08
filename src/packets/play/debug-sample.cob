@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-DebugSample.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'1B'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:debug_sample".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(1024).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -20,6 +20,8 @@ LINKAGE SECTION.
         02 LK-SAMPLE-IDLE   BINARY-LONG-LONG.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-SAMPLE.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> count = 4 (components of the sample)

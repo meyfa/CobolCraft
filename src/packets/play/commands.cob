@@ -4,7 +4,7 @@ PROGRAM-ID. SendPacket-Commands.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                    BINARY-LONG             VALUE H'11'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:commands".
     *> buffer used to store the packet data
     01 PAYLOAD                      PIC X(160000).
     01 PAYLOADPOS                   BINARY-LONG UNSIGNED.
@@ -20,6 +20,8 @@ LINKAGE SECTION.
     01 LK-CLIENT                    BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> count

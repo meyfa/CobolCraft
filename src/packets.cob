@@ -105,6 +105,31 @@ ParsePacket SECTION.
 
 END PROGRAM Packets-Parse.
 
+*> --- Packets-GetId ---
+*> Look up the numeric ID of a packet by its string reference (e.g. "play/clientbound/minecraft:block_changed_ack").
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Packets-GetId.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-PACKETS.
+    01 PACKET-INDEX             BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 PACKET-REFERENCE         PIC X ANY LENGTH.
+    01 PACKET-ID                BINARY-LONG.
+
+PROCEDURE DIVISION USING PACKET-REFERENCE PACKET-ID.
+    PERFORM VARYING PACKET-INDEX FROM 1 BY 1 UNTIL PACKET-INDEX > PACKET-ID-COUNT
+        IF PACKET-REFERENCE = PACKET-ID-REFERENCE(PACKET-INDEX)
+            MOVE PACKET-ID-NUMBER(PACKET-INDEX) TO PACKET-ID
+            GOBACK
+        END-IF
+    END-PERFORM
+    MOVE -1 TO PACKET-ID
+    GOBACK.
+
+END PROGRAM Packets-GetId.
+
 *> --- SendPacket ---
 *> Send a raw packet to the client.
 IDENTIFICATION DIVISION.

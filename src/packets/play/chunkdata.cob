@@ -4,7 +4,7 @@ PROGRAM-ID. SendPacket-ChunkData.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                BINARY-LONG                 VALUE H'28'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:level_chunk_with_light".
     *> buffer used to store the packet data
     01 PAYLOAD                  PIC X(512000).
     01 PAYLOADPOS               BINARY-LONG UNSIGNED.
@@ -53,6 +53,8 @@ LINKAGE SECTION.
             03 LK-CHUNK-BLOCK-ENTITY-ID OCCURS 98304 TIMES BINARY-CHAR.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
+    COPY PROC-PACKET-INIT.
+
     CALL "Blocks-Get-MaximumStateId" USING MAX-BLOCK-STATE-ID
 
     CALL "Registries-GetRegistryIndex" USING C-MINECRAFT-WORLDGEN-BIOME INT32

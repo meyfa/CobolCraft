@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-EntityAnimation.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'03'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:animate".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(8).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -15,6 +15,8 @@ LINKAGE SECTION.
     01 LK-ANIMATION     BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-ANIMATION.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> entity ID

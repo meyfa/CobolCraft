@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-LoginPlay.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                    BINARY-LONG                 VALUE H'2C'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:login".
     *> constants
     01 C-MINECRAFT-DIMENSION_TYPE   PIC X(24)                   VALUE "minecraft:dimension_type".
     01 C-MINECRAFT-OVERWORLD        PIC X(19)                   VALUE "minecraft:overworld".
@@ -21,6 +21,8 @@ LINKAGE SECTION.
     01 LK-MAX-PLAYERS               BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-VIEW-DISTANCE LK-GAMEMODE LK-MAX-PLAYERS.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> entity ID

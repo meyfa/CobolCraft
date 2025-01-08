@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-RemoveEntity.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'47'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:remove_entities".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(1024).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -15,6 +15,8 @@ LINKAGE SECTION.
     01 LK-ENTITY-ID     BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> count

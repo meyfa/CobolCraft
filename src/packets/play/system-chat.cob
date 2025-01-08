@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-SystemChat.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'73'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:system_chat".
     *> temporary data used during encoding
     01 UINT16           BINARY-SHORT UNSIGNED.
     *> buffer used to store the packet data
@@ -17,6 +17,8 @@ LINKAGE SECTION.
     01 LK-COLOR         PIC X(16).
 
 PROCEDURE DIVISION USING LK-CLIENT LK-MESSAGE LK-MESSAGE-LEN LK-COLOR.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> NBT compound tag

@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-SetPlayerPosition.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'42'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:player_position".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(255).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -24,6 +24,8 @@ LINKAGE SECTION.
     01 LK-TELEPORT-ID   BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-ROTATION LK-TELEPORT-ID.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> teleport ID

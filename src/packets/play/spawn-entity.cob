@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-SpawnEntity.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'01'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:add_entity".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(1024).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -28,6 +28,8 @@ LINKAGE SECTION.
         02 LK-PITCH     FLOAT-SHORT.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-ENTITY-UUID LK-POSITION LK-ROTATION.
+    COPY PROC-PACKET-INIT.
+
     *> obtain and cache ID of player entity type
     IF PLAYER-TYPE < 0
         CALL "Registries-Get-EntryId" USING C-ENTITY_TYPE C-PLAYER PLAYER-TYPE
