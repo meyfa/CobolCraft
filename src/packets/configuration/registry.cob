@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-Registry.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                BINARY-LONG             VALUE H'07'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "configuration/clientbound/minecraft:registry_data".
     *> buffer used to store the packet data
     01 PAYLOAD                  PIC X(60000).
     01 PAYLOADPOS               BINARY-LONG UNSIGNED.
@@ -19,6 +19,8 @@ LINKAGE SECTION.
     01 LK-REGISTRY-INDEX        BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-REGISTRY-INDEX.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> registry name

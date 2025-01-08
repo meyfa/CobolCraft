@@ -3,8 +3,7 @@ PROGRAM-ID. SendPacket-FeatureFlags.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID                BINARY-LONG             VALUE H'0C'.
-    *> constants
+    COPY DD-PACKET REPLACING IDENTIFIER BY "configuration/clientbound/minecraft:update_enabled_features".
     01 C-MINECRAFT-VANILLA      PIC X(17) VALUE "minecraft:vanilla".
     *> buffer used to store the packet data
     01 PAYLOAD                  PIC X(64).
@@ -16,6 +15,8 @@ LINKAGE SECTION.
     01 LK-CLIENT                BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> count = 1

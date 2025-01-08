@@ -3,12 +3,16 @@ PROGRAM-ID. SendPacket-Disconnect.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    COPY DD-CLIENT-STATES.
     *> packet id depending on connection state
-    78 PACKET-ID-LOGIN          VALUE H'00'.
-    78 PACKET-ID-CONFIGURATION  VALUE H'01'.
-    78 PACKET-ID-PLAY           VALUE H'1D'.
+    COPY DD-PACKET REPLACING LEADING ==PACKET-== BY ==LOGIN-PACKET-==,
+        IDENTIFIER BY "login/clientbound/minecraft:login_disconnect".
+    COPY DD-PACKET REPLACING LEADING ==PACKET-== BY ==CONFIGURATION-PACKET-==,
+        IDENTIFIER BY "configuration/clientbound/minecraft:disconnect".
+    COPY DD-PACKET REPLACING LEADING ==PACKET-== BY ==PLAY-PACKET-==,
+        IDENTIFIER BY "play/clientbound/minecraft:disconnect".
     01 PACKET-ID                BINARY-LONG.
+    *> shared data
+    COPY DD-CLIENT-STATES.
     *> temporary data used during encoding
     01 JSONBUFFER               PIC X(64000).
     01 JSONPOS                  BINARY-LONG UNSIGNED.
@@ -27,11 +31,15 @@ LINKAGE SECTION.
     01 LK-REASONLEN             BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-STATE LK-REASON LK-REASONLEN.
+    COPY PROC-PACKET-INIT REPLACING LEADING ==PACKET-== BY ==LOGIN-PACKET-==.
+    COPY PROC-PACKET-INIT REPLACING LEADING ==PACKET-== BY ==CONFIGURATION-PACKET-==.
+    COPY PROC-PACKET-INIT REPLACING LEADING ==PACKET-== BY ==PLAY-PACKET-==.
+
     MOVE 1 TO PAYLOADPOS
 
     *> Special case for login, which uses a JSON Text Component as payload, while all others use an NBT Text Component.
     IF LK-STATE = CLIENT-STATE-LOGIN
-        MOVE PACKET-ID-LOGIN TO PACKET-ID
+        MOVE LOGIN-PACKET-ID TO PACKET-ID
 
         *> Encode the JSON payload {"text":"<reason>"}
         MOVE 1 TO JSONPOS
@@ -54,9 +62,9 @@ PROCEDURE DIVISION USING LK-CLIENT LK-STATE LK-REASON LK-REASONLEN.
 
     EVALUATE LK-STATE
         WHEN CLIENT-STATE-CONFIGURATION
-            MOVE PACKET-ID-CONFIGURATION TO PACKET-ID
+            MOVE CONFIGURATION-PACKET-ID TO PACKET-ID
         WHEN CLIENT-STATE-PLAY
-            MOVE PACKET-ID-PLAY TO PACKET-ID
+            MOVE PLAY-PACKET-ID TO PACKET-ID
         WHEN OTHER
             DISPLAY "Invalid state for Disconnect packet: " LK-STATE
             GOBACK

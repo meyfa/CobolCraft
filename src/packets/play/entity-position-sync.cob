@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-EntityPositionSync.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'20'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:entity_position_sync".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(255).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -24,6 +24,8 @@ LINKAGE SECTION.
         02 LK-PITCH     FLOAT-SHORT.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-POSITION LK-ROTATION.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> entity ID

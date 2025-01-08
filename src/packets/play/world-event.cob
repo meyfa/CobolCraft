@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-WorldEvent.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'29'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:level_event".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(32).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -18,6 +18,8 @@ LINKAGE SECTION.
     01 LK-DATA          BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-EVENT LK-POSITION LK-DATA.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> event type

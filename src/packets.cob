@@ -1,3 +1,226 @@
+*> --- Packets-Parse ---
+*> Parse the packets.json file to get packet metadata.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Packets-Parse.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-PACKETS.
+    COPY DD-CLIENT-STATES.
+    COPY DD-PACKET-DIRECTIONS.
+    01 STATE-NAME               PIC X(128).
+    01 DIRECTION-NAME           PIC X(128).
+    01 PACKET-NAME              PIC X(128).
+    01 PACKET-REFERENCE         PIC X(128).
+    01 OBJECT-KEY               PIC X(128).
+    01 STATE-ID                 BINARY-LONG.
+    01 DIRECTION-ID             BINARY-LONG.
+    01 PACKET-ID                BINARY-LONG.
+LOCAL-STORAGE SECTION.
+    01 OFFSET                   BINARY-LONG UNSIGNED        VALUE 1.
+    01 EXIT-LOOP                BINARY-CHAR UNSIGNED        VALUE 0.
+LINKAGE SECTION.
+    01 LK-JSON                  PIC X ANY LENGTH.
+    01 LK-JSON-LEN              BINARY-LONG UNSIGNED.
+    01 LK-FAILURE               BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
+    MOVE 0 TO PACKET-ID-COUNT
+    INITIALIZE PACKET-REFERENCES
+
+    CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
+    IF LK-FAILURE NOT = 0
+        GOBACK
+    END-IF
+
+    PERFORM UNTIL EXIT-LOOP NOT = 0
+        CALL "JsonParse-ObjectKey" USING LK-JSON OFFSET LK-FAILURE STATE-NAME
+        IF LK-FAILURE NOT = 0
+            GOBACK
+        END-IF
+        EVALUATE STATE-NAME
+            WHEN "handshake"
+                MOVE CLIENT-STATE-HANDSHAKE TO STATE-ID
+            WHEN "status"
+                MOVE CLIENT-STATE-STATUS TO STATE-ID
+            WHEN "login"
+                MOVE CLIENT-STATE-LOGIN TO STATE-ID
+            WHEN "configuration"
+                MOVE CLIENT-STATE-CONFIGURATION TO STATE-ID
+            WHEN "play"
+                MOVE CLIENT-STATE-PLAY TO STATE-ID
+            WHEN OTHER
+                DISPLAY "Unknown client state '" FUNCTION TRIM(STATE-NAME) "'"
+                MOVE 1 TO LK-FAILURE
+                GOBACK
+        END-EVALUATE
+        PERFORM ParseState
+        CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
+    END-PERFORM
+
+    CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
+    IF LK-FAILURE NOT = 0
+        GOBACK
+    END-IF
+
+    GOBACK.
+
+ParseState SECTION.
+    CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
+    IF LK-FAILURE NOT = 0
+        GOBACK
+    END-IF
+
+    PERFORM UNTIL EXIT-LOOP NOT = 0
+        CALL "JsonParse-ObjectKey" USING LK-JSON OFFSET LK-FAILURE DIRECTION-NAME
+        IF LK-FAILURE NOT = 0
+            GOBACK
+        END-IF
+        EVALUATE DIRECTION-NAME
+            WHEN "serverbound"
+                MOVE PACKET-DIRECTION-SERVERBOUND TO DIRECTION-ID
+            WHEN "clientbound"
+                MOVE PACKET-DIRECTION-CLIENTBOUND TO DIRECTION-ID
+            WHEN OTHER
+                DISPLAY "Unknown packet direction '" FUNCTION TRIM(DIRECTION-NAME) "'"
+                MOVE 1 TO LK-FAILURE
+                GOBACK
+        END-EVALUATE
+        PERFORM ParseDirection
+        CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
+    END-PERFORM
+
+    CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
+
+    EXIT SECTION.
+
+ParseDirection SECTION.
+    CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
+    IF LK-FAILURE NOT = 0
+        GOBACK
+    END-IF
+
+    PERFORM UNTIL EXIT-LOOP NOT = 0
+        CALL "JsonParse-ObjectKey" USING LK-JSON OFFSET LK-FAILURE PACKET-NAME
+        IF LK-FAILURE NOT = 0
+            GOBACK
+        END-IF
+        PERFORM ParsePacket
+        CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
+    END-PERFORM
+
+    CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
+
+    EXIT SECTION.
+
+ParsePacket SECTION.
+    INITIALIZE PACKET-REFERENCE
+    STRING FUNCTION TRIM(STATE-NAME) "/" FUNCTION TRIM(DIRECTION-NAME) "/" FUNCTION TRIM(PACKET-NAME) INTO PACKET-REFERENCE
+    MOVE -1 TO PACKET-ID
+
+    CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
+    IF LK-FAILURE NOT = 0
+        GOBACK
+    END-IF
+
+    PERFORM UNTIL EXIT-LOOP NOT = 0
+        CALL "JsonParse-ObjectKey" USING LK-JSON OFFSET LK-FAILURE OBJECT-KEY
+        IF LK-FAILURE NOT = 0
+            GOBACK
+        END-IF
+        EVALUATE OBJECT-KEY
+            WHEN "protocol_id"
+                CALL "JsonParse-Integer" USING LK-JSON OFFSET LK-FAILURE PACKET-ID
+            WHEN OTHER
+                CALL "JsonParse-SkipValue" USING LK-JSON OFFSET LK-FAILURE
+        END-EVALUATE
+        IF LK-FAILURE NOT = 0
+            GOBACK
+        END-IF
+        CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
+    END-PERFORM
+
+    CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
+
+    IF PACKET-ID = -1
+        DISPLAY "Missing protocol_id for packet '" FUNCTION TRIM(PACKET-REFERENCE) "'"
+        MOVE 1 TO LK-FAILURE
+        GOBACK
+    END-IF
+
+    ADD 1 TO PACKET-ID-COUNT
+    MOVE PACKET-REFERENCE TO PACKET-ID-REFERENCE(PACKET-ID-COUNT)
+    MOVE PACKET-ID TO PACKET-ID-NUMBER(PACKET-ID-COUNT)
+
+    MOVE PACKET-NAME TO PACKET-REF-NAME(STATE-ID + 1, DIRECTION-ID + 1, PACKET-ID + 1)
+
+    EXIT SECTION.
+
+END PROGRAM Packets-Parse.
+
+*> --- Packets-GetId ---
+*> Look up the numeric ID of a packet by its string reference (e.g. "play/clientbound/minecraft:block_changed_ack").
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Packets-GetId.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-PACKETS.
+    01 PACKET-INDEX             BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 PACKET-REFERENCE         PIC X ANY LENGTH.
+    01 PACKET-ID                BINARY-LONG.
+
+PROCEDURE DIVISION USING PACKET-REFERENCE PACKET-ID.
+    PERFORM VARYING PACKET-INDEX FROM 1 BY 1 UNTIL PACKET-INDEX > PACKET-ID-COUNT
+        IF PACKET-REFERENCE = PACKET-ID-REFERENCE(PACKET-INDEX)
+            MOVE PACKET-ID-NUMBER(PACKET-INDEX) TO PACKET-ID
+            GOBACK
+        END-IF
+    END-PERFORM
+    MOVE -1 TO PACKET-ID
+    GOBACK.
+
+END PROGRAM Packets-GetId.
+
+*> --- Packets-GetName ---
+*> Look up the name of a packet by its client state, direction (serverbound/clientbound), and numeric ID.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Packets-GetReference.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-PACKETS.
+    COPY DD-CLIENT-STATES.
+    COPY DD-PACKET-DIRECTIONS.
+LINKAGE SECTION.
+    01 CLIENT-STATE             BINARY-LONG UNSIGNED.   *> from DD-CLIENT-STATES
+    01 PACKET-DIRECTION         BINARY-LONG UNSIGNED.   *> from DD-PACKET-DIRECTIONS
+    01 PACKET-ID                BINARY-LONG.
+    01 PACKET-NAME              PIC X ANY LENGTH.
+
+PROCEDURE DIVISION USING CLIENT-STATE PACKET-DIRECTION PACKET-ID PACKET-NAME.
+    EVALUATE TRUE
+        WHEN CLIENT-STATE < 0 OR CLIENT-STATE > CLIENT-STATE-PLAY
+            DISPLAY "Error: Packets-GetReference: Invalid client state " CLIENT-STATE
+            MOVE SPACES TO PACKET-NAME
+
+        WHEN PACKET-DIRECTION NOT = PACKET-DIRECTION-SERVERBOUND AND PACKET-DIRECTION NOT = PACKET-DIRECTION-CLIENTBOUND
+            DISPLAY "Error: Packets-GetReference: Invalid packet direction " PACKET-DIRECTION
+            MOVE SPACES TO PACKET-NAME
+
+        WHEN PACKET-ID < 0 OR PACKET-ID >= PACKET-REF-ENTRY-LENGTH
+            DISPLAY "Error: Packets-GetReference: Invalid packet ID " PACKET-ID
+            MOVE SPACES TO PACKET-NAME
+
+        WHEN OTHER
+            MOVE PACKET-REF-NAME(CLIENT-STATE + 1, PACKET-DIRECTION + 1, PACKET-ID + 1) TO PACKET-NAME
+    END-EVALUATE
+
+    GOBACK.
+
+END PROGRAM Packets-GetReference.
+
 *> --- SendPacket ---
 *> Send a raw packet to the client.
 IDENTIFICATION DIVISION.

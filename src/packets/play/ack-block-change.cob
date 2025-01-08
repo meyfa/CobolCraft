@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-AckBlockChange.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'05'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:block_changed_ack".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(8).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -13,6 +13,8 @@ LINKAGE SECTION.
     01 LK-SEQUENCE-ID   BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-SEQUENCE-ID.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> sequence ID

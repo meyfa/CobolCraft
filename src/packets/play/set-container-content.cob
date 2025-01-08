@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-SetContainerContent.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'13'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:container_set_content".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(64000).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -19,6 +19,8 @@ LINKAGE SECTION.
             COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK==.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-INVENTORY.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> window ID (0 = player inventory)

@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-BlockEntityData.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'07'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:block_entity_data".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(64000).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -19,6 +19,8 @@ LINKAGE SECTION.
     01 LK-NBT-LENGTH    BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-TYPE LK-NBT-DATA LK-NBT-LENGTH.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> location

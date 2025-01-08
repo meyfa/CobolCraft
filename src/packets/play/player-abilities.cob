@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-PlayerAbilities.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'3A'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:player_abilities".
     01 FLYING-SPEED     FLOAT-SHORT             VALUE 0.05.
     01 FIELD-OF-VIEW    FLOAT-SHORT             VALUE 0.1.
     *> buffer used to store the packet data
@@ -18,6 +18,8 @@ LINKAGE SECTION.
     01 LK-FLYING        BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-GAMEMODE LK-FLYING.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> flags bitmask: 0x01 invulnerable, 0x02 flying, 0x04 allow flying, 0x08 creative mode (instant break)

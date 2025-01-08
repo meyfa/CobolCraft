@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-LoginSuccess.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'02'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "login/clientbound/minecraft:login_finished".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(64000).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -15,6 +15,8 @@ LINKAGE SECTION.
     01 LK-USERNAME      PIC X ANY LENGTH.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-PLAYER-UUID LK-USERNAME.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> player UUID

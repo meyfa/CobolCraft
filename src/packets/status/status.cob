@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-Status.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'00'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "status/clientbound/minecraft:status_response".
     01 SERVER-VERSION   PIC X(6)                VALUE "1.21.4".
     01 SERVER-PROTOCOL  BINARY-LONG             VALUE 769.
     *> buffer used to store the JSON string
@@ -24,6 +24,8 @@ LINKAGE SECTION.
     01 LK-PLAYER-COUNT  BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-MOTD LK-PLAYER-LIMIT LK-PLAYER-COUNT.
+    COPY PROC-PACKET-INIT.
+
     *> Encode the JSON payload
     MOVE 1 TO JSONPOS
 

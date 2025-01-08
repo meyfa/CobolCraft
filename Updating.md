@@ -31,8 +31,6 @@ It is intended as a checklist for project maintainers.
 * Update the version numbers in the "status" and "known packs" packets. "1.xy.0" is written as "1.xy".
     Set the data item length accordingly.
 * Update the protocol version in the "status" packet.
-* Update all packet IDs (serverbound and clientbound) according to the wiki:
-    https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol
 * Manually check the structure of every packet against the wiki. Make sure to explicitly check data types, since they
     change frequently (such as VarInt becoming int, or angles becoming floats).
 * Take a look at the version's changelog to find out about any other critical changes.

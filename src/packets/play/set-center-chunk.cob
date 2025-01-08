@@ -3,7 +3,7 @@ PROGRAM-ID. SendPacket-SetCenterChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 PACKET-ID        BINARY-LONG             VALUE H'58'.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:set_chunk_cache_center".
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(16).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -14,6 +14,8 @@ LINKAGE SECTION.
     01 LK-CHUNK-Z       BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK-X LK-CHUNK-Z.
+    COPY PROC-PACKET-INIT.
+
     MOVE 1 TO PAYLOADPOS
 
     *> chunk coordinates
