@@ -7,19 +7,6 @@ It is intended as a checklist for project maintainers.
 
 * Update the version number in `README.md`.
 
-## Blobs
-
-* Download and run the official server. Use the following settings in `server.properties`:
-    - `online-mode=false` (to disable encryption)
-    - `network-compression-threshold=-1` (to disable packet compression)
-* Look up the packet ID of the "update tags" packet. We will assume it is `0x0D`.
-* Start Wireshark on the loopback interface, and connect to the server.
-* Disconnect immediately and stop the capture.
-* Look for the packet with the ID you found earlier. Use a filter such as: `tcp.port == 25565 && data[3] == 0x0D`.
-    Note: The offset (`3`) may need to be adjusted if the packet has a shorter or longer length prefix.
-* Copy just the packet data as "hex stream" and save it to a file, e.g., `capture.txt`.
-* Run `fold -b -w 64 capture.txt >blobs/update_tags_packets.txt`.
-
 ## Build System
 
 * Update the download URL and file name in `Makefile`.

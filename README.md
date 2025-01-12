@@ -133,11 +133,6 @@ precise timing, or process signal handling, and is located in the `cpp/` directo
 
 All sources (COBOL and C++) are compiled into a single `cobolcraft` binary.
 
-### Packet Blobs
-
-CobolCraft makes use of network data captured from an instance of the official server application via Wireshark.
-This data is located in the `blobs/` directory and is decoded at run-time.
-
 ### Data Extraction
 
 The official Minecraft (Java Edition) server and client applications contain large amounts of data such as:
@@ -145,11 +140,12 @@ The official Minecraft (Java Edition) server and client applications contain lar
 * block and item types
 * entity types
 * biomes
+* protocol IDs for packets
+* tags (e.g., which blocks are mineable with a pickaxe)
 
 Fortunately, the freely available server .jar offers a command-line interface for extracting this data as JSON.
 The CobolCraft `Makefile` has a target that downloads the .jar and extracts the JSON data from it.
-The JSON files are evaluated at runtime using a custom-built generic JSON parser, such that CobolCraft can
-inter-operate successfully with the Minecraft client without distributing potentially copyrighted material.
+The JSON files are evaluated at runtime using a custom-built generic JSON parser.
 
 ## Legal Notices
 

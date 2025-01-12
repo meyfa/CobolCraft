@@ -1,52 +1,56 @@
 IDENTIFICATION DIVISION.
 PROGRAM-ID. SendPacket-UpdateTags.
 
-ENVIRONMENT DIVISION.
-INPUT-OUTPUT SECTION.
-FILE-CONTROL.
-SELECT FD-PACKET-BLOB ASSIGN TO "blobs/update_tags_packets.txt"
-    ORGANIZATION IS LINE SEQUENTIAL.
 
 DATA DIVISION.
-FILE SECTION.
-    FD FD-PACKET-BLOB.
-        01 PACKET-BLOB-REC      PIC X(64).
 WORKING-STORAGE SECTION.
-    COPY DD-CLIENTS.
-    01 HNDL                     PIC X(4).
-    01 ERRNO                    PIC 9(3).
-    01 HEX                      PIC X(64).
-    01 HEXLEN                   BINARY-LONG UNSIGNED.
-    01 BUFFER                   PIC X(32).
-    01 BUFFERLEN                BINARY-LONG UNSIGNED.
+    COPY DD-PACKET REPLACING IDENTIFIER BY "configuration/clientbound/minecraft:update_tags".
+    COPY DD-TAGS.
+    *> buffer used to store the packet data
+    01 PAYLOAD                  PIC X(64000).
+    01 PAYLOADPOS               BINARY-LONG UNSIGNED.
+    01 PAYLOADLEN               BINARY-LONG UNSIGNED.
+    *> temporary data
+    01 INT32                    BINARY-LONG.
+    01 REGISTRY-INDEX           BINARY-LONG UNSIGNED.
+    01 TAG-INDEX                BINARY-LONG UNSIGNED.
+    01 ENTRY-INDEX              BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-CLIENT                BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT.
-    *> Don't send packet if the client is already in an error state. It will be disconnected on the next tick.
-    IF CLIENT-ERRNO-SEND(LK-CLIENT) NOT = 0
-        EXIT PROGRAM
+    COPY PROC-PACKET-INIT.
+
+    *> We assume that tags never change, so the packet data can be computed once and reused for every client.
+    IF PAYLOADLEN = 0
+        MOVE 1 TO PAYLOADPOS
+
+        *> registries
+        CALL "Encode-VarInt" USING TAGS-REGISTRY-COUNT PAYLOAD PAYLOADPOS
+        PERFORM VARYING REGISTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-INDEX > TAGS-REGISTRY-COUNT
+            *> registry identifier
+            MOVE FUNCTION STORED-CHAR-LENGTH(TAGS-REGISTRY-NAME(REGISTRY-INDEX)) TO INT32
+            CALL "Encode-String" USING TAGS-REGISTRY-NAME(REGISTRY-INDEX) INT32 PAYLOAD PAYLOADPOS
+
+            *> tags
+            CALL "Encode-VarInt" USING TAGS-REGISTRY-LENGTH(REGISTRY-INDEX) PAYLOAD PAYLOADPOS
+            PERFORM VARYING TAG-INDEX FROM 1 BY 1 UNTIL TAG-INDEX > TAGS-REGISTRY-LENGTH(REGISTRY-INDEX)
+                *> tag identifier
+                MOVE FUNCTION STORED-CHAR-LENGTH(TAGS-REGISTRY-TAG-NAME(REGISTRY-INDEX, TAG-INDEX)) TO INT32
+                CALL "Encode-String" USING TAGS-REGISTRY-TAG-NAME(REGISTRY-INDEX, TAG-INDEX) INT32 PAYLOAD PAYLOADPOS
+
+                *> entries
+                CALL "Encode-VarInt" USING TAGS-REGISTRY-TAG-LENGTH(REGISTRY-INDEX, TAG-INDEX) PAYLOAD PAYLOADPOS
+                PERFORM VARYING ENTRY-INDEX FROM 1 BY 1 UNTIL ENTRY-INDEX > TAGS-REGISTRY-TAG-LENGTH(REGISTRY-INDEX, TAG-INDEX)
+                    CALL "Encode-VarInt" USING TAGS-REGISTRY-TAG-ENTRY(REGISTRY-INDEX, TAG-INDEX, ENTRY-INDEX) PAYLOAD PAYLOADPOS
+                END-PERFORM
+            END-PERFORM
+        END-PERFORM
+
+        COMPUTE PAYLOADLEN = PAYLOADPOS - 1
     END-IF
-    MOVE CLIENT-HNDL(LK-CLIENT) TO HNDL
 
-    OPEN INPUT FD-PACKET-BLOB
-    MOVE 64 TO HEXLEN
-    PERFORM UNTIL HEXLEN = 0
-        MOVE SPACES TO HEX(1:64)
-        READ FD-PACKET-BLOB INTO HEX
-            AT END
-                MOVE 0 TO HEXLEN
-            NOT AT END
-                CALL "DecodeHexString" USING HEX HEXLEN BUFFER BUFFERLEN
-                CALL "SocketWrite" USING HNDL BUFFERLEN BUFFER GIVING ERRNO
-                IF ERRNO NOT = 0
-                    MOVE 0 TO HEXLEN
-                    MOVE ERRNO TO CLIENT-ERRNO-SEND(LK-CLIENT)
-                END-IF
-        END-READ
-    END-PERFORM
-    CLOSE FD-PACKET-BLOB
-
+    CALL "SendPacket" USING LK-CLIENT PACKET-ID PAYLOAD PAYLOADLEN
     GOBACK.
 
 END PROGRAM SendPacket-UpdateTags.

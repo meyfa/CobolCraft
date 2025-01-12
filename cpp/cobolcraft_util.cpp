@@ -4,6 +4,7 @@
 #include <csignal>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <zlib.h>
 #include <set>
@@ -108,6 +109,24 @@ EXTERN_DECL int LeadingZeros32(unsigned long *value, unsigned long *count)
         return 0;
     }
     *count = __builtin_clz(*value);
+    return 0;
+}
+
+EXTERN_DECL int IsDirectory(char *path, unsigned long *path_length, unsigned long *is_directory)
+{
+    static char buffer[65536];
+    if (!path || !path_length || *path_length == 0 || *path_length >= sizeof(buffer) || !is_directory)
+    {
+        return ERRNO_PARAMS;
+    }
+    memcpy(buffer, path, *path_length);
+    buffer[*path_length] = '\0';
+    struct stat statbuf;
+    if (stat(buffer, &statbuf) != 0)
+    {
+        return ERRNO_SYSTEM;
+    }
+    *is_directory = S_ISDIR(statbuf.st_mode);
     return 0;
 }
 
