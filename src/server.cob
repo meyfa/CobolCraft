@@ -25,6 +25,7 @@ WORKING-STORAGE SECTION.
     01 C-MINECRAFT-ENCHANTMENT      PIC X(50)               VALUE "minecraft:enchantment".
     01 C-MINECRAFT-JUKEBOX_SONG     PIC X(50)               VALUE "minecraft:jukebox_song".
     01 C-MINECRAFT-ITEM             PIC X(50)               VALUE "minecraft:item".
+    01 C-MINECRAFT-INSTRUMENT       PIC X(50)               VALUE "minecraft:instrument".
     01 C-COLOR-YELLOW               PIC X(16)               VALUE "yellow".
     *> Configuration
     COPY DD-SERVER-PROPERTIES.
@@ -149,6 +150,7 @@ LoadRegistries.
     CALL "Registries-Create" USING C-MINECRAFT-BANNER_PATTERN TEMP-INT8
     CALL "Registries-Create" USING C-MINECRAFT-ENCHANTMENT TEMP-INT8
     CALL "Registries-Create" USING C-MINECRAFT-JUKEBOX_SONG TEMP-INT8
+    CALL "Registries-Create" USING C-MINECRAFT-INSTRUMENT TEMP-INT8
     .
 
 LoadBlocks.
