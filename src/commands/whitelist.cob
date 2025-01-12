@@ -143,13 +143,13 @@ PROCEDURE DIVISION.
 
         GOBACK.
 
-    HandleDiskFailure SECTION.
+    HandleDiskFailure.
         IF IO-FAILURE NOT = 0
             MOVE "Input/output error" TO BUFFER
             CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
             GOBACK
         END-IF
-        EXIT SECTION.
+        EXIT PARAGRAPH.
 
     END PROGRAM Callback-Execute.
 
