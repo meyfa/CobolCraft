@@ -10,3 +10,7 @@
 
 *> The number of client slots available.
 01 MAX-CLIENTS                  BINARY-LONG UNSIGNED EXTERNAL.
+
+*> The server sends (2 * VIEW-DISTANCE + 1) * (2 * VIEW-DISTANCE + 1) chunks around the player.
+*> TODO: Improve performance so this can be increased to a reasonable value.
+01 VIEW-DISTANCE                BINARY-LONG             VALUE 3.
