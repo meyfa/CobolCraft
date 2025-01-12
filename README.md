@@ -21,6 +21,7 @@ The following features are already working:
 - [X] commands (in-game and via an interactive console)
 - [X] configuration via server.properties
 - [X] whitelist (persistent; stored in whitelist.json)
+- [X] extremely basic block/player collision
 
 Note that blocks with multiple states, orientations, or interactive blocks require large amounts of specialized code
 to make them behave properly, which is way beyond the scope of this project.

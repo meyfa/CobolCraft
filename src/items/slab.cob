@@ -47,6 +47,9 @@ PROCEDURE DIVISION.
         01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
         01 BLOCK-ID                 BINARY-LONG.
         01 CB-PTR-REPLACEABLE       PROGRAM-POINTER.
+        *> hitbox for the block to place
+        COPY DD-AABB REPLACING LEADING ==PREFIX== BY ==PLACE==.
+        01 IS-BOTTOM                BINARY-CHAR UNSIGNED.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
@@ -62,13 +65,17 @@ PROCEDURE DIVISION.
         EVALUATE FACING
             WHEN "up"
                 MOVE "bottom" TO SLAB-PROPERTY-VALUE(1)
+                MOVE 1 TO IS-BOTTOM
             WHEN "down"
                 MOVE "top" TO SLAB-PROPERTY-VALUE(1)
+                MOVE 0 TO IS-BOTTOM
             WHEN OTHER
                 IF LK-CURSOR-Y > 0.5
                     MOVE "top" TO SLAB-PROPERTY-VALUE(1)
+                    MOVE 0 TO IS-BOTTOM
                 ELSE
                     MOVE "bottom" TO SLAB-PROPERTY-VALUE(1)
+                    MOVE 1 TO IS-BOTTOM
                 END-IF
         END-EVALUATE
 
@@ -88,9 +95,11 @@ PROCEDURE DIVISION.
             EVALUATE FACING ALSO CURRENT-TYPE
                 WHEN "up" ALSO "bottom"
                     MOVE "double" TO SLAB-PROPERTY-VALUE(1)
+                    MOVE 0 TO IS-BOTTOM
                     PERFORM PlaceBlock
                 WHEN "down" ALSO "top"
                     MOVE "double" TO SLAB-PROPERTY-VALUE(1)
+                    MOVE 1 TO IS-BOTTOM
                     PERFORM PlaceBlock
             END-EVALUATE
         END-IF
@@ -113,9 +122,14 @@ PROCEDURE DIVISION.
         IF CURRENT-NAME = SLAB-NAME
             CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION C-TYPE CURRENT-TYPE
             *> Counter-intuitively, Minecraft does not care about the slab type (top/bottom) here.
-            IF CURRENT-TYPE = "double"
-                GOBACK
-            END-IF
+            EVALUATE CURRENT-TYPE
+                WHEN "double"
+                    GOBACK
+                WHEN "top"
+                    MOVE 1 TO IS-BOTTOM
+                WHEN "bottom"
+                    MOVE 0 TO IS-BOTTOM
+            END-EVALUATE
             MOVE "double" TO SLAB-PROPERTY-VALUE(1)
             PERFORM PlaceBlock
         END-IF
@@ -124,6 +138,25 @@ PROCEDURE DIVISION.
         GOBACK.
 
     PlaceBlock.
+        *> Check for player collisison
+        *> TODO make this more generic
+        MOVE BLOCK-X TO PLACE-AABB-MIN-X
+        MOVE BLOCK-Z TO PLACE-AABB-MIN-Z
+        COMPUTE PLACE-AABB-MAX-X = BLOCK-X + 1
+        COMPUTE PLACE-AABB-MAX-Z = BLOCK-Z + 1
+        EVALUATE IS-BOTTOM
+            WHEN 0
+                COMPUTE PLACE-AABB-MIN-Y = BLOCK-Y + 0.5
+                COMPUTE PLACE-AABB-MAX-Y = BLOCK-Y + 1.0
+            WHEN 1
+                MOVE BLOCK-Y TO PLACE-AABB-MIN-Y
+                COMPUTE PLACE-AABB-MAX-Y = BLOCK-Y + 0.5
+        END-EVALUATE
+        CALL "CheckPlayerCollision" USING PLACE-AABB CHECK-RESULT
+        IF CHECK-RESULT NOT = 0
+            GOBACK
+        END-IF
+
         CALL "Blocks-Get-StateId" USING SLAB-DESCRIPTION BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
         GOBACK.
