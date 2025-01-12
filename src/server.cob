@@ -29,9 +29,6 @@ WORKING-STORAGE SECTION.
     01 C-COLOR-YELLOW               PIC X(16)               VALUE "yellow".
     *> Configuration
     COPY DD-SERVER-PROPERTIES.
-    *> The server sends (2 * VIEW-DISTANCE + 1) * (2 * VIEW-DISTANCE + 1) chunks around the player.
-    *> TODO: Improve performance so this can be increased to a reasonable value.
-    01 VIEW-DISTANCE                BINARY-LONG             VALUE 3.
     *> The amount of microseconds between autosaves, and the last autosave timestamp.
     01 AUTOSAVE-INTERVAL            BINARY-LONG-LONG        VALUE 300000000.
     01 LAST-AUTOSAVE                BINARY-LONG-LONG.
@@ -96,15 +93,6 @@ WORKING-STORAGE SECTION.
         02 DEBUG-SAMPLE-MAIN        BINARY-LONG-LONG.
         02 DEBUG-SAMPLE-TASKS       BINARY-LONG-LONG.
         02 DEBUG-SAMPLE-IDLE        BINARY-LONG-LONG.
-    *> Variables for working with chunks
-    01 CHUNK-X                      BINARY-LONG.
-    01 CHUNK-Z                      BINARY-LONG.
-    01 CHUNK-START-X                BINARY-LONG.
-    01 CHUNK-END-X                  BINARY-LONG.
-    01 CHUNK-START-Z                BINARY-LONG.
-    01 CHUNK-END-Z                  BINARY-LONG.
-    01 PREV-CENTER-CHUNK-X          BINARY-LONG.
-    01 PREV-CENTER-CHUNK-Z          BINARY-LONG.
     *> Variables used for datapack loading
     01 VANILLA-DATAPACK-NAME        PIC X(50)               VALUE "minecraft".
     01 REGISTRY-COUNT               BINARY-LONG UNSIGNED.
@@ -119,8 +107,6 @@ WORKING-STORAGE SECTION.
     01 BLOCK-MINIMUM-STATE-ID       BINARY-LONG.
     01 BLOCK-MAXIMUM-STATE-ID       BINARY-LONG.
     01 BLOCK-STATE-ID               BINARY-LONG.
-    *> TODO: remove need to access world data directly in this file
-    COPY DD-WORLD.
 
 PROCEDURE DIVISION.
 LoadRegistries.
@@ -408,16 +394,7 @@ ServerLoop.
         END-PERFORM
 
         *> update chunks around players
-        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-            IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                PERFORM SendChunks
-            END-IF
-        END-PERFORM
-        CALL "World-UnloadChunks" USING VIEW-DISTANCE TEMP-INT8
-        IF TEMP-INT8 NOT = 0
-            DISPLAY "Failure unloading chunks"
-            STOP RUN RETURNING 1
-        END-IF
+        CALL "ProcessClientChunks"
 
         *> Send debug sample for the past tick
         PERFORM SendDebugSamples
@@ -536,124 +513,6 @@ KeepAlive SECTION.
         MOVE CURRENT-TIME TO KEEPALIVE-SENT(CLIENT-ID)
         CALL "SendPacket-KeepAlive" USING CLIENT-ID KEEPALIVE-SENT(CLIENT-ID)
     END-IF
-
-    EXIT SECTION.
-
-SendChunks SECTION.
-    *> send up to 1 chunk to the client per tick
-    PERFORM ProcessChunkQueue
-    IF CLIENT-PRESENT(CLIENT-ID) = 0
-        *> The client disconnected while processing the queue
-        EXIT SECTION
-    END-IF
-
-    *> compute the new center chunk position
-    MOVE CENTER-CHUNK-X(CLIENT-ID) TO PREV-CENTER-CHUNK-X
-    MOVE CENTER-CHUNK-Z(CLIENT-ID) TO PREV-CENTER-CHUNK-Z
-    DIVIDE PLAYER-X(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-X(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
-    DIVIDE PLAYER-Z(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-Z(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
-
-    IF CENTER-CHUNK-X(CLIENT-ID) NOT = PREV-CENTER-CHUNK-X OR CENTER-CHUNK-Z(CLIENT-ID) NOT = PREV-CENTER-CHUNK-Z
-        *> send center chunk position
-        CALL "SendPacket-SetCenterChunk" USING CLIENT-ID CENTER-CHUNK-X(CLIENT-ID) CENTER-CHUNK-Z(CLIENT-ID)
-
-        *> compute chunk area that came into view
-        *> TODO: make this code look better
-
-        *> first: parallel to the X axis
-        COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - VIEW-DISTANCE
-        COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + VIEW-DISTANCE
-        IF CENTER-CHUNK-Z(CLIENT-ID) < PREV-CENTER-CHUNK-Z
-            COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - VIEW-DISTANCE
-            COMPUTE CHUNK-END-Z = FUNCTION MIN(PREV-CENTER-CHUNK-Z - VIEW-DISTANCE, CENTER-CHUNK-Z(CLIENT-ID) + VIEW-DISTANCE)
-        ELSE
-            COMPUTE CHUNK-START-Z = FUNCTION MAX(PREV-CENTER-CHUNK-Z + VIEW-DISTANCE, CENTER-CHUNK-Z(CLIENT-ID) - VIEW-DISTANCE)
-            COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + VIEW-DISTANCE
-        END-IF
-        PERFORM VARYING CHUNK-X FROM CHUNK-START-X BY 1 UNTIL CHUNK-X > CHUNK-END-X
-            PERFORM VARYING CHUNK-Z FROM CHUNK-START-Z BY 1 UNTIL CHUNK-Z > CHUNK-END-Z
-                PERFORM EnqueueChunk
-            END-PERFORM
-        END-PERFORM
-
-        *> second: parallel to the Z axis
-        COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - VIEW-DISTANCE
-        COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + VIEW-DISTANCE
-        IF CENTER-CHUNK-X(CLIENT-ID) < PREV-CENTER-CHUNK-X
-            COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - VIEW-DISTANCE
-            COMPUTE CHUNK-END-X = FUNCTION MIN(PREV-CENTER-CHUNK-X - VIEW-DISTANCE, CENTER-CHUNK-X(CLIENT-ID) + VIEW-DISTANCE)
-        ELSE
-            COMPUTE CHUNK-START-X = FUNCTION MAX(PREV-CENTER-CHUNK-X + VIEW-DISTANCE, CENTER-CHUNK-X(CLIENT-ID) - VIEW-DISTANCE)
-            COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + VIEW-DISTANCE
-        END-IF
-        PERFORM VARYING CHUNK-X FROM CHUNK-START-X BY 1 UNTIL CHUNK-X > CHUNK-END-X
-            PERFORM VARYING CHUNK-Z FROM CHUNK-START-Z BY 1 UNTIL CHUNK-Z > CHUNK-END-Z
-                PERFORM EnqueueChunk
-            END-PERFORM
-        END-PERFORM
-    END-IF
-
-    EXIT SECTION.
-
-EnqueueChunk SECTION.
-    *> Overflow would occur if (end + 1) % length == begin
-    COMPUTE TEMP-INT32 = CHUNK-QUEUE-END(CLIENT-ID) + 1
-    COMPUTE TEMP-INT32 = FUNCTION MOD(TEMP-INT32, CHUNK-QUEUE-LENGTH)
-    IF TEMP-INT32 = CHUNK-QUEUE-BEGIN(CLIENT-ID)
-        DISPLAY "[client=" CLIENT-ID "] Chunk queue overflow!"
-        EXIT SECTION
-    END-IF
-
-    *> Check for duplicates
-    MOVE CHUNK-QUEUE-BEGIN(CLIENT-ID) TO TEMP-INT32
-    PERFORM UNTIL TEMP-INT32 = CHUNK-QUEUE-END(CLIENT-ID)
-        IF CHUNK-QUEUE-X(CLIENT-ID, TEMP-INT32 + 1) = CHUNK-X AND CHUNK-QUEUE-Z(CLIENT-ID, TEMP-INT32 + 1) = CHUNK-Z
-            EXIT SECTION
-        END-IF
-        ADD 1 TO TEMP-INT32
-        IF TEMP-INT32 >= CHUNK-QUEUE-LENGTH
-            MOVE 0 TO TEMP-INT32
-        END-IF
-    END-PERFORM
-
-    *> Insert the chunk at the current end position
-    MOVE CHUNK-X TO CHUNK-QUEUE-X(CLIENT-ID, CHUNK-QUEUE-END(CLIENT-ID) + 1)
-    MOVE CHUNK-Z TO CHUNK-QUEUE-Z(CLIENT-ID, CHUNK-QUEUE-END(CLIENT-ID) + 1)
-
-    *> Move the end pointer one beyond the new item
-    ADD 1 TO CHUNK-QUEUE-END(CLIENT-ID)
-    IF CHUNK-QUEUE-END(CLIENT-ID) >= CHUNK-QUEUE-LENGTH
-        MOVE 0 TO CHUNK-QUEUE-END(CLIENT-ID)
-    END-IF
-
-    EXIT SECTION.
-
-ProcessChunkQueue SECTION.
-    *> Determine the client's view area to avoid sending chunks outside of it
-    COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - VIEW-DISTANCE
-    COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + VIEW-DISTANCE
-    COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - VIEW-DISTANCE
-    COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + VIEW-DISTANCE
-
-    *> Since end points one beyond the last item, the queue is empty once begin = end.
-    PERFORM UNTIL CHUNK-QUEUE-BEGIN(CLIENT-ID) = CHUNK-QUEUE-END(CLIENT-ID)
-        *> Dequeue the next chunk
-        MOVE CHUNK-QUEUE-X(CLIENT-ID, CHUNK-QUEUE-BEGIN(CLIENT-ID) + 1) TO CHUNK-X
-        MOVE CHUNK-QUEUE-Z(CLIENT-ID, CHUNK-QUEUE-BEGIN(CLIENT-ID) + 1) TO CHUNK-Z
-        ADD 1 TO CHUNK-QUEUE-BEGIN(CLIENT-ID)
-        IF CHUNK-QUEUE-BEGIN(CLIENT-ID) >= CHUNK-QUEUE-LENGTH
-            MOVE 0 TO CHUNK-QUEUE-BEGIN(CLIENT-ID)
-        END-IF
-        *> Check if the chunk is within the client's view area
-        IF CHUNK-X >= CHUNK-START-X AND CHUNK-X <= CHUNK-END-X AND CHUNK-Z >= CHUNK-START-Z AND CHUNK-Z <= CHUNK-END-Z
-            CALL "World-EnsureChunk" USING CHUNK-X CHUNK-Z TEMP-INT32
-            IF TEMP-INT32 > 0
-                CALL "SendPacket-ChunkData" USING CLIENT-ID WORLD-CHUNK(TEMP-INT32)
-            END-IF
-            *> Stop once a chunk has been sent
-            EXIT PERFORM
-        END-IF
-    END-PERFORM
 
     EXIT SECTION.
 
@@ -1275,40 +1134,10 @@ SpawnPlayer SECTION.
     *> send selected hotbar slot
     CALL "SendPacket-SetHeldItem" USING CLIENT-ID PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
 
-    *> send "Set Center Chunk"
-    DIVIDE PLAYER-X(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-X(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
-    DIVIDE PLAYER-Z(CLIENT-PLAYER(CLIENT-ID)) BY 16 GIVING CENTER-CHUNK-Z(CLIENT-ID) ROUNDED MODE IS TOWARD-LESSER
-    CALL "SendPacket-SetCenterChunk" USING CLIENT-ID CENTER-CHUNK-X(CLIENT-ID) CENTER-CHUNK-Z(CLIENT-ID)
-
-    *> enqueue 3x3 chunks around the player first
-    MOVE 0 TO CHUNK-QUEUE-BEGIN(CLIENT-ID)
-    MOVE 0 TO CHUNK-QUEUE-END(CLIENT-ID)
-    COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - 1
-    COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + 1
-    COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - 1
-    COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + 1
-    PERFORM VARYING CHUNK-X FROM CHUNK-START-X BY 1 UNTIL CHUNK-X > CHUNK-END-X
-        PERFORM VARYING CHUNK-Z FROM CHUNK-START-Z BY 1 UNTIL CHUNK-Z > CHUNK-END-Z
-            PERFORM EnqueueChunk
-        END-PERFORM
-    END-PERFORM
-
-    *> now enqueue all chunks in the view distance
-    COMPUTE CHUNK-START-X = CENTER-CHUNK-X(CLIENT-ID) - VIEW-DISTANCE
-    COMPUTE CHUNK-END-X = CENTER-CHUNK-X(CLIENT-ID) + VIEW-DISTANCE
-    COMPUTE CHUNK-START-Z = CENTER-CHUNK-Z(CLIENT-ID) - VIEW-DISTANCE
-    COMPUTE CHUNK-END-Z = CENTER-CHUNK-Z(CLIENT-ID) + VIEW-DISTANCE
-    PERFORM VARYING CHUNK-X FROM CHUNK-START-X BY 1 UNTIL CHUNK-X > CHUNK-END-X
-        PERFORM VARYING CHUNK-Z FROM CHUNK-START-Z BY 1 UNTIL CHUNK-Z > CHUNK-END-Z
-            *> Note: EnqueueChunk will automatically skip duplicates
-            PERFORM EnqueueChunk
-        END-PERFORM
-    END-PERFORM
-
-    *> send the 3x3 chunks around the player immediately, the rest in the next ticks
-    PERFORM 9 TIMES
-        PERFORM ProcessChunkQueue
-    END-PERFORM
+    *> enqueue surrounding chunks and send 3x3 chunks immediately around the player immediately
+    CALL "SetCenterChunk" USING CLIENT-ID
+    CALL "EnqueueSurroundingChunks" USING CLIENT-ID
+    CALL "SendPreChunks" USING CLIENT-ID
 
     *> send the player list (including the new player) to the new player, and spawn player entities
     PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
