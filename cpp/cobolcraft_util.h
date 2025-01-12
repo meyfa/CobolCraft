@@ -34,6 +34,11 @@ EXTERN_DECL int ReadConsole(char *buffer, unsigned long *count);
 EXTERN_DECL int LeadingZeros32(unsigned long *value, unsigned long *count);
 
 /**
+ * Check if the given path is a directory.
+ */
+EXTERN_DECL int IsDirectory(char *path, unsigned long *path_length, unsigned long *is_directory);
+
+/**
  * Open a directory for reading (e.g., to obtain a directory listing). The first parameter is the directory path; the
  * second parameter is its length; the third parameter is the resulting directory handle (as a 64-bit integer).
  */

@@ -19,7 +19,6 @@ RUN make data
 COPY main.cob .
 COPY src ./src
 COPY cpp ./cpp
-COPY blobs ./blobs
 RUN make -j $(nproc) GCVERSION=32
 
 # --- DEPLOY STAGE ---
@@ -33,7 +32,6 @@ RUN apt-get update && \
 
 # Copy the build results
 COPY --from=build /app/cobolcraft .
-COPY --from=build /app/blobs ./blobs
 COPY --from=build /app/data/generated/reports/*.json ./data/generated/reports/
 COPY --from=build /app/data/generated/data ./data/generated/data
 
