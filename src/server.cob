@@ -424,13 +424,13 @@ ServerLoop.
     END-PERFORM
     .
 
-GameLoop SECTION.
+GameLoop.
     *> Update the world age
     CALL "World-UpdateAge"
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-ConsoleInput SECTION.
+ConsoleInput.
     *> Read from the console (configured as non-blocking). Note that this will only return full lines.
     MOVE LENGTH OF BUFFER TO BYTE-COUNT
     CALL "ReadConsole" USING BUFFER BYTE-COUNT
@@ -439,13 +439,13 @@ ConsoleInput SECTION.
         MOVE 0 TO TEMP-INT32
         CALL "HandleCommand" USING TEMP-INT32 BUFFER BYTE-COUNT
     END-IF
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-NetworkRead SECTION.
+NetworkRead.
     CALL "SocketPoll" USING SERVER-HNDL TEMP-HNDL GIVING ERRNO
     IF ERRNO NOT = 0
         PERFORM HandleServerError
-        EXIT SECTION
+        EXIT PARAGRAPH
     END-IF
     *> Without anything to do, sleep up to 1ms to avoid busy-waiting
     IF TEMP-HNDL = X"00000000"
@@ -453,14 +453,14 @@ NetworkRead SECTION.
         ADD TEMP-INT64 TO TICK-SLEEP-DURATION
         COMPUTE TEMP-INT64 = TEMP-INT64 * NANOSECOND-SCALE
         CALL "CBL_GC_NANOSLEEP" USING TEMP-INT64
-        EXIT SECTION
+        EXIT PARAGRAPH
     END-IF
 
     *> Find an existing client to which the handle belongs
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-HNDL(CLIENT-ID) = TEMP-HNDL
             PERFORM ReceivePacket
-            EXIT SECTION
+            EXIT PARAGRAPH
         END-IF
     END-PERFORM
 
@@ -469,7 +469,7 @@ NetworkRead SECTION.
         IF CLIENT-PRESENT(CLIENT-ID) = 0
             PERFORM InsertClient
             PERFORM ReceivePacket
-            EXIT SECTION
+            EXIT PARAGRAPH
         END-IF
     END-PERFORM
 
@@ -480,9 +480,9 @@ NetworkRead SECTION.
         PERFORM HandleServerError
     END-IF
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-InsertClient SECTION.
+InsertClient.
     INITIALIZE CLIENT(CLIENT-ID)
 
     MOVE 1 TO CLIENT-PRESENT(CLIENT-ID)
@@ -491,9 +491,9 @@ InsertClient SECTION.
 
     ALLOCATE RECEIVE-BUFFER-LENGTH CHARACTERS RETURNING PACKET-BUFFER(CLIENT-ID)
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-KeepAlive SECTION.
+KeepAlive.
     *> Give the client some time for keepalive when the connection is established
     IF KEEPALIVE-RECV(CLIENT-ID) = 0
         MOVE CURRENT-TIME TO KEEPALIVE-RECV(CLIENT-ID)
@@ -504,7 +504,7 @@ KeepAlive SECTION.
     IF TEMP-INT64 >= KEEPALIVE-RECV-TIMEOUT
         DISPLAY "[client=" CLIENT-ID "] Timeout"
         PERFORM DisconnectClient
-        EXIT SECTION
+        EXIT PARAGRAPH
     END-IF
 
     *> Send keepalive packet every second, but only in play state
@@ -514,21 +514,21 @@ KeepAlive SECTION.
         CALL "SendPacket-KeepAlive" USING CLIENT-ID KEEPALIVE-SENT(CLIENT-ID)
     END-IF
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-SendDebugSamples SECTION.
+SendDebugSamples.
     COMPUTE TEMP-INT64 = TICK-STARTTIME - DEBUG-SUBSCRIPTION-VALIDITY
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-PRESENT(CLIENT-ID) NOT = 0 AND DEBUG-SUBSCRIBE-TIME(CLIENT-ID) > TEMP-INT64
             CALL "SendPacket-DebugSample" USING CLIENT-ID DEBUG-SAMPLE
         END-IF
     END-PERFORM
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-ReceivePacket SECTION.
+ReceivePacket.
     *> Ignore any attempts to receive data for clients that are not in a valid state
     IF CLIENT-STATE(CLIENT-ID) < 0
-        EXIT SECTION
+        EXIT PARAGRAPH
     END-IF
 
     *> Select the current client's buffer
@@ -540,11 +540,11 @@ ReceivePacket SECTION.
         CALL "SocketRead" USING CLIENT-HNDL(CLIENT-ID) BYTE-COUNT BUFFER GIVING ERRNO
         IF ERRNO NOT = 0
             PERFORM HandleClientError
-            EXIT SECTION
+            EXIT PARAGRAPH
         END-IF
         IF BYTE-COUNT = 0
             *> No data read, try again later
-            EXIT SECTION
+            EXIT PARAGRAPH
         END-IF
 
         ADD 1 TO PACKET-BUFFERLEN(CLIENT-ID)
@@ -557,7 +557,7 @@ ReceivePacket SECTION.
             IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length: " PACKET-LENGTH(CLIENT-ID)
                 PERFORM DisconnectClient
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
             MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
             EXIT PERFORM
@@ -566,7 +566,7 @@ ReceivePacket SECTION.
         IF PACKET-BUFFERLEN(CLIENT-ID) >= 5
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length."
             PERFORM DisconnectClient
-            EXIT SECTION
+            EXIT PARAGRAPH
         END-IF
     END-PERFORM
 
@@ -577,12 +577,12 @@ ReceivePacket SECTION.
         CALL "SocketRead" USING CLIENT-HNDL(CLIENT-ID) BYTE-COUNT CLIENT-RECEIVE-BUFFER(PACKET-BUFFERLEN(CLIENT-ID) + 1:) GIVING ERRNO
         IF ERRNO NOT = 0
             PERFORM HandleClientError
-            EXIT SECTION
+            EXIT PARAGRAPH
         END-IF
         ADD BYTE-COUNT TO PACKET-BUFFERLEN(CLIENT-ID)
         IF BYTE-COUNT < BYTE-COUNT-EXPECTED
             *> Not enough data read, try again later
-            EXIT SECTION
+            EXIT PARAGRAPH
         END-IF
     END-PERFORM
 
@@ -594,7 +594,7 @@ ReceivePacket SECTION.
     CALL "Packets-GetReference" USING TEMP-INT32 PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
     IF PACKET-NAME = SPACES
         PERFORM DisconnectClient
-        EXIT SECTION
+        EXIT PARAGRAPH
     END-IF
 
     EVALUATE TEMP-INT32
@@ -611,20 +611,20 @@ ReceivePacket SECTION.
         WHEN OTHER
             DISPLAY "Invalid client state: " TEMP-INT32
             PERFORM DisconnectClient
-            EXIT SECTION
+            EXIT PARAGRAPH
     END-EVALUATE
 
     *> Reset length for the next packet
     MOVE 0 TO PACKET-LENGTH(CLIENT-ID)
     MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-HandleHandshake SECTION.
+HandleHandshake.
     IF PACKET-NAME NOT = "minecraft:intention"
         DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
         PERFORM DisconnectClient
-        EXIT SECTION
+        EXIT PARAGRAPH
     END-IF
 
     *> The final byte of the payload encodes the target state.
@@ -632,12 +632,12 @@ HandleHandshake SECTION.
     IF CLIENT-STATE(CLIENT-ID) NOT = CLIENT-STATE-STATUS AND CLIENT-STATE(CLIENT-ID) NOT = CLIENT-STATE-LOGIN
         DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client requested invalid target state: " CLIENT-STATE(CLIENT-ID)
         PERFORM DisconnectClient
-        EXIT SECTION
+        EXIT PARAGRAPH
     END-IF
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-HandleStatus SECTION.
+HandleStatus.
     EVALUATE PACKET-NAME
         WHEN "minecraft:status_request"
             *> count the number of current players
@@ -659,9 +659,9 @@ HandleStatus SECTION.
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE.
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-HandleLogin SECTION.
+HandleLogin.
     EVALUATE PACKET-NAME
         WHEN "minecraft:hello"
             *> Decode username
@@ -681,7 +681,7 @@ HandleLogin SECTION.
                     DISPLAY "Disconnecting " FUNCTION TRIM(TEMP-PLAYER-NAME) ": " BUFFER(1:BYTE-COUNT)
                     CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                     PERFORM DisconnectClient
-                    EXIT SECTION
+                    EXIT PARAGRAPH
                 END-IF
             END-IF
 
@@ -709,7 +709,7 @@ HandleLogin SECTION.
                 DISPLAY "Disconnecting " FUNCTION TRIM(TEMP-PLAYER-NAME) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
                 PERFORM DisconnectClient
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
 
             *> Send login success. This should result in a "login acknowledged" packet by the client.
@@ -720,7 +720,7 @@ HandleLogin SECTION.
             IF CLIENT-PLAYER(CLIENT-ID) = 0
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected login acknowledge"
                 PERFORM DisconnectClient
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
 
             *> Can move to configuration state
@@ -730,9 +730,9 @@ HandleLogin SECTION.
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-HandleConfiguration SECTION.
+HandleConfiguration.
     EVALUATE PACKET-NAME
         WHEN "minecraft:client_information"
             *> Note: payload of this packet is ignored for now
@@ -772,7 +772,7 @@ HandleConfiguration SECTION.
             IF CONFIG-FINISH(CLIENT-ID) = 0
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected acknowledge finish configuration"
                 PERFORM DisconnectClient
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
 
             *> Can move to play state
@@ -802,9 +802,9 @@ HandleConfiguration SECTION.
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE.
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-HandlePlay SECTION.
+HandlePlay.
     EVALUATE PACKET-NAME
         WHEN "minecraft:accept_teleportation"
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
@@ -817,7 +817,7 @@ HandlePlay SECTION.
             *> Command may not be longer than 256 characters
             IF BYTE-COUNT > 256
                 PERFORM DisconnectClient
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
             *> Handle the command
             CALL "HandleCommand" USING CLIENT-ID BUFFER BYTE-COUNT
@@ -827,7 +827,7 @@ HandlePlay SECTION.
             *> Message may not be longer than 256 characters
             IF BYTE-COUNT > 256
                 PERFORM DisconnectClient
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
             *> display the message in the server console
             DISPLAY "<" FUNCTION TRIM(PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))) "> " BUFFER(1:BYTE-COUNT)
@@ -846,11 +846,11 @@ HandlePlay SECTION.
 
             *> command 0 = perform respawn
             IF TEMP-INT32 NOT = 0
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
 
             IF PLAYER-HEALTH(CLIENT-PLAYER(CLIENT-ID)) > 0
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
 
             *> TODO deduplicate all of this with players.cob
@@ -877,7 +877,7 @@ HandlePlay SECTION.
         WHEN "minecraft:move_player_pos"
             *> Ignore movement packets until the client acknowledges the last sent teleport packet
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
             CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
             CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
@@ -886,7 +886,7 @@ HandlePlay SECTION.
 
         WHEN "minecraft:move_player_pos_rot"
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
             CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
             CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
@@ -897,7 +897,7 @@ HandlePlay SECTION.
 
         WHEN "minecraft:move_player_rot"
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
             CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
             CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
@@ -905,7 +905,7 @@ HandlePlay SECTION.
 
         WHEN "minecraft:move_player_status_only"
             IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
             *> TODO: "on ground" flag
 
@@ -917,19 +917,19 @@ HandlePlay SECTION.
 
             CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
             IF TEMP-INT8 NOT = 0
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
 
             *> Find the block's item handler
             CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
             CALL "GetCallback-BlockItem" USING TEMP-INT32 CALLBACK-PTR-BLOCK
             IF CALLBACK-PTR-BLOCK = NULL
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
 
             CALL CALLBACK-PTR-BLOCK USING TEMP-INT32 TEMP-IDENTIFIER
             IF TEMP-IDENTIFIER = SPACES
-                EXIT SECTION
+                EXIT PARAGRAPH
             END-IF
 
             CALL "Registries-Get-EntryId" USING C-MINECRAFT-ITEM TEMP-IDENTIFIER TEMP-INT32
@@ -1108,9 +1108,9 @@ HandlePlay SECTION.
             CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
     END-EVALUATE
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-SpawnPlayer SECTION.
+SpawnPlayer.
     *> send world time
     CALL "World-GetAge" USING TEMP-INT64
     CALL "World-GetTime" USING TEMP-INT64-2
@@ -1176,27 +1176,27 @@ SpawnPlayer SECTION.
     END-PERFORM
     MOVE TEMP-INT16 TO CLIENT-ID
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-DisconnectClient SECTION.
+DisconnectClient.
     *> Disconnect the current client.
     CALL "Server-DisconnectClient" USING CLIENT-ID
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-HandleServerError SECTION.
+HandleServerError.
     IF ERRNO NOT = 0
         DISPLAY "Server socket error: " ERRNO
         STOP RUN RETURNING 1
     END-IF
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
-HandleClientError SECTION.
+HandleClientError.
     IF ERRNO NOT = 0
         CALL "Server-ClientError" USING CLIENT-ID ERRNO
     END-IF
 
-    EXIT SECTION.
+    EXIT PARAGRAPH.
 
 END PROGRAM Server.
 
@@ -1224,7 +1224,7 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-CLIENT-ID.
     IF CLIENT-PRESENT(LK-CLIENT-ID) = 0
-        EXIT SECTION
+        EXIT PARAGRAPH
     END-IF
 
     MOVE 0 TO CLIENT-PRESENT(LK-CLIENT-ID)

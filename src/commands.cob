@@ -117,7 +117,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
 
     *> Check for empty input
     IF PART-COUNT < 1
-        EXIT SECTION
+        GOBACK
     END-IF
 
     *> Handle the command by looking up the first part
@@ -129,14 +129,14 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
             CALL PTR USING LK-CLIENT-ID PARTS PRINT-USAGE
             *> If the command executed successfully, exit the loop
             IF PRINT-USAGE = 0
-                EXIT SECTION
+                GOBACK
             END-IF
             *> Print the usage for the command
             *> TOOD synthesize the usage string from the node structure
             INITIALIZE BUFFER
             STRING "Usage: " COMMAND-HELP(COMMAND-INDEX) INTO BUFFER
             CALL "SendChatMessage" USING LK-CLIENT-ID BUFFER OMITTED
-            EXIT SECTION
+            GOBACK
         END-IF
     END-PERFORM
 

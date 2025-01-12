@@ -123,7 +123,7 @@ PROCEDURE DIVISION.
         *> No position found.
         GOBACK.
 
-    PlaceBlock SECTION.
+    PlaceBlock.
         CALL "Blocks-Get-StateId" USING SLAB-DESCRIPTION BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
         GOBACK.
