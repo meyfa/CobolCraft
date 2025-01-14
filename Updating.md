@@ -53,6 +53,7 @@ synchronization issues (since the client predicts many actions even if the serve
 * gamemode switcher (F3 + F4)
 * dying and respawning
 * chunk loading and unloading (e.g., by flying away from spawn)
+* survival inventory management
 * switching hotbar items, adding/removing armor, changing offhand item (should be visible to other players)
 * picking blocks (middle-click)
 * world time (day/night cycle)
