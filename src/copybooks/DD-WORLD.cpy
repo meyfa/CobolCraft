@@ -9,6 +9,9 @@
 01 WORLD-SPAWN-Y            BINARY-LONG EXTERNAL.
 01 WORLD-SPAWN-Z            BINARY-LONG EXTERNAL.
 
+*> Whether the world is in hardcore mode.
+01 WORLD-HARDCORE           BINARY-CHAR UNSIGNED EXTERNAL.
+
 *> Chunk storage
 78 WORLD-CHUNK-COUNT            VALUE 255.
 78 WORLD-SECTION-COUNT          VALUE 24.

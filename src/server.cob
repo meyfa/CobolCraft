@@ -780,7 +780,8 @@ HandleConfiguration.
 
             *> send "Login (play)" with player index as entity ID
             MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE PLAYER-GAMEMODE(TEMP-INT32) MAX-PLAYERS
+            CALL "World-IsHardcore" USING TEMP-INT8
+            CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE PLAYER-GAMEMODE(TEMP-INT32) TEMP-INT8 MAX-PLAYERS
 
             *> perform all actions to spawn the player, load initial chunks, etc.
             PERFORM SpawnPlayer
