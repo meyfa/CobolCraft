@@ -1054,8 +1054,8 @@ HandlePlay.
             CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-CURSOR-Y
             CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-CURSOR-Z
 
-            *> TODO: "inside block" flag
-            ADD 1 TO PACKET-POSITION
+            *> TODO: "inside block" flag, "world border hit" flag
+            ADD 2 TO PACKET-POSITION
 
             *> sequence ID
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION SEQUENCE-ID

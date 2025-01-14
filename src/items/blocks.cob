@@ -38,9 +38,6 @@ PROCEDURE DIVISION USING LK-ITEM-NAME.
             GOBACK
         END-IF
 
-        *> TODO: When we GOBACK here, the client can sometimes become desynced. Send a packet with the current block
-        *>       state to fix this.
-
         *> Check for player collisison
         *> TODO make this more generic
         MOVE BLOCK-X TO PLACE-AABB-MIN-X
