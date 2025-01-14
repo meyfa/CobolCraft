@@ -865,6 +865,14 @@ HandlePlay.
 
             PERFORM SpawnPlayer
 
+        WHEN "minecraft:container_click"
+            CALL "RecvPacket-ContainerClick" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-LENGTH(CLIENT-ID) PACKET-POSITION
+
+        WHEN "minecraft:container_close"
+            *> TODO implement containers
+            *> TODO handle carried item (mouse item)
+            CONTINUE
+
         WHEN "minecraft:debug_sample_subscription"
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
             *> TODO limit to operators

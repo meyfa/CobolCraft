@@ -16,7 +16,7 @@ The following features are already working:
 - [X] ping/server status (i.e., show as online in the server list)
 - [X] breaking and placing blocks
 - [X] block interaction (right-clicking, e.g., to open doors)
-- [X] player inventory (limited to creative mode)
+- [X] player inventory
 - [X] chat
 - [X] commands (in-game and via an interactive console)
 - [X] configuration via server.properties
