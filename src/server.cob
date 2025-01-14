@@ -973,7 +973,14 @@ HandlePlay.
 
                     *> Acknowledge the action
                     CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
+
+                    EXIT PARAGRAPH
             END-EVALUATE
+
+            *> TODO The following is a workaround to reset the player's inventory, since we don't implement dropping items yet.
+            ADD 1 TO PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
+            CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
+                PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) PLAYER-MOUSE-ITEM(CLIENT-PLAYER(CLIENT-ID))
 
         WHEN "minecraft:player_command"
             *> entity ID (why does this exist? should always be the player's entity ID - skip it)
@@ -996,6 +1003,10 @@ HandlePlay.
             END-IF
 
         WHEN "minecraft:set_creative_mode_slot"
+            IF PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) NOT = 1
+                EXIT PARAGRAPH
+            END-IF
+
             *> slot ID
             CALL "Decode-Short" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT16
             *> TODO: spawn item entity when slot ID is -1
@@ -1084,6 +1095,14 @@ HandlePlay.
             *> Acknowledge the action
             CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
 
+            *> For survival mode, send the inventory slot contents, as they likely should have changed but we don't do that.
+            *> TODO get smarter about this
+            IF PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) NOT = 1
+                ADD 1 TO PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
+                CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
+                    PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) PLAYER-MOUSE-ITEM(CLIENT-PLAYER(CLIENT-ID))
+            END-IF
+
         WHEN "minecraft:use_item"
             *> hand enum: 0=main hand, 1=off hand
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
@@ -1109,6 +1128,14 @@ HandlePlay.
 
             *> Acknowledge the action
             CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
+
+            *> For survival mode, send the inventory slot contents, as they likely should have changed but we don't do that.
+            *> TODO get smarter about this
+            IF PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) NOT = 1
+                ADD 1 TO PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
+                CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
+                    PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) PLAYER-MOUSE-ITEM(CLIENT-PLAYER(CLIENT-ID))
+            END-IF
     END-EVALUATE
 
     EXIT PARAGRAPH.
