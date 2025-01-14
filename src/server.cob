@@ -1125,8 +1125,9 @@ SpawnPlayer.
     *> For example: set ticking state (rate=20, frozen=false); step tick (steps=0 [sic.])
     *> We will skip these for now.
 
-    *> send health
+    *> send health and food level; experience
     CALL "SendPacket-SetHealth" USING CLIENT-ID PLAYER-HEALTH(CLIENT-PLAYER(CLIENT-ID)) PLAYER-FOOD-LEVEL(CLIENT-PLAYER(CLIENT-ID)) PLAYER-SATURATION(CLIENT-PLAYER(CLIENT-ID))
+    CALL "SendPacket-SetExperience" USING CLIENT-ID PLAYER-XP-PROGRESS(CLIENT-PLAYER(CLIENT-ID)) PLAYER-XP-LEVEL(CLIENT-PLAYER(CLIENT-ID)) PLAYER-XP-TOTAL(CLIENT-PLAYER(CLIENT-ID))
 
     *> send inventory
     CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID))
