@@ -65,20 +65,8 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT64-2                 BINARY-LONG-LONG.
     01 TEMP-FLOAT                   FLOAT-SHORT.
     01 TEMP-UUID                    PIC X(16).
-    01 TEMP-POSITION.
-        02 TEMP-POSITION-X          BINARY-LONG.
-        02 TEMP-POSITION-Y          BINARY-LONG.
-        02 TEMP-POSITION-Z          BINARY-LONG.
-    01 TEMP-BLOCK-FACE              BINARY-LONG.
-    01 TEMP-CURSOR.
-        02 TEMP-CURSOR-X            FLOAT-SHORT.
-        02 TEMP-CURSOR-Y            FLOAT-SHORT.
-        02 TEMP-CURSOR-Z            FLOAT-SHORT.
     01 TEMP-PLAYER-NAME             PIC X(16).
     01 TEMP-IDENTIFIER              PIC X(100).
-    01 CALLBACK-PTR-ITEM            PROGRAM-POINTER.
-    01 CALLBACK-PTR-BLOCK           PROGRAM-POINTER.
-    01 SEQUENCE-ID                  BINARY-LONG.
     *> Time measurement (microseconds)
     78 NANOSECOND-SCALE             VALUE 1000.
     01 CURRENT-TIME                 BINARY-LONG-LONG.
@@ -866,7 +854,7 @@ HandlePlay.
             PERFORM SpawnPlayer
 
         WHEN "minecraft:container_click"
-            CALL "RecvPacket-ContainerClick" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-LENGTH(CLIENT-ID) PACKET-POSITION
+            CALL "RecvPacket-ContainerClick" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:container_close"
             *> TODO implement containers
@@ -919,36 +907,7 @@ HandlePlay.
             *> TODO: "on ground" flag
 
         WHEN "minecraft:pick_item_from_block"
-            *> location
-            CALL "Decode-Position" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-POSITION
-            *> TODO: "include data" flag
-            ADD 1 TO PACKET-POSITION
-
-            CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
-            IF TEMP-INT8 NOT = 0
-                EXIT PARAGRAPH
-            END-IF
-
-            *> Find the block's item handler
-            CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
-            CALL "GetCallback-BlockItem" USING TEMP-INT32 CALLBACK-PTR-BLOCK
-            IF CALLBACK-PTR-BLOCK = NULL
-                EXIT PARAGRAPH
-            END-IF
-
-            CALL CALLBACK-PTR-BLOCK USING TEMP-INT32 TEMP-IDENTIFIER
-            IF TEMP-IDENTIFIER = SPACES
-                EXIT PARAGRAPH
-            END-IF
-
-            CALL "Registries-Get-EntryId" USING C-MINECRAFT-ITEM TEMP-IDENTIFIER TEMP-INT32
-            IF TEMP-INT32 > 0
-                CALL "Inventory-PickItem" USING PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID)) PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) TEMP-INT32
-                CALL "SendPacket-SetHeldItem" USING CLIENT-ID PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
-                ADD 1 TO PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-                CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-                    PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) PLAYER-MOUSE-ITEM(CLIENT-PLAYER(CLIENT-ID))
-            END-IF
+            CALL "RecvPacket-PickBlock" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:player_abilities"
             CALL "Decode-Byte" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT8
@@ -957,38 +916,7 @@ HandlePlay.
             COMPUTE PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID)) = FUNCTION MOD(TEMP-INT8, 2)
 
         WHEN "minecraft:player_action"
-            *> Status (= the action), block position, face, sequence number.
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-            CALL "Decode-Position" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-POSITION
-            EVALUATE TRUE
-                *> started digging
-                WHEN TEMP-INT32 = 0
-                    *> face (ignored)
-                    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-BLOCK-FACE
-                    *> sequence ID
-                    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION SEQUENCE-ID
-
-                    *> Check the position validity
-                    CALL "World-CheckBounds" USING TEMP-POSITION TEMP-INT8
-                    IF TEMP-INT8 = 0
-                        *> Call the block's destroy handler
-                        CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
-                        CALL "GetCallback-BlockDestroy" USING TEMP-INT32 CALLBACK-PTR-BLOCK
-                        IF CALLBACK-PTR-BLOCK NOT = NULL
-                            CALL CALLBACK-PTR-BLOCK USING CLIENT-PLAYER(CLIENT-ID) TEMP-POSITION TEMP-BLOCK-FACE
-                        END-IF
-                    END-IF
-
-                    *> Acknowledge the action
-                    CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
-
-                    EXIT PARAGRAPH
-            END-EVALUATE
-
-            *> TODO The following is a workaround to reset the player's inventory, since we don't implement dropping items yet.
-            ADD 1 TO PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-            CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-                PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) PLAYER-MOUSE-ITEM(CLIENT-PLAYER(CLIENT-ID))
+            CALL "RecvPacket-PlayerAction" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:player_command"
             *> entity ID (why does this exist? should always be the player's entity ID - skip it)
@@ -1040,110 +968,13 @@ HandlePlay.
             END-IF
 
         WHEN "minecraft:swing"
-            *> hand enum: 0=main hand, 1=off hand
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-            IF TEMP-INT32 = 1
-                MOVE 3 TO TEMP-INT8
-            ELSE
-                MOVE 0 TO TEMP-INT8
-            END-IF
-            *> send an animation packet to each of the other players
-            MOVE CLIENT-ID TO TEMP-INT16
-            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-                IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND CLIENT-ID NOT = TEMP-INT16
-                    CALL "SendPacket-EntityAnimation" USING CLIENT-ID TEMP-INT32 TEMP-INT8
-                END-IF
-            END-PERFORM
-            MOVE TEMP-INT16 TO CLIENT-ID
+            CALL "RecvPacket-Swing" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:use_item_on"
-            *> hand enum: 0=main hand, 1=off hand
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-            IF TEMP-INT32 = 0
-                *> compute the inventory slot
-                COMPUTE TEMP-INT16 = 36 + PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
-            ELSE
-                MOVE 45 TO TEMP-INT16
-            END-IF
-
-            *> block position
-            CALL "Decode-Position" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-POSITION
-
-            *> face enum (0-5): -Y, +Y, -Z, +Z, -X, +X
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-BLOCK-FACE
-            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-CURSOR-X
-            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-CURSOR-Y
-            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-CURSOR-Z
-
-            *> TODO: "inside block" flag, "world border hit" flag
-            ADD 2 TO PACKET-POSITION
-
-            *> sequence ID
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION SEQUENCE-ID
-
-            *> Determine the item in the inventory slot
-            MOVE PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1) TO TEMP-INT32
-            CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM TEMP-INT32 TEMP-IDENTIFIER
-            CALL "GetCallback-ItemUse" USING TEMP-IDENTIFIER CALLBACK-PTR-ITEM
-
-            *> Determine the current block's "interact" callback
-            CALL "World-GetBlock" USING TEMP-POSITION TEMP-INT32
-            CALL "GetCallback-BlockInteract" USING TEMP-INT32 CALLBACK-PTR-BLOCK
-
-            *> If the player is sneaking, we should execute the item's "use" callback instead of the block's
-            *> "interact" callback - unless the item has no "use" callback.
-            EVALUATE TRUE
-                WHEN CALLBACK-PTR-ITEM NOT = NULL AND (CALLBACK-PTR-BLOCK = NULL OR PLAYER-SNEAKING(CLIENT-PLAYER(CLIENT-ID)) NOT = 0)
-                    CALL CALLBACK-PTR-ITEM USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
-                WHEN CALLBACK-PTR-BLOCK NOT = NULL
-                    CALL CALLBACK-PTR-BLOCK USING CLIENT-PLAYER(CLIENT-ID) TEMP-IDENTIFIER TEMP-POSITION TEMP-BLOCK-FACE TEMP-CURSOR
-            END-EVALUATE
-
-            *> Acknowledge the action
-            CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
-
-            *> For survival mode, send the inventory slot contents, as they likely should have changed but we don't do that.
-            *> TODO get smarter about this
-            IF PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) NOT = 1
-                ADD 1 TO PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-                CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-                    PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) PLAYER-MOUSE-ITEM(CLIENT-PLAYER(CLIENT-ID))
-            END-IF
+            CALL "RecvPacket-UseItemOn" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:use_item"
-            *> hand enum: 0=main hand, 1=off hand
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-            IF TEMP-INT32 = 0
-                *> compute the inventory slot
-                COMPUTE TEMP-INT16 = 36 + PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
-            ELSE
-                MOVE 45 TO TEMP-INT16
-            END-IF
-
-            *> sequence ID
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION SEQUENCE-ID
-
-            *> TODO: Buckets send this packet when clicking a liquid directly - handle this case
-            *> TODO food items
-            *> TODO potions
-            *> TODO splash potions
-            *> TODO lingering potions
-            *> TODO bows
-            *> TODO shields
-            *> TODO bottle o' enchanting
-            *> TODO eggs, snowballs, ender pearls, etc.
-
-            *> Acknowledge the action
-            CALL "SendPacket-AckBlockChange" USING CLIENT-ID SEQUENCE-ID
-
-            *> For survival mode, send the inventory slot contents, as they likely should have changed but we don't do that.
-            *> TODO get smarter about this
-            IF PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) NOT = 1
-                ADD 1 TO PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-                CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-                    PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) PLAYER-MOUSE-ITEM(CLIENT-PLAYER(CLIENT-ID))
-            END-IF
+            CALL "RecvPacket-UseItem" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
     END-EVALUATE
 
     EXIT PARAGRAPH.
