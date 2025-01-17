@@ -1,17 +1,11 @@
 IDENTIFICATION DIVISION.
-PROGRAM-ID. RecvPacket-ContainerClick.
+PROGRAM-ID. RecvPacket-SetCreativeSlot.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-CLIENTS.
     COPY DD-PLAYERS.
     01 PLAYER-ID                BINARY-LONG.
-    01 WINDOW-ID                BINARY-LONG.
-    01 STATE-ID                 BINARY-LONG.
-    01 SLOT                     BINARY-SHORT.
-    01 BUTTON                   BINARY-CHAR.
-    01 MODE-ENUM                BINARY-LONG.
-    01 CHANGED-SLOT-COUNT       BINARY-LONG.
     01 SLOT-NUMBER              BINARY-SHORT.
     01 DECODE-SLOT-COUNT        BINARY-CHAR.
     01 CLIENT-SLOT.
@@ -29,57 +23,27 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     MOVE CLIENT-PLAYER(LK-CLIENT) TO PLAYER-ID
 
-    CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET WINDOW-ID
-    CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET STATE-ID
-    CALL "Decode-Short" USING LK-BUFFER LK-OFFSET SLOT
-    CALL "Decode-Byte" USING LK-BUFFER LK-OFFSET BUTTON
-    CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET MODE-ENUM
-
-    *> TODO We currently accept the client's changed slot data as correct, but we should really compute it ourselves
-    *>      based on slot/button/mode and then check if it matches the client's data.
-
-    *> TOOD implement containers other than inventory
-    IF WINDOW-ID NOT = 0
+    IF PLAYER-GAMEMODE(PLAYER-ID) NOT = 1
         GOBACK
     END-IF
 
-    *> sync client if state ID differs from last sent
-    IF STATE-ID NOT = PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
-        CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
-            PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
-        GOBACK
-    END-IF
-
-    *> TODO support dropping items
-    IF (MODE-ENUM = 0 AND SLOT = -999) OR (MODE-ENUM = 4)
-        CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
-            PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
-        GOBACK
-    END-IF
-
-    *> iterate changed slots
-    CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET CHANGED-SLOT-COUNT
-    IF CHANGED-SLOT-COUNT <= 0 OR CHANGED-SLOT-COUNT > 128
-        GOBACK
-    END-IF
-    PERFORM CHANGED-SLOT-COUNT TIMES
-        CALL "Decode-Short" USING LK-BUFFER LK-OFFSET SLOT-NUMBER
-        PERFORM DecodeSlot
-        IF SLOT-NUMBER >= 0 AND SLOT-NUMBER < 46
-            MOVE CLIENT-SLOT TO PLAYER-INVENTORY-SLOT(PLAYER-ID, SLOT-NUMBER + 1)
-        ELSE
-            DISPLAY "Invalid slot number: " SLOT-NUMBER
-        END-IF
-    END-PERFORM
-
-    *> carried item
+    CALL "Decode-Short" USING LK-BUFFER LK-OFFSET SLOT-NUMBER
     PERFORM DecodeSlot
-    MOVE CLIENT-SLOT TO PLAYER-MOUSE-ITEM(PLAYER-ID)
+
+    EVALUATE SLOT-NUMBER
+        WHEN 0 THRU 45
+            MOVE CLIENT-SLOT TO PLAYER-INVENTORY-SLOT(PLAYER-ID, SLOT-NUMBER + 1)
+        WHEN -1
+            *> TODO: spawn item entity
+            CONTINUE
+        WHEN OTHER
+            DISPLAY "Invalid slot number: " SLOT-NUMBER
+    END-EVALUATE
 
     GOBACK.
 
 DecodeSlot.
-    *> TODO deduplicate slot decoding with "set creative slot" packet
+    *> TODO deduplicate slot decoding with "container click" packet
 
     *> count
     CALL "Decode-Byte" USING LK-BUFFER LK-OFFSET DECODE-SLOT-COUNT
@@ -116,4 +80,4 @@ DecodeSlot.
 
     EXIT PARAGRAPH.
 
-END PROGRAM RecvPacket-ContainerClick.
+END PROGRAM RecvPacket-SetCreativeSlot.

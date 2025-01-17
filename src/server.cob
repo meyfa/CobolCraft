@@ -63,7 +63,6 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT32                   BINARY-LONG.
     01 TEMP-INT64                   BINARY-LONG-LONG.
     01 TEMP-INT64-2                 BINARY-LONG-LONG.
-    01 TEMP-FLOAT                   FLOAT-SHORT.
     01 TEMP-UUID                    PIC X(16).
     01 TEMP-PLAYER-NAME             PIC X(16).
     01 TEMP-IDENTIFIER              PIC X(100).
@@ -772,7 +771,7 @@ HandleConfiguration.
             CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE PLAYER-GAMEMODE(TEMP-INT32) TEMP-INT8 MAX-PLAYERS
 
             *> perform all actions to spawn the player, load initial chunks, etc.
-            PERFORM SpawnPlayer
+            CALL "Server-SpawnPlayer" USING CLIENT-ID
 
             *> Send available commands list
             CALL "SendPacket-Commands" USING CLIENT-ID
@@ -796,176 +795,58 @@ HandleConfiguration.
 HandlePlay.
     EVALUATE PACKET-NAME
         WHEN "minecraft:accept_teleportation"
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-            IF TEMP-INT32 > TELEPORT-RECV(CLIENT-ID) AND TEMP-INT32 <= TELEPORT-SENT(CLIENT-ID)
-                MOVE TEMP-INT32 TO TELEPORT-RECV(CLIENT-ID)
-            END-IF
+            CALL "RecvPacket-AcceptTeleport" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:chat_command"
-            CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION BYTE-COUNT BUFFER
-            *> Command may not be longer than 256 characters
-            IF BYTE-COUNT > 256
-                PERFORM DisconnectClient
-                EXIT PARAGRAPH
-            END-IF
-            *> Handle the command
-            CALL "HandleCommand" USING CLIENT-ID BUFFER BYTE-COUNT
+            CALL "RecvPacket-ChatCommand" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:chat"
-            CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION BYTE-COUNT BUFFER
-            *> Message may not be longer than 256 characters
-            IF BYTE-COUNT > 256
-                PERFORM DisconnectClient
-                EXIT PARAGRAPH
-            END-IF
-            *> display the message in the server console
-            DISPLAY "<" FUNCTION TRIM(PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))) "> " BUFFER(1:BYTE-COUNT)
-            *> send the message to all clients in play state
-            MOVE CLIENT-ID TO TEMP-INT16
-            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-                IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                    CALL "SendPacket-PlayerChat" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32) BUFFER BYTE-COUNT
-                END-IF
-            END-PERFORM
-            MOVE TEMP-INT16 TO CLIENT-ID
+            CALL "RecvPacket-Chat" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:client_command"
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-
-            *> command 0 = perform respawn
-            IF TEMP-INT32 NOT = 0
-                EXIT PARAGRAPH
-            END-IF
-
-            IF PLAYER-HEALTH(CLIENT-PLAYER(CLIENT-ID)) > 0
-                EXIT PARAGRAPH
-            END-IF
-
-            *> TODO deduplicate all of this with players.cob
-            MOVE 20 TO PLAYER-HEALTH(CLIENT-PLAYER(CLIENT-ID))
-            MOVE 20 TO PLAYER-FOOD-LEVEL(CLIENT-PLAYER(CLIENT-ID))
-            MOVE 5 TO PLAYER-SATURATION(CLIENT-PLAYER(CLIENT-ID))
-            CALL "World-FindSpawnLocation" USING PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID))
-            INITIALIZE PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID))
-
-            CALL "SendPacket-Respawn" USING CLIENT-ID PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID))
-
-            PERFORM SpawnPlayer
+            CALL "RecvPacket-ClientCommand" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:container_click"
             CALL "RecvPacket-ContainerClick" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:container_close"
-            *> TODO implement containers
-            *> TODO handle carried item (mouse item)
-            CONTINUE
+            CALL "RecvPacket-ContainerClose" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:debug_sample_subscription"
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-            *> TODO limit to operators
-            IF TEMP-INT32 = 0
-                MOVE CURRENT-TIME TO DEBUG-SUBSCRIBE-TIME(CLIENT-ID)
-            END-IF
+            CALL "RecvPacket-DebugSubscription" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:keep_alive"
-            CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION KEEPALIVE-RECV(CLIENT-ID)
+            CALL "RecvPacket-KeepAlive" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:move_player_pos"
-            *> Ignore movement packets until the client acknowledges the last sent teleport packet
-            IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
-                EXIT PARAGRAPH
-            END-IF
-            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
-            *> TODO: "on ground" flag
+            CALL "RecvPacket-MovePlayerPos" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:move_player_pos_rot"
-            IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
-                EXIT PARAGRAPH
-            END-IF
-            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-X(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Y(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Double" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-Z(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
-            *> TODO: "on ground" flag
+            CALL "RecvPacket-MovePlayerPosRot" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:move_player_rot"
-            IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
-                EXIT PARAGRAPH
-            END-IF
-            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-YAW(CLIENT-PLAYER(CLIENT-ID))
-            CALL "Decode-Float" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PLAYER-PITCH(CLIENT-PLAYER(CLIENT-ID))
-            *> TODO: "on ground" flag
+            CALL "RecvPacket-MovePlayerRot" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:move_player_status_only"
-            IF TELEPORT-RECV(CLIENT-ID) NOT = TELEPORT-SENT(CLIENT-ID)
-                EXIT PARAGRAPH
-            END-IF
-            *> TODO: "on ground" flag
+            CALL "RecvPacket-MovePlayerStatus" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:pick_item_from_block"
             CALL "RecvPacket-PickBlock" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:player_abilities"
-            CALL "Decode-Byte" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT8
-            *> flying = bitmask & 0x02
-            COMPUTE TEMP-INT8 = TEMP-INT8 / 2
-            COMPUTE PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID)) = FUNCTION MOD(TEMP-INT8, 2)
+            CALL "RecvPacket-PlayerAbilities" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:player_action"
             CALL "RecvPacket-PlayerAction" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:player_command"
-            *> entity ID (why does this exist? should always be the player's entity ID - skip it)
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-            *> action ID
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-            EVALUATE TEMP-INT32
-                *> start sneaking
-                WHEN 0
-                    MOVE 1 TO PLAYER-SNEAKING(CLIENT-PLAYER(CLIENT-ID))
-                *> stop sneaking
-                WHEN 1
-                    MOVE 0 TO PLAYER-SNEAKING(CLIENT-PLAYER(CLIENT-ID))
-            END-EVALUATE
+            CALL "RecvPacket-PlayerCommand" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:set_carried_item"
-            CALL "Decode-Short" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT16
-            IF TEMP-INT16 >= 0 AND TEMP-INT16 <= 8
-                MOVE TEMP-INT16 TO PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
-            END-IF
+            CALL "RecvPacket-SetCarriedItem" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:set_creative_mode_slot"
-            IF PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) NOT = 1
-                EXIT PARAGRAPH
-            END-IF
-
-            *> slot ID
-            CALL "Decode-Short" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT16
-            *> TODO: spawn item entity when slot ID is -1
-            *> slot description (count (byte) [, item ID (VarInt), NBT data])
-            CALL "Decode-Byte" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT8
-            IF TEMP-INT16 >= 0 AND TEMP-INT16 < 46
-                MOVE TEMP-INT8 TO PLAYER-INVENTORY-SLOT-COUNT(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
-                IF TEMP-INT8 = 0
-                    MOVE 0 TO PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
-                ELSE
-                    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32
-                    MOVE TEMP-INT32 TO PLAYER-INVENTORY-SLOT-ID(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
-                    *> remainder is NBT
-                    COMPUTE BYTE-COUNT = PACKET-LENGTH(CLIENT-ID) - PACKET-POSITION + 1
-                    IF BYTE-COUNT <= 1024
-                        MOVE BYTE-COUNT TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
-                        MOVE CLIENT-RECEIVE-BUFFER(PACKET-POSITION:BYTE-COUNT) TO PLAYER-INVENTORY-SLOT-NBT-DATA(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)(1:BYTE-COUNT)
-                    ELSE
-                        MOVE 0 TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(CLIENT-PLAYER(CLIENT-ID), TEMP-INT16 + 1)
-                        DISPLAY "Item NBT data too long: " BYTE-COUNT
-                    END-IF
-                END-IF
-            END-IF
+            CALL "RecvPacket-SetCreativeSlot" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
 
         WHEN "minecraft:swing"
             CALL "RecvPacket-Swing" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
@@ -976,77 +857,6 @@ HandlePlay.
         WHEN "minecraft:use_item"
             CALL "RecvPacket-UseItem" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
     END-EVALUATE
-
-    EXIT PARAGRAPH.
-
-SpawnPlayer.
-    *> send world time
-    CALL "World-GetAge" USING TEMP-INT64
-    CALL "World-GetTime" USING TEMP-INT64-2
-    CALL "SendPacket-UpdateTime" USING CLIENT-ID TEMP-INT64 TEMP-INT64-2
-
-    *> send game event "start waiting for level chunks"
-    MOVE 13 TO TEMP-INT8
-    MOVE 0 TO TEMP-FLOAT
-    CALL "SendPacket-GameEvent" USING CLIENT-ID TEMP-INT8 TEMP-FLOAT
-
-    *> Note: The official server sends a lot of additional packets in this phase, but they seem to be optional.
-    *> For example: set ticking state (rate=20, frozen=false); step tick (steps=0 [sic.])
-    *> We will skip these for now.
-
-    *> send health and food level; experience
-    CALL "SendPacket-SetHealth" USING CLIENT-ID PLAYER-HEALTH(CLIENT-PLAYER(CLIENT-ID)) PLAYER-FOOD-LEVEL(CLIENT-PLAYER(CLIENT-ID)) PLAYER-SATURATION(CLIENT-PLAYER(CLIENT-ID))
-    CALL "SendPacket-SetExperience" USING CLIENT-ID PLAYER-XP-PROGRESS(CLIENT-PLAYER(CLIENT-ID)) PLAYER-XP-LEVEL(CLIENT-PLAYER(CLIENT-ID)) PLAYER-XP-TOTAL(CLIENT-PLAYER(CLIENT-ID))
-
-    *> send inventory
-    ADD 1 TO PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-    CALL "SendPacket-SetContainerContent" USING CLIENT-ID PLAYER-CONTAINER-STATE-ID(CLIENT-PLAYER(CLIENT-ID))
-        PLAYER-INVENTORY(CLIENT-PLAYER(CLIENT-ID)) PLAYER-MOUSE-ITEM(CLIENT-PLAYER(CLIENT-ID))
-
-    *> send selected hotbar slot
-    CALL "SendPacket-SetHeldItem" USING CLIENT-ID PLAYER-HOTBAR(CLIENT-PLAYER(CLIENT-ID))
-
-    *> enqueue surrounding chunks and send 3x3 chunks immediately around the player immediately
-    CALL "SetCenterChunk" USING CLIENT-ID
-    CALL "EnqueueSurroundingChunks" USING CLIENT-ID
-    CALL "SendPreChunks" USING CLIENT-ID
-
-    *> send the player list (including the new player) to the new player, and spawn player entities
-    PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
-        IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-STATE(TEMP-INT16) = CLIENT-STATE-PLAY
-            MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
-            CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32)
-            IF TEMP-INT16 NOT = CLIENT-ID
-                CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
-            END-IF
-        END-IF
-    END-PERFORM
-
-    *> Send abilities (flying, etc.)
-    CALL "SendPacket-PlayerAbilities" USING CLIENT-ID PLAYER-GAMEMODE(CLIENT-PLAYER(CLIENT-ID)) PLAYER-FLYING(CLIENT-PLAYER(CLIENT-ID))
-
-    *> Set op permission level to 4 (full permissions) - mainly so the gamemode switcher works
-    *> TODO: implement a proper permission system
-    MOVE 28 TO TEMP-INT8
-    MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-    CALL "SendPacket-EntityEvent" USING CLIENT-ID TEMP-INT32 TEMP-INT8
-
-    *> Send position ("Synchronize Player Position"). The client must confirm the teleportation.
-    ADD 1 TO TELEPORT-SENT(CLIENT-ID)
-    CALL "SendPacket-SetPlayerPosition" USING CLIENT-ID PLAYER-POSITION(CLIENT-PLAYER(CLIENT-ID)) PLAYER-ROTATION(CLIENT-PLAYER(CLIENT-ID)) TELEPORT-SENT(CLIENT-ID)
-
-    *> send the new player to all other players
-    MOVE CLIENT-ID TO TEMP-INT16
-    MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-        IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY AND CLIENT-ID NOT = TEMP-INT16
-            *> add the new player to the player list
-            CALL "SendPacket-AddPlayer" USING CLIENT-ID PLAYER-UUID(TEMP-INT32) PLAYER-NAME(TEMP-INT32)
-            *> spawn a player entity
-            CALL "SendPacket-SpawnEntity" USING CLIENT-ID TEMP-INT32 PLAYER-UUID(TEMP-INT32) PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
-        END-IF
-    END-PERFORM
-    MOVE TEMP-INT16 TO CLIENT-ID
 
     EXIT PARAGRAPH.
 
@@ -1071,6 +881,98 @@ HandleClientError.
     EXIT PARAGRAPH.
 
 END PROGRAM Server.
+
+*> --- Server-SpawnPlayer ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Server-SpawnPlayer.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared data
+    COPY DD-CLIENTS.
+    COPY DD-PLAYERS.
+    COPY DD-CLIENT-STATES.
+    COPY DD-SERVER-PROPERTIES.
+    *> constants
+    01 GAME-EVENT-LEVEL-CHUNKS  BINARY-CHAR                 VALUE 13.
+    01 FLOAT-ZERO               FLOAT-SHORT                 VALUE 0.0.
+    01 ENTITY-EVENT-OP-4        BINARY-CHAR                 VALUE 28.
+    *> variables
+    01 PLAYER-ID                BINARY-LONG UNSIGNED.
+    01 WORLD-AGE                BINARY-LONG-LONG.
+    01 WORLD-TIME               BINARY-LONG-LONG.
+    01 OTHER-CLIENT             BINARY-LONG UNSIGNED.
+    01 OTHER-PLAYER-ID          BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-CLIENT                BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-CLIENT.
+    MOVE CLIENT-PLAYER(LK-CLIENT) TO PLAYER-ID
+
+    *> send world time
+    CALL "World-GetAge" USING WORLD-AGE
+    CALL "World-GetTime" USING WORLD-TIME
+    CALL "SendPacket-UpdateTime" USING LK-CLIENT WORLD-AGE WORLD-TIME
+
+    *> send game event "start waiting for level chunks"
+    CALL "SendPacket-GameEvent" USING LK-CLIENT GAME-EVENT-LEVEL-CHUNKS FLOAT-ZERO
+
+    *> Note: The official server sends a lot of additional packets in this phase, but they seem to be optional.
+    *> For example: set ticking state (rate=20, frozen=false); step tick (steps=0 [sic.])
+    *> We will skip these for now.
+
+    *> send health and food level; experience
+    CALL "SendPacket-SetHealth" USING LK-CLIENT PLAYER-HEALTH(PLAYER-ID) PLAYER-FOOD-LEVEL(PLAYER-ID) PLAYER-SATURATION(PLAYER-ID)
+    CALL "SendPacket-SetExperience" USING LK-CLIENT PLAYER-XP-PROGRESS(PLAYER-ID) PLAYER-XP-LEVEL(PLAYER-ID) PLAYER-XP-TOTAL(PLAYER-ID)
+
+    *> send inventory
+    ADD 1 TO PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
+    CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
+        PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
+
+    *> send selected hotbar slot
+    CALL "SendPacket-SetHeldItem" USING LK-CLIENT PLAYER-HOTBAR(PLAYER-ID)
+
+    *> enqueue surrounding chunks and send 3x3 chunks immediately around the player immediately
+    CALL "SetCenterChunk" USING LK-CLIENT
+    CALL "EnqueueSurroundingChunks" USING LK-CLIENT
+    CALL "SendPreChunks" USING LK-CLIENT
+
+    *> send the player list (including the new player) to the new player, and spawn player entities
+    PERFORM VARYING OTHER-CLIENT FROM 1 BY 1 UNTIL OTHER-CLIENT > MAX-CLIENTS
+        IF CLIENT-PRESENT(OTHER-CLIENT) = 1 AND CLIENT-STATE(OTHER-CLIENT) = CLIENT-STATE-PLAY
+            MOVE CLIENT-PLAYER(OTHER-CLIENT) TO OTHER-PLAYER-ID
+            CALL "SendPacket-AddPlayer" USING LK-CLIENT PLAYER-UUID(OTHER-PLAYER-ID) PLAYER-NAME(OTHER-PLAYER-ID)
+            IF OTHER-CLIENT NOT = LK-CLIENT
+                CALL "SendPacket-SpawnEntity" USING LK-CLIENT OTHER-PLAYER-ID PLAYER-UUID(OTHER-PLAYER-ID) PLAYER-POSITION(OTHER-PLAYER-ID) PLAYER-ROTATION(OTHER-PLAYER-ID)
+            END-IF
+        END-IF
+    END-PERFORM
+
+    *> Send abilities (flying, etc.)
+    CALL "SendPacket-PlayerAbilities" USING LK-CLIENT PLAYER-GAMEMODE(PLAYER-ID) PLAYER-FLYING(PLAYER-ID)
+
+    *> Set op permission level to 4 (full permissions) - mainly so the gamemode switcher works
+    *> TODO: implement a proper permission system
+    CALL "SendPacket-EntityEvent" USING LK-CLIENT PLAYER-ID ENTITY-EVENT-OP-4
+
+    *> Send position ("Synchronize Player Position"). The client must confirm the teleportation.
+    ADD 1 TO TELEPORT-SENT(LK-CLIENT)
+    CALL "SendPacket-SetPlayerPosition" USING LK-CLIENT PLAYER-POSITION(PLAYER-ID) PLAYER-ROTATION(PLAYER-ID) TELEPORT-SENT(LK-CLIENT)
+
+    *> send the new player to all other players
+    PERFORM VARYING OTHER-CLIENT FROM 1 BY 1 UNTIL OTHER-CLIENT > MAX-CLIENTS
+        IF CLIENT-PRESENT(OTHER-CLIENT) = 1 AND CLIENT-STATE(OTHER-CLIENT) = CLIENT-STATE-PLAY AND OTHER-CLIENT NOT = LK-CLIENT
+            *> add the new player to the player list
+            CALL "SendPacket-AddPlayer" USING OTHER-CLIENT PLAYER-UUID(PLAYER-ID) PLAYER-NAME(PLAYER-ID)
+            *> spawn a player entity
+            CALL "SendPacket-SpawnEntity" USING OTHER-CLIENT PLAYER-ID PLAYER-UUID(PLAYER-ID) PLAYER-POSITION(PLAYER-ID) PLAYER-ROTATION(PLAYER-ID)
+        END-IF
+    END-PERFORM
+
+    GOBACK.
+
+END PROGRAM Server-SpawnPlayer.
 
 *> --- Server-DisconnectClient ---
 IDENTIFICATION DIVISION.
