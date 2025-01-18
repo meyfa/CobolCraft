@@ -22,6 +22,8 @@
         03 BLOCK-ENTRY-MINIMUM-STATE-ID BINARY-LONG UNSIGNED.
         03 BLOCK-ENTRY-MAXIMUM-STATE-ID BINARY-LONG UNSIGNED.
         03 BLOCK-ENTRY-DEFAULT-STATE-ID BINARY-LONG UNSIGNED.
+        *> Metadata about the block. This is not part of the data generator, but added by us afterwards.
+        03 BLOCK-ENTRY-HARDNESS FLOAT-SHORT.
     *> This table is sorted (SORT) by the block name, and is used for binary search (SEARCH ALL) to find the block's
     *> index in the BLOCK-ENTRY table.
     02 BLOCK-NAMES OCCURS BLOCKS-CAPACITY TIMES

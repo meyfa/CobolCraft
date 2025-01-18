@@ -5,6 +5,7 @@ PROGRAM-ID. RegisterBlock-Bed.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 C-MINECRAFT-BED                  PIC X(32) GLOBAL    VALUE "minecraft:bed".
+    01 HARDNESS                         FLOAT-SHORT         VALUE 0.2.
     01 DESTROY-PTR                      PROGRAM-POINTER.
     01 FACE-PTR                         PROGRAM-POINTER.
     01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
@@ -28,6 +29,8 @@ PROCEDURE DIVISION.
                 CALL "SetCallback-BlockDestroy" USING STATE-ID DESTROY-PTR
                 CALL "SetCallback-BlockFace" USING STATE-ID FACE-PTR
             END-PERFORM
+            *> set metadata
+            CALL "Blocks-SetHardness" USING BLOCK-INDEX HARDNESS
         END-IF
     END-PERFORM
 
