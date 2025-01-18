@@ -5,6 +5,7 @@ PROGRAM-ID. RegisterBlock-TallGrass.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 C-MINECRAFT-TALL_GRASS           PIC X(32) GLOBAL    VALUE "minecraft:tall_grass".
+    01 HARDNESS                         FLOAT-SHORT         VALUE 0.0.
     01 FACE-PTR                         PROGRAM-POINTER.
     01 REPLACEABLE-PTR                  PROGRAM-POINTER.
     01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
@@ -33,6 +34,8 @@ PROCEDURE DIVISION.
                 CALL "SetCallback-BlockFace" USING STATE-ID FACE-PTR
                 CALL "SetCallback-BlockReplaceable" USING STATE-ID REPLACEABLE-PTR
             END-PERFORM
+            *> set metadata
+            CALL "Blocks-SetHardness" USING BLOCK-INDEX HARDNESS
         END-IF
     END-PERFORM
 

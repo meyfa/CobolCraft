@@ -32,6 +32,7 @@ PROCEDURE DIVISION.
                 CALL "SetCallback-BlockInteract" USING STATE-ID INTERACT-PTR
                 CALL "SetCallback-BlockFace" USING STATE-ID FACE-PTR
             END-PERFORM
+            *> TODO set metadata
         END-IF
     END-PERFORM
 

@@ -9,18 +9,33 @@ WORKING-STORAGE SECTION.
     01 FACE-PTR                     PROGRAM-POINTER.
     01 REPLACEABLE-PTR              PROGRAM-POINTER.
     01 ITEM-PTR                     PROGRAM-POINTER.
-LINKAGE SECTION.
-    01 LK-BLOCK-STATE-ID            BINARY-LONG.
+    01 HARDNESS                     FLOAT-SHORT             VALUE 1.0.
+    01 BLOCK-COUNT                  BINARY-LONG.
+    01 BLOCK-INDEX                  BINARY-LONG.
+    01 BLOCK-MINIMUM-STATE-ID       BINARY-LONG.
+    01 BLOCK-MAXIMUM-STATE-ID       BINARY-LONG.
+    01 BLOCK-STATE-ID               BINARY-LONG.
 
-PROCEDURE DIVISION USING LK-BLOCK-STATE-ID.
+PROCEDURE DIVISION.
     SET DESTROY-PTR TO ENTRY "Callback-Destroy"
     SET FACE-PTR TO ENTRY "Callback-Face"
     SET REPLACEABLE-PTR TO ENTRY "Callback-Replaceable"
     SET ITEM-PTR TO ENTRY "Callback-Item"
-    CALL "SetCallback-BlockDestroy" USING LK-BLOCK-STATE-ID DESTROY-PTR
-    CALL "SetCallback-BlockFace" USING LK-BLOCK-STATE-ID FACE-PTR
-    CALL "SetCallback-BlockReplaceable" USING LK-BLOCK-STATE-ID REPLACEABLE-PTR
-    CALL "SetCallback-BlockItem" USING LK-BLOCK-STATE-ID ITEM-PTR
+
+    CALL "Blocks-GetCount" USING BLOCK-COUNT
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
+        CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
+        PERFORM VARYING BLOCK-STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL BLOCK-STATE-ID > BLOCK-MAXIMUM-STATE-ID
+            CALL "SetCallback-BlockDestroy" USING BLOCK-STATE-ID DESTROY-PTR
+            CALL "SetCallback-BlockFace" USING BLOCK-STATE-ID FACE-PTR
+            CALL "SetCallback-BlockReplaceable" USING BLOCK-STATE-ID REPLACEABLE-PTR
+            CALL "SetCallback-BlockItem" USING BLOCK-STATE-ID ITEM-PTR
+        END-PERFORM
+        *> set metadata
+        *> TODO figure out a better default hardness value
+        CALL "Blocks-SetHardness" USING BLOCK-INDEX HARDNESS
+    END-PERFORM
+
     GOBACK.
 
     *> --- Callback-Destroy ---

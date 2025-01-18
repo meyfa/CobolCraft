@@ -88,12 +88,6 @@ WORKING-STORAGE SECTION.
     01 REGISTRY-LENGTH              BINARY-LONG UNSIGNED.
     01 REGISTRY-ENTRY-INDEX         BINARY-LONG UNSIGNED.
     01 REGISTRY-ENTRY-NAME          PIC X(100).
-    *> Variables used for block registration
-    01 BLOCK-COUNT                  BINARY-LONG.
-    01 BLOCK-INDEX                  BINARY-LONG.
-    01 BLOCK-MINIMUM-STATE-ID       BINARY-LONG.
-    01 BLOCK-MAXIMUM-STATE-ID       BINARY-LONG.
-    01 BLOCK-STATE-ID               BINARY-LONG.
 
 PROCEDURE DIVISION.
 LoadRegistries.
@@ -210,13 +204,7 @@ RegisterBlocks.
     DISPLAY "Registering blocks"
 
     *> Register generic handlers for every block state
-    CALL "Blocks-GetCount" USING BLOCK-COUNT
-    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
-        CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
-        PERFORM VARYING BLOCK-STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL BLOCK-STATE-ID > BLOCK-MAXIMUM-STATE-ID
-            CALL "RegisterBlock-Generic" USING BLOCK-STATE-ID
-        END-PERFORM
-    END-PERFORM
+    CALL "RegisterBlock-Generic"
 
     *> Register blocks with special handling
     CALL "RegisterBlock-Air"
@@ -354,6 +342,9 @@ ServerLoop.
                         MOVE CLIENT-PLAYER(TEMP-INT16) TO TEMP-INT32
                         CALL "SendPacket-EntityPositionSync" USING CLIENT-ID TEMP-INT32 PLAYER-POSITION(TEMP-INT32) PLAYER-ROTATION(TEMP-INT32)
                         CALL "SendPacket-SetHeadRotation" USING CLIENT-ID TEMP-INT32 PLAYER-YAW(TEMP-INT32)
+                        IF PLAYER-BLOCK-BREAKING-STAGE(TEMP-INT32) >= 0
+                            CALL "SendPacket-BlockDestruction" USING CLIENT-ID TEMP-INT32 PLAYER-BLOCK-BREAKING-POSITION(TEMP-INT32) PLAYER-BLOCK-BREAKING-STAGE(TEMP-INT32)
+                        END-IF
                         *> index(byte), type(VarInt), value(VarInt)
                         *> index of pose: 6, type of pose: 21
                         *> value of standing: 0, value of sneaking: 5
@@ -999,6 +990,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> constants
     01 C-COLOR-YELLOW           PIC X(16)                   VALUE "yellow".
+    01 BLOCK-DESTRUCTION-RESET  BINARY-CHAR                 VALUE -1.
     *> shared data
     COPY DD-CLIENT-STATES.
     COPY DD-CLIENTS.
@@ -1039,6 +1031,9 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
             IF CLIENT-PRESENT(OTHER-CLIENT-ID) = 1 AND CLIENT-STATE(OTHER-CLIENT-ID) = CLIENT-STATE-PLAY AND OTHER-CLIENT-ID NOT = LK-CLIENT-ID
                 CALL "SendPacket-RemovePlayer" USING OTHER-CLIENT-ID PLAYER-UUID(PLAYER-ID)
                 CALL "SendPacket-RemoveEntity" USING OTHER-CLIENT-ID PLAYER-ID
+                IF PLAYER-BLOCK-BREAKING-STAGE(PLAYER-ID) >= 0
+                    CALL "SendPacket-BlockDestruction" USING OTHER-CLIENT-ID PLAYER-ID PLAYER-BLOCK-BREAKING-POSITION(PLAYER-ID) BLOCK-DESTRUCTION-RESET
+                END-IF
             END-IF
         END-PERFORM
     END-IF
