@@ -373,8 +373,25 @@ ServerLoop.
                         MOVE X"FF" TO BUFFER(10:1)
                         MOVE 10 TO BYTE-COUNT
                         CALL "SendPacket-SetEntityMetadata" USING CLIENT-ID TEMP-INT32 BYTE-COUNT BUFFER
-                        COMPUTE TEMP-INT8 = 36 + PLAYER-HOTBAR(TEMP-INT32) + 1
-                        CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 PLAYER-INVENTORY-SLOT(TEMP-INT32, TEMP-INT8)
+                        *> main hand item
+                        MOVE 0 TO TEMP-INT8
+                        COMPUTE TEMP-INT64 = 36 + PLAYER-HOTBAR(TEMP-INT32) + 1
+                        CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 TEMP-INT8 PLAYER-INVENTORY-SLOT(TEMP-INT32, TEMP-INT64)
+                        *> offhand item
+                        MOVE 1 TO TEMP-INT8
+                        CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 TEMP-INT8 PLAYER-INVENTORY-SLOT(TEMP-INT32, 45 + 1)
+                        *> boots
+                        MOVE 2 TO TEMP-INT8
+                        CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 TEMP-INT8 PLAYER-INVENTORY-SLOT(TEMP-INT32, 8 + 1)
+                        *> leggings
+                        MOVE 3 TO TEMP-INT8
+                        CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 TEMP-INT8 PLAYER-INVENTORY-SLOT(TEMP-INT32, 7 + 1)
+                        *> chestplate
+                        MOVE 4 TO TEMP-INT8
+                        CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 TEMP-INT8 PLAYER-INVENTORY-SLOT(TEMP-INT32, 6 + 1)
+                        *> helmet
+                        MOVE 5 TO TEMP-INT8
+                        CALL "SendPacket-SetEquipment" USING CLIENT-ID TEMP-INT32 TEMP-INT8 PLAYER-INVENTORY-SLOT(TEMP-INT32, 5 + 1)
                     END-IF
                 END-PERFORM
             END-IF
