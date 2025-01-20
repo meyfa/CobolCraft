@@ -261,6 +261,7 @@ WORKING-STORAGE SECTION.
     01 CHUNK-END-Z              BINARY-LONG.
     01 CHUNK-X                  BINARY-LONG.
     01 CHUNK-Z                  BINARY-LONG.
+    COPY DD-CHUNK-REF.
 LINKAGE SECTION.
     01 LK-CLIENT                BINARY-LONG UNSIGNED.
 
@@ -284,7 +285,8 @@ PROCEDURE DIVISION USING LK-CLIENT.
         IF CHUNK-X >= CHUNK-START-X AND CHUNK-X <= CHUNK-END-X AND CHUNK-Z >= CHUNK-START-Z AND CHUNK-Z <= CHUNK-END-Z
             CALL "World-EnsureChunk" USING CHUNK-X CHUNK-Z CHUNK-INDEX
             IF CHUNK-INDEX > 0
-                CALL "SendPacket-ChunkData" USING LK-CLIENT WORLD-CHUNK(CHUNK-INDEX)
+                SET ADDRESS OF WORLD-CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
+                CALL "SendPacket-ChunkData" USING LK-CLIENT WORLD-CHUNK
             END-IF
             *> Stop once a chunk has been sent
             EXIT PERFORM
