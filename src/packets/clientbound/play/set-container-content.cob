@@ -13,7 +13,6 @@ WORKING-STORAGE SECTION.
     01 INT32            BINARY-LONG.
 LINKAGE SECTION.
     01 LK-CLIENT        BINARY-LONG UNSIGNED.
-    *> TODO: support containers other than the player inventory
     01 LK-STATE-ID      BINARY-LONG.
     01 LK-INVENTORY.
         02 LK-SLOT OCCURS 46 TIMES.
@@ -27,6 +26,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-STATE-ID LK-INVENTORY LK-MOUSE-SLOT.
     MOVE 1 TO PAYLOADPOS
 
     *> window ID (0 = player inventory)
+    *> TODO: support containers other than the player inventory
     MOVE X"00" TO PAYLOAD(PAYLOADPOS:1)
     ADD 1 TO PAYLOADPOS
 
@@ -42,7 +42,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-STATE-ID LK-INVENTORY LK-MOUSE-SLOT.
         CALL "EncodeSlot" USING LK-SLOT(SLOT-INDEX) PAYLOAD PAYLOADPOS
     END-PERFORM
 
-    *> carried item (empty)
+    *> carried item (mouse slot)
     CALL "EncodeSlot" USING LK-MOUSE-SLOT PAYLOAD PAYLOADPOS
 
     *> send packet

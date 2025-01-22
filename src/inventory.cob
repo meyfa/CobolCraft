@@ -29,6 +29,8 @@ LINKAGE SECTION.
     01 LK-ITEM-ID                   BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-HELD-SLOT LK-INVENTORY LK-ITEM-ID.
+    *> TODO implement this for survival mode
+
     *> If the item is in the hotbar, switch to it.
     PERFORM VARYING SLOT FROM HOTBAR-START BY 1 UNTIL SLOT > HOTBAR-END
         IF LK-INVENTORY-SLOT-ID(SLOT) = LK-ITEM-ID
