@@ -216,6 +216,7 @@ RegisterBlocks.
     CALL "RegisterBlock-Bed"
     CALL "RegisterBlock-Water"
     CALL "RegisterBlock-Lava"
+    CALL "RegisterBlock-CraftingTable"
     .
 
 RegisterCommands.

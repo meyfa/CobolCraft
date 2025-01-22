@@ -40,20 +40,19 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
 
     *> TOOD implement containers other than inventory
     IF WINDOW-ID NOT = 0
+        PERFORM SyncInventory
         GOBACK
     END-IF
 
     *> sync client if state ID differs from last sent
     IF STATE-ID NOT = PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
-        CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
-            PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
+        PERFORM SyncInventory
         GOBACK
     END-IF
 
     *> TODO support dropping items
     IF (MODE-ENUM = 0 AND SLOT = -999) OR (MODE-ENUM = 4)
-        CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
-            PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
+        PERFORM SyncInventory
         GOBACK
     END-IF
 
@@ -77,6 +76,12 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     MOVE CLIENT-SLOT TO PLAYER-MOUSE-ITEM(PLAYER-ID)
 
     GOBACK.
+
+SyncInventory.
+    ADD 1 TO PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
+    CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
+        PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
+    EXIT PARAGRAPH.
 
 DecodeSlot.
     *> TODO deduplicate slot decoding with "set creative slot" packet
