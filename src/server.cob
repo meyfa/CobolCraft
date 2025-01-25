@@ -52,7 +52,6 @@ WORKING-STORAGE SECTION.
     *> Incoming/outgoing packet data
     01 PACKET-STATE                 BINARY-CHAR.
     01 PACKET-ID                    BINARY-LONG.
-    01 PACKET-NAME                  PIC X(128).
     01 PACKET-OFFSET                BINARY-LONG UNSIGNED.
     01 BUFFER                       PIC X(64000).
     01 BYTE-COUNT                   BINARY-LONG UNSIGNED.
@@ -63,7 +62,6 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT32                   BINARY-LONG.
     01 TEMP-INT64                   BINARY-LONG-LONG.
     01 TEMP-INT64-2                 BINARY-LONG-LONG.
-    01 TEMP-IDENTIFIER              PIC X(100).
     *> Time measurement (microseconds)
     78 NANOSECOND-SCALE             VALUE 1000.
     01 CURRENT-TIME                 BINARY-LONG-LONG.
@@ -83,6 +81,7 @@ WORKING-STORAGE SECTION.
     01 REGISTRY-COUNT               BINARY-LONG UNSIGNED.
     *> Variables used for item registration
     01 REGISTRY-INDEX               BINARY-LONG.
+    01 REGISTRY-NAME                PIC X(100).
     01 REGISTRY-LENGTH              BINARY-LONG UNSIGNED.
     01 REGISTRY-ENTRY-INDEX         BINARY-LONG UNSIGNED.
     01 REGISTRY-ENTRY-NAME          PIC X(100).
@@ -145,8 +144,8 @@ LoadDatapack.
     PERFORM VARYING REGISTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-INDEX > REGISTRY-COUNT
         CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
         IF REGISTRY-LENGTH <= 0
-            CALL "Registries-Iterate-Name" USING REGISTRY-INDEX TEMP-IDENTIFIER
-            DISPLAY "Error: Empty registry '" FUNCTION TRIM(TEMP-IDENTIFIER) "'!"
+            CALL "Registries-Iterate-Name" USING REGISTRY-INDEX REGISTRY-NAME
+            DISPLAY "Error: Empty registry '" FUNCTION TRIM(REGISTRY-NAME) "'!"
             STOP RUN RETURNING 1
         END-IF
     END-PERFORM
@@ -170,6 +169,13 @@ RegisterPacketHandlers.
     DISPLAY "Registering packet handlers"
 
     CALL "InitializePacketHandlers"
+
+    MOVE CLIENT-STATE-HANDSHAKE TO PACKET-STATE
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:intention"                   "RecvPacket-Intention"
+
+    MOVE CLIENT-STATE-STATUS TO PACKET-STATE
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:status_request"              "RecvPacket-StatusRequest"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:ping_request"                "RecvPacket-PingRequest"
 
     MOVE CLIENT-STATE-LOGIN TO PACKET-STATE
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:hello"                       "RecvPacket-Hello"
@@ -620,61 +626,11 @@ ReceivePacket.
     *> Packet received, process it
     MOVE 1 TO PACKET-OFFSET
     CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-OFFSET PACKET-ID
-
-    EVALUATE CLIENT-STATE(CLIENT-ID)
-        WHEN CLIENT-STATE-HANDSHAKE
-            CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
-            PERFORM HandleHandshake
-        WHEN CLIENT-STATE-STATUS
-            CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
-            PERFORM HandleStatus
-        WHEN OTHER
-            CALL "HandlePacket" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) PACKET-ID CLIENT-RECEIVE-BUFFER PACKET-LENGTH(CLIENT-ID) PACKET-OFFSET
-    END-EVALUATE
+    CALL "HandlePacket" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) PACKET-ID CLIENT-RECEIVE-BUFFER PACKET-LENGTH(CLIENT-ID) PACKET-OFFSET
 
     *> Reset length for the next packet
     MOVE 0 TO PACKET-LENGTH(CLIENT-ID)
     MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
-
-    EXIT PARAGRAPH.
-
-HandleHandshake.
-    IF PACKET-NAME NOT = "minecraft:intention"
-        DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
-        CALL "Server-DisconnectClient" USING CLIENT-ID
-        EXIT PARAGRAPH
-    END-IF
-
-    *> The final byte of the payload encodes the target state.
-    COMPUTE CLIENT-STATE(CLIENT-ID) = FUNCTION ORD(CLIENT-RECEIVE-BUFFER(PACKET-LENGTH(CLIENT-ID):1)) - 1
-    IF CLIENT-STATE(CLIENT-ID) NOT = CLIENT-STATE-STATUS AND CLIENT-STATE(CLIENT-ID) NOT = CLIENT-STATE-LOGIN
-        DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client requested invalid target state: " CLIENT-STATE(CLIENT-ID)
-        CALL "Server-DisconnectClient" USING CLIENT-ID
-    END-IF
-
-    EXIT PARAGRAPH.
-
-HandleStatus.
-    EVALUATE PACKET-NAME
-        WHEN "minecraft:status_request"
-            *> count the number of current players
-            MOVE 0 TO TEMP-INT32
-            PERFORM VARYING TEMP-INT16 FROM 1 BY 1 UNTIL TEMP-INT16 > MAX-CLIENTS
-                IF CLIENT-PRESENT(TEMP-INT16) = 1 AND CLIENT-PLAYER(TEMP-INT16) > 0
-                    ADD 1 TO TEMP-INT32
-                END-IF
-            END-PERFORM
-            CALL "SendPacket-Status" USING CLIENT-ID SP-MOTD MAX-PLAYERS TEMP-INT32
-
-        WHEN "minecraft:ping_request"
-            *> respond with the same payload and close the connection
-            CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-OFFSET TEMP-INT64
-            CALL "SendPacket-PingResponse" USING CLIENT-ID TEMP-INT64
-            CALL "Server-DisconnectClient" USING CLIENT-ID
-
-        WHEN OTHER
-            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
-    END-EVALUATE.
 
     EXIT PARAGRAPH.
 

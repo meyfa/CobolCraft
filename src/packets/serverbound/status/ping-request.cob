@@ -1,0 +1,21 @@
+IDENTIFICATION DIVISION.
+PROGRAM-ID. RecvPacket-PingRequest.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-CLIENTS.
+    COPY DD-SERVER-PROPERTIES.
+    01 PING-ID                  BINARY-LONG-LONG.
+LINKAGE SECTION.
+    01 LK-CLIENT                BINARY-LONG UNSIGNED.
+    01 LK-BUFFER                PIC X ANY LENGTH.
+    01 LK-OFFSET                BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
+    *> respond with the same payload and close the connection
+    CALL "Decode-Long" USING LK-BUFFER LK-OFFSET PING-ID
+    CALL "SendPacket-PingResponse" USING LK-CLIENT PING-ID
+    CALL "Server-DisconnectClient" USING LK-CLIENT
+    GOBACK.
+
+END PROGRAM RecvPacket-PingRequest.
