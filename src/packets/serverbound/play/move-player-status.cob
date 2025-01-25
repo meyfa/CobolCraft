@@ -14,12 +14,13 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     MOVE CLIENT-PLAYER(LK-CLIENT) TO PLAYER-ID
 
+    *> TODO: "on ground" flag
+    ADD 1 TO LK-OFFSET
+
     *> ignore movement until position is confirmed
     IF TELEPORT-RECV(LK-CLIENT) NOT = TELEPORT-SENT(LK-CLIENT)
         GOBACK
     END-IF
-
-    *> TODO: "on ground" flag
 
     GOBACK.
 
