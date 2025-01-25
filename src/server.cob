@@ -26,7 +26,6 @@ WORKING-STORAGE SECTION.
     01 C-MINECRAFT-JUKEBOX_SONG     PIC X(50)               VALUE "minecraft:jukebox_song".
     01 C-MINECRAFT-ITEM             PIC X(50)               VALUE "minecraft:item".
     01 C-MINECRAFT-INSTRUMENT       PIC X(50)               VALUE "minecraft:instrument".
-    01 C-COLOR-YELLOW               PIC X(16)               VALUE "yellow".
     *> Configuration
     COPY DD-SERVER-PROPERTIES.
     *> The amount of microseconds between autosaves, and the last autosave timestamp.
@@ -174,28 +173,32 @@ RegisterPacketHandlers.
 
     CALL "InitializePacketHandlers"
 
+    MOVE CLIENT-STATE-CONFIGURATION TO PACKET-STATE
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:client_information"          "RecvPacket-ClientInformation"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:finish_configuration"        "RecvPacket-FinishConfiguration"
+
     MOVE CLIENT-STATE-PLAY TO PACKET-STATE
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:accept_teleportation"         "RecvPacket-AcceptTeleport"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:chat_command"                 "RecvPacket-ChatCommand"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:chat"                         "RecvPacket-Chat"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:client_command"               "RecvPacket-ClientCommand"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:container_click"              "RecvPacket-ContainerClick"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:container_close"              "RecvPacket-ContainerClose"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:debug_sample_subscription"    "RecvPacket-DebugSubscription"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:keep_alive"                   "RecvPacket-KeepAlive"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_pos"              "RecvPacket-MovePlayerPos"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_pos_rot"          "RecvPacket-MovePlayerPosRot"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_rot"              "RecvPacket-MovePlayerRot"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_status_only"      "RecvPacket-MovePlayerStatus"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:pick_item_from_block"         "RecvPacket-PickBlock"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_abilities"             "RecvPacket-PlayerAbilities"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_action"                "RecvPacket-PlayerAction"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_command"               "RecvPacket-PlayerCommand"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:set_carried_item"             "RecvPacket-SetCarriedItem"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:set_creative_mode_slot"       "RecvPacket-SetCreativeSlot"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:swing"                        "RecvPacket-Swing"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item_on"                  "RecvPacket-UseItemOn"
-    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item"                     "RecvPacket-UseItem"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:accept_teleportation"        "RecvPacket-AcceptTeleport"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:chat_command"                "RecvPacket-ChatCommand"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:chat"                        "RecvPacket-Chat"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:client_command"              "RecvPacket-ClientCommand"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:container_click"             "RecvPacket-ContainerClick"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:container_close"             "RecvPacket-ContainerClose"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:debug_sample_subscription"   "RecvPacket-DebugSubscription"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:keep_alive"                  "RecvPacket-KeepAlive"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_pos"             "RecvPacket-MovePlayerPos"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_pos_rot"         "RecvPacket-MovePlayerPosRot"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_rot"             "RecvPacket-MovePlayerRot"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_status_only"     "RecvPacket-MovePlayerStatus"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:pick_item_from_block"        "RecvPacket-PickBlock"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_abilities"            "RecvPacket-PlayerAbilities"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_action"               "RecvPacket-PlayerAction"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_command"              "RecvPacket-PlayerCommand"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:set_carried_item"            "RecvPacket-SetCarriedItem"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:set_creative_mode_slot"      "RecvPacket-SetCreativeSlot"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:swing"                       "RecvPacket-Swing"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item_on"                 "RecvPacket-UseItemOn"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item"                    "RecvPacket-UseItem"
     .
 
 RegisterItems.
@@ -626,9 +629,6 @@ ReceivePacket.
         WHEN CLIENT-STATE-LOGIN
             CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
             PERFORM HandleLogin
-        WHEN CLIENT-STATE-CONFIGURATION
-            CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
-            PERFORM HandleConfiguration
         WHEN OTHER
             CALL "HandlePacket" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) PACKET-ID CLIENT-RECEIVE-BUFFER PACKET-LENGTH(CLIENT-ID) PACKET-POSITION
     END-EVALUATE
@@ -747,79 +747,6 @@ HandleLogin.
         WHEN OTHER
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE
-
-    EXIT PARAGRAPH.
-
-HandleConfiguration.
-    EVALUATE PACKET-NAME
-        WHEN "minecraft:client_information"
-            *> Note: payload of this packet is ignored for now
-
-            *> Send brand
-            MOVE "minecraft:brand" TO TEMP-IDENTIFIER
-            MOVE 10 TO TEMP-INT32 *> length of the brand string
-            MOVE 1 TO BYTE-COUNT
-            CALL "Encode-VarInt" USING TEMP-INT32 BUFFER BYTE-COUNT
-            MOVE "CobolCraft" TO BUFFER(BYTE-COUNT:TEMP-INT32)
-            COMPUTE BYTE-COUNT = BYTE-COUNT + TEMP-INT32 - 1
-            CALL "SendPacket-PluginMessage" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) TEMP-IDENTIFIER BYTE-COUNT BUFFER
-
-            *> Send configuration packets
-            CALL "SendPacket-FeatureFlags" USING CLIENT-ID
-            CALL "SendPacket-KnownPacks" USING CLIENT-ID
-            CALL "Registries-GetCount" USING REGISTRY-COUNT
-            PERFORM VARYING REGISTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-INDEX > REGISTRY-COUNT
-                CALL "Registries-Iterate-ReqPacket" USING REGISTRY-INDEX TEMP-INT8
-                IF TEMP-INT8 = 1
-                    CALL "SendPacket-Registry" USING CLIENT-ID REGISTRY-INDEX
-                END-IF
-            END-PERFORM
-            CALL "SendPacket-UpdateTags" USING CLIENT-ID
-
-            *> Send finish configuration
-            CALL "SendPacket-FinishConfiguration" USING CLIENT-ID
-
-            *> We now expect an acknowledge packet
-            MOVE 1 TO CONFIG-FINISH(CLIENT-ID)
-
-        WHEN "minecraft:custom_payload"
-            *> Not implemented
-            CONTINUE
-
-        WHEN "minecraft:finish_configuration"
-            IF CONFIG-FINISH(CLIENT-ID) = 0
-                DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected acknowledge finish configuration"
-                CALL "Server-DisconnectClient" USING CLIENT-ID
-                EXIT PARAGRAPH
-            END-IF
-
-            *> Can move to play state
-            MOVE CLIENT-STATE-PLAY TO CLIENT-STATE(CLIENT-ID)
-
-            *> send "Login (play)" with player index as entity ID
-            MOVE CLIENT-PLAYER(CLIENT-ID) TO TEMP-INT32
-            CALL "World-IsHardcore" USING TEMP-INT8
-            CALL "SendPacket-LoginPlay" USING CLIENT-ID TEMP-INT32 VIEW-DISTANCE PLAYER-GAMEMODE(TEMP-INT32) TEMP-INT8 MAX-PLAYERS
-
-            *> perform all actions to spawn the player, load initial chunks, etc.
-            CALL "Server-SpawnPlayer" USING CLIENT-ID
-
-            *> Send available commands list
-            CALL "SendPacket-Commands" USING CLIENT-ID
-
-            *> send join message to all other players
-            INITIALIZE BUFFER
-            STRING FUNCTION TRIM(PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))) " joined the game" INTO BUFFER
-            MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BYTE-COUNT
-            CALL "BroadcastChatMessageExcept" USING CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
-
-        WHEN "minecraft:select_known_packs"
-            *> Not implemented
-            CONTINUE
-
-        WHEN OTHER
-            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
-    END-EVALUATE.
 
     EXIT PARAGRAPH.
 
