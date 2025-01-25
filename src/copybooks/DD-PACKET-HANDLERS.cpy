@@ -1,0 +1,8 @@
+*> --- Copybook: handlers for incoming (serverbound) packets ---
+
+78 PACKET-HANDLERS-CAPACITY VALUE 256.
+
+*> handlers by client state
+01 PACKET-HANDLERS-TABLE EXTERNAL.
+    02 PACKET-HANDLERS OCCURS 5 TIMES.
+        03 PACKET-HANDLER PROGRAM-POINTER OCCURS PACKET-HANDLERS-CAPACITY TIMES.

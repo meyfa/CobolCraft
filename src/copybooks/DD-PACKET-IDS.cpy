@@ -1,4 +1,4 @@
-*> --- Copybook: lookup tables for packet IDs ---
+*> --- Copybook: lookup tables for packet IDs (serverbound and clientbound), loaded from the data generator ---
 
 78 PACKET-REF-ENTRY-LENGTH VALUE 256.
 
