@@ -1,0 +1,73 @@
+IDENTIFICATION DIVISION.
+PROGRAM-ID. RecvPacket-ClientInformation.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-CLIENTS.
+    *> payload
+    01 LOCALE-STR               PIC X(16).
+    01 LOCALE-LEN               BINARY-LONG UNSIGNED.
+    01 CLIENT-VIEW-DISTANCE     BINARY-CHAR.
+    01 CHAT-MODE                BINARY-LONG.
+    01 CHAT-COLORS              BINARY-CHAR UNSIGNED.
+    01 DISPLAYED-SKIN-PARTS     BINARY-CHAR UNSIGNED.
+    01 MAIN-HAND                BINARY-LONG.
+    01 ENABLE-TEXT-FILTERING    BINARY-CHAR UNSIGNED.
+    01 ALLOW-SERVER-LISTINGS    BINARY-CHAR UNSIGNED.
+    01 PARTICLE-STATUS          BINARY-LONG.
+    *> clientbound brand packet
+    01 BRAND-IDENTIFIER         PIC X(16)                   VALUE "minecraft:brand".
+    01 BRAND-VALUE              PIC X(10)                   VALUE "CobolCraft".
+    01 BRAND-LENGTH             BINARY-LONG UNSIGNED        VALUE 10.
+    01 BUFFER                   PIC X(255).
+    01 BUFFERLEN                BINARY-LONG UNSIGNED.
+    01 BUFFERPOS                BINARY-LONG UNSIGNED.
+    *> registry packet
+    01 REGISTRY-COUNT           BINARY-LONG UNSIGNED.
+    01 REGISTRY-INDEX           BINARY-LONG UNSIGNED.
+    01 REGISTRY-PACKET-REQUIRED BINARY-CHAR UNSIGNED.
+LINKAGE SECTION.
+    01 LK-CLIENT                BINARY-LONG UNSIGNED.
+    01 LK-BUFFER                PIC X ANY LENGTH.
+    01 LK-OFFSET                BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
+    *> Payload is entirely ignored for now
+    *> TODO do something with these values (especially view distance)
+    *> TODO implement the client information packet for the "play" state as well
+    CALL "Decode-String" USING LK-BUFFER LK-OFFSET LOCALE-STR LOCALE-LEN
+    CALL "Decode-Byte" USING LK-BUFFER LK-OFFSET CLIENT-VIEW-DISTANCE
+    CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET CHAT-MODE
+    CALL "Decode-Byte" USING LK-BUFFER LK-OFFSET CHAT-COLORS
+    CALL "Decode-Byte" USING LK-BUFFER LK-OFFSET DISPLAYED-SKIN-PARTS
+    CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET MAIN-HAND
+    CALL "Decode-Byte" USING LK-BUFFER LK-OFFSET ENABLE-TEXT-FILTERING
+    CALL "Decode-Byte" USING LK-BUFFER LK-OFFSET ALLOW-SERVER-LISTINGS
+    CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET PARTICLE-STATUS
+
+    *> Send brand
+    MOVE 1 TO BUFFERPOS
+    CALL "Encode-String" USING BRAND-VALUE BRAND-LENGTH BUFFER BUFFERPOS
+    COMPUTE BUFFERLEN = BUFFERPOS - 1
+    CALL "SendPacket-PluginMessage" USING LK-CLIENT CLIENT-STATE(LK-CLIENT) BRAND-IDENTIFIER BUFFERLEN BUFFER
+
+    *> Send configuration packets
+    CALL "SendPacket-FeatureFlags" USING LK-CLIENT
+    CALL "SendPacket-KnownPacks" USING LK-CLIENT
+    CALL "Registries-GetCount" USING REGISTRY-COUNT
+    PERFORM VARYING REGISTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-INDEX > REGISTRY-COUNT
+        CALL "Registries-Iterate-ReqPacket" USING REGISTRY-INDEX REGISTRY-PACKET-REQUIRED
+        IF REGISTRY-PACKET-REQUIRED = 1
+            CALL "SendPacket-Registry" USING LK-CLIENT REGISTRY-INDEX
+        END-IF
+    END-PERFORM
+    CALL "SendPacket-UpdateTags" USING LK-CLIENT
+
+    CALL "SendPacket-FinishConfiguration" USING LK-CLIENT
+
+    *> We now expect an acknowledge packet
+    MOVE 1 TO CONFIG-FINISH(LK-CLIENT)
+
+    GOBACK.
+
+END PROGRAM RecvPacket-ClientInformation.
