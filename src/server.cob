@@ -529,7 +529,7 @@ KeepAlive.
     COMPUTE TEMP-INT64 = CURRENT-TIME - KEEPALIVE-RECV(CLIENT-ID)
     IF TEMP-INT64 >= KEEPALIVE-RECV-TIMEOUT
         DISPLAY "[client=" CLIENT-ID "] Timeout"
-        PERFORM DisconnectClient
+        CALL "Server-DisconnectClient" USING CLIENT-ID
         EXIT PARAGRAPH
     END-IF
 
@@ -582,7 +582,7 @@ ReceivePacket.
             CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
             IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length: " PACKET-LENGTH(CLIENT-ID)
-                PERFORM DisconnectClient
+                CALL "Server-DisconnectClient" USING CLIENT-ID
                 EXIT PARAGRAPH
             END-IF
             MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
@@ -591,7 +591,7 @@ ReceivePacket.
 
         IF PACKET-BUFFERLEN(CLIENT-ID) >= 5
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length."
-            PERFORM DisconnectClient
+            CALL "Server-DisconnectClient" USING CLIENT-ID
             EXIT PARAGRAPH
         END-IF
     END-PERFORM
@@ -630,7 +630,7 @@ ReceivePacket.
             CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
             PERFORM HandleConfiguration
         WHEN OTHER
-            CALL "HandlePacket" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) PACKET-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
+            CALL "HandlePacket" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) PACKET-ID CLIENT-RECEIVE-BUFFER PACKET-LENGTH(CLIENT-ID) PACKET-POSITION
     END-EVALUATE
 
     *> Reset length for the next packet
@@ -642,7 +642,7 @@ ReceivePacket.
 HandleHandshake.
     IF PACKET-NAME NOT = "minecraft:intention"
         DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
-        PERFORM DisconnectClient
+        CALL "Server-DisconnectClient" USING CLIENT-ID
         EXIT PARAGRAPH
     END-IF
 
@@ -650,8 +650,7 @@ HandleHandshake.
     COMPUTE CLIENT-STATE(CLIENT-ID) = FUNCTION ORD(CLIENT-RECEIVE-BUFFER(PACKET-LENGTH(CLIENT-ID):1)) - 1
     IF CLIENT-STATE(CLIENT-ID) NOT = CLIENT-STATE-STATUS AND CLIENT-STATE(CLIENT-ID) NOT = CLIENT-STATE-LOGIN
         DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client requested invalid target state: " CLIENT-STATE(CLIENT-ID)
-        PERFORM DisconnectClient
-        EXIT PARAGRAPH
+        CALL "Server-DisconnectClient" USING CLIENT-ID
     END-IF
 
     EXIT PARAGRAPH.
@@ -672,7 +671,7 @@ HandleStatus.
             *> respond with the same payload and close the connection
             CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT64
             CALL "SendPacket-PingResponse" USING CLIENT-ID TEMP-INT64
-            PERFORM DisconnectClient
+            CALL "Server-DisconnectClient" USING CLIENT-ID
 
         WHEN OTHER
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
@@ -699,7 +698,7 @@ HandleLogin.
                     MOVE 40 TO BYTE-COUNT
                     DISPLAY "Disconnecting " FUNCTION TRIM(TEMP-PLAYER-NAME) ": " BUFFER(1:BYTE-COUNT)
                     CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                    PERFORM DisconnectClient
+                    CALL "Server-DisconnectClient" USING CLIENT-ID
                     EXIT PARAGRAPH
                 END-IF
             END-IF
@@ -713,7 +712,7 @@ HandleLogin.
                 MOVE 35 TO BYTE-COUNT
                 DISPLAY "Disconnecting " FUNCTION TRIM(PLAYER-NAME(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                PERFORM DisconnectClient
+                CALL "Server-DisconnectClient" USING CLIENT-ID
                 MOVE TEMP-INT64 TO CLIENT-ID
             END-IF
 
@@ -727,7 +726,7 @@ HandleLogin.
                 MOVE 18 TO BYTE-COUNT
                 DISPLAY "Disconnecting " FUNCTION TRIM(TEMP-PLAYER-NAME) ": " BUFFER(1:BYTE-COUNT)
                 CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                PERFORM DisconnectClient
+                CALL "Server-DisconnectClient" USING CLIENT-ID
                 EXIT PARAGRAPH
             END-IF
 
@@ -738,7 +737,7 @@ HandleLogin.
             *> Must not happen before login start
             IF CLIENT-PLAYER(CLIENT-ID) = 0
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected login acknowledge"
-                PERFORM DisconnectClient
+                CALL "Server-DisconnectClient" USING CLIENT-ID
                 EXIT PARAGRAPH
             END-IF
 
@@ -790,7 +789,7 @@ HandleConfiguration.
         WHEN "minecraft:finish_configuration"
             IF CONFIG-FINISH(CLIENT-ID) = 0
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected acknowledge finish configuration"
-                PERFORM DisconnectClient
+                CALL "Server-DisconnectClient" USING CLIENT-ID
                 EXIT PARAGRAPH
             END-IF
 
@@ -824,24 +823,17 @@ HandleConfiguration.
 
     EXIT PARAGRAPH.
 
-DisconnectClient.
-    *> Disconnect the current client.
-    CALL "Server-DisconnectClient" USING CLIENT-ID
-    EXIT PARAGRAPH.
-
 HandleServerError.
     IF ERRNO NOT = 0
         DISPLAY "Server socket error: " ERRNO
         STOP RUN RETURNING 1
     END-IF
-
     EXIT PARAGRAPH.
 
 HandleClientError.
     IF ERRNO NOT = 0
         CALL "Server-ClientError" USING CLIENT-ID ERRNO
     END-IF
-
     EXIT PARAGRAPH.
 
 END PROGRAM Server.
