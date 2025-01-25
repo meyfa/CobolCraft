@@ -51,6 +51,7 @@ WORKING-STORAGE SECTION.
     *> TODO: remove need to access player data directly in this file
     COPY DD-PLAYERS.
     *> Incoming/outgoing packet data
+    01 PACKET-STATE                 BINARY-CHAR.
     01 PACKET-ID                    BINARY-LONG.
     01 PACKET-NAME                  PIC X(128).
     01 PACKET-POSITION              BINARY-LONG UNSIGNED.
@@ -134,20 +135,6 @@ LoadBlocks.
     END-IF
     .
 
-LoadPackets.
-    DISPLAY "Loading packets"
-    CALL "Files-ReadAll" USING FILE-PACKETS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-PACKETS)
-        STOP RUN RETURNING 1
-    END-IF
-    CALL "Packets-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to parse packets"
-        STOP RUN RETURNING 1
-    END-IF
-    .
-
 LoadDatapack.
     DISPLAY "Loading vanilla datapack"
     CALL "Datapack-Load" USING FILE-DATAPACK-ROOT VANILLA-DATAPACK-NAME DATA-FAILURE
@@ -166,6 +153,49 @@ LoadDatapack.
             STOP RUN RETURNING 1
         END-IF
     END-PERFORM
+    .
+
+LoadPackets.
+    DISPLAY "Loading packets"
+    CALL "Files-ReadAll" USING FILE-PACKETS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-PACKETS)
+        STOP RUN RETURNING 1
+    END-IF
+    CALL "Packets-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to parse packets"
+        STOP RUN RETURNING 1
+    END-IF
+    .
+
+RegisterPacketHandlers.
+    DISPLAY "Registering packet handlers"
+
+    CALL "InitializePacketHandlers"
+
+    MOVE CLIENT-STATE-PLAY TO PACKET-STATE
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:accept_teleportation"         "RecvPacket-AcceptTeleport"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:chat_command"                 "RecvPacket-ChatCommand"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:chat"                         "RecvPacket-Chat"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:client_command"               "RecvPacket-ClientCommand"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:container_click"              "RecvPacket-ContainerClick"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:container_close"              "RecvPacket-ContainerClose"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:debug_sample_subscription"    "RecvPacket-DebugSubscription"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:keep_alive"                   "RecvPacket-KeepAlive"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_pos"              "RecvPacket-MovePlayerPos"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_pos_rot"          "RecvPacket-MovePlayerPosRot"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_rot"              "RecvPacket-MovePlayerRot"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:move_player_status_only"      "RecvPacket-MovePlayerStatus"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:pick_item_from_block"         "RecvPacket-PickBlock"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_abilities"             "RecvPacket-PlayerAbilities"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_action"                "RecvPacket-PlayerAction"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:player_command"               "RecvPacket-PlayerCommand"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:set_carried_item"             "RecvPacket-SetCarriedItem"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:set_creative_mode_slot"       "RecvPacket-SetCreativeSlot"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:swing"                        "RecvPacket-Swing"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item_on"                  "RecvPacket-UseItemOn"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item"                     "RecvPacket-UseItem"
     .
 
 RegisterItems.
@@ -586,28 +616,21 @@ ReceivePacket.
     MOVE 1 TO PACKET-POSITION
     CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-ID
 
-    MOVE CLIENT-STATE(CLIENT-ID) TO TEMP-INT32
-    CALL "Packets-GetReference" USING TEMP-INT32 PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
-    IF PACKET-NAME = SPACES
-        PERFORM DisconnectClient
-        EXIT PARAGRAPH
-    END-IF
-
-    EVALUATE TEMP-INT32
+    EVALUATE CLIENT-STATE(CLIENT-ID)
         WHEN CLIENT-STATE-HANDSHAKE
+            CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
             PERFORM HandleHandshake
         WHEN CLIENT-STATE-STATUS
+            CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
             PERFORM HandleStatus
         WHEN CLIENT-STATE-LOGIN
+            CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
             PERFORM HandleLogin
         WHEN CLIENT-STATE-CONFIGURATION
+            CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
             PERFORM HandleConfiguration
-        WHEN CLIENT-STATE-PLAY
-            PERFORM HandlePlay
         WHEN OTHER
-            DISPLAY "Invalid client state: " TEMP-INT32
-            PERFORM DisconnectClient
-            EXIT PARAGRAPH
+            CALL "HandlePacket" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) PACKET-ID CLIENT-RECEIVE-BUFFER(1:PACKET-LENGTH(CLIENT-ID)) PACKET-POSITION
     END-EVALUATE
 
     *> Reset length for the next packet
@@ -798,74 +821,6 @@ HandleConfiguration.
         WHEN OTHER
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE.
-
-    EXIT PARAGRAPH.
-
-HandlePlay.
-    EVALUATE PACKET-NAME
-        WHEN "minecraft:accept_teleportation"
-            CALL "RecvPacket-AcceptTeleport" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:chat_command"
-            CALL "RecvPacket-ChatCommand" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:chat"
-            CALL "RecvPacket-Chat" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:client_command"
-            CALL "RecvPacket-ClientCommand" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:container_click"
-            CALL "RecvPacket-ContainerClick" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:container_close"
-            CALL "RecvPacket-ContainerClose" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:debug_sample_subscription"
-            CALL "RecvPacket-DebugSubscription" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:keep_alive"
-            CALL "RecvPacket-KeepAlive" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:move_player_pos"
-            CALL "RecvPacket-MovePlayerPos" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:move_player_pos_rot"
-            CALL "RecvPacket-MovePlayerPosRot" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:move_player_rot"
-            CALL "RecvPacket-MovePlayerRot" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:move_player_status_only"
-            CALL "RecvPacket-MovePlayerStatus" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:pick_item_from_block"
-            CALL "RecvPacket-PickBlock" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:player_abilities"
-            CALL "RecvPacket-PlayerAbilities" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:player_action"
-            CALL "RecvPacket-PlayerAction" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:player_command"
-            CALL "RecvPacket-PlayerCommand" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:set_carried_item"
-            CALL "RecvPacket-SetCarriedItem" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:set_creative_mode_slot"
-            CALL "RecvPacket-SetCreativeSlot" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:swing"
-            CALL "RecvPacket-Swing" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:use_item_on"
-            CALL "RecvPacket-UseItemOn" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-
-        WHEN "minecraft:use_item"
-            CALL "RecvPacket-UseItem" USING CLIENT-ID CLIENT-RECEIVE-BUFFER PACKET-POSITION
-    END-EVALUATE
 
     EXIT PARAGRAPH.
 
