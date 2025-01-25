@@ -53,7 +53,7 @@ WORKING-STORAGE SECTION.
     01 PACKET-STATE                 BINARY-CHAR.
     01 PACKET-ID                    BINARY-LONG.
     01 PACKET-NAME                  PIC X(128).
-    01 PACKET-POSITION              BINARY-LONG UNSIGNED.
+    01 PACKET-OFFSET                BINARY-LONG UNSIGNED.
     01 BUFFER                       PIC X(64000).
     01 BYTE-COUNT                   BINARY-LONG UNSIGNED.
     01 BYTE-COUNT-EXPECTED          BINARY-LONG UNSIGNED.
@@ -63,8 +63,6 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT32                   BINARY-LONG.
     01 TEMP-INT64                   BINARY-LONG-LONG.
     01 TEMP-INT64-2                 BINARY-LONG-LONG.
-    01 TEMP-UUID                    PIC X(16).
-    01 TEMP-PLAYER-NAME             PIC X(16).
     01 TEMP-IDENTIFIER              PIC X(100).
     *> Time measurement (microseconds)
     78 NANOSECOND-SCALE             VALUE 1000.
@@ -172,6 +170,10 @@ RegisterPacketHandlers.
     DISPLAY "Registering packet handlers"
 
     CALL "InitializePacketHandlers"
+
+    MOVE CLIENT-STATE-LOGIN TO PACKET-STATE
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:hello"                       "RecvPacket-Hello"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:login_acknowledged"          "RecvPacket-LoginAcknowledged"
 
     MOVE CLIENT-STATE-CONFIGURATION TO PACKET-STATE
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:client_information"          "RecvPacket-ClientInformation"
@@ -581,8 +583,8 @@ ReceivePacket.
 
         *> Once the most significant bit is 0, the VarInt is complete.
         IF FUNCTION ORD(BUFFER) <= 128
-            MOVE 1 TO PACKET-POSITION
-            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-LENGTH(CLIENT-ID)
+            MOVE 1 TO PACKET-OFFSET
+            CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-OFFSET PACKET-LENGTH(CLIENT-ID)
             IF PACKET-LENGTH(CLIENT-ID) < 1 OR PACKET-LENGTH(CLIENT-ID) > 2097151
                 DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Received invalid packet length: " PACKET-LENGTH(CLIENT-ID)
                 CALL "Server-DisconnectClient" USING CLIENT-ID
@@ -616,8 +618,8 @@ ReceivePacket.
     END-PERFORM
 
     *> Packet received, process it
-    MOVE 1 TO PACKET-POSITION
-    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION PACKET-ID
+    MOVE 1 TO PACKET-OFFSET
+    CALL "Decode-VarInt" USING CLIENT-RECEIVE-BUFFER PACKET-OFFSET PACKET-ID
 
     EVALUATE CLIENT-STATE(CLIENT-ID)
         WHEN CLIENT-STATE-HANDSHAKE
@@ -626,11 +628,8 @@ ReceivePacket.
         WHEN CLIENT-STATE-STATUS
             CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
             PERFORM HandleStatus
-        WHEN CLIENT-STATE-LOGIN
-            CALL "Packets-GetReference" USING CLIENT-STATE(CLIENT-ID) PACKET-DIRECTION-SERVERBOUND PACKET-ID PACKET-NAME
-            PERFORM HandleLogin
         WHEN OTHER
-            CALL "HandlePacket" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) PACKET-ID CLIENT-RECEIVE-BUFFER PACKET-LENGTH(CLIENT-ID) PACKET-POSITION
+            CALL "HandlePacket" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) PACKET-ID CLIENT-RECEIVE-BUFFER PACKET-LENGTH(CLIENT-ID) PACKET-OFFSET
     END-EVALUATE
 
     *> Reset length for the next packet
@@ -669,84 +668,13 @@ HandleStatus.
 
         WHEN "minecraft:ping_request"
             *> respond with the same payload and close the connection
-            CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT64
+            CALL "Decode-Long" USING CLIENT-RECEIVE-BUFFER PACKET-OFFSET TEMP-INT64
             CALL "SendPacket-PingResponse" USING CLIENT-ID TEMP-INT64
             CALL "Server-DisconnectClient" USING CLIENT-ID
 
         WHEN OTHER
             DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
     END-EVALUATE.
-
-    EXIT PARAGRAPH.
-
-HandleLogin.
-    EVALUATE PACKET-NAME
-        WHEN "minecraft:hello"
-            *> Decode username
-            MOVE SPACES TO TEMP-PLAYER-NAME
-            CALL "Decode-String" USING CLIENT-RECEIVE-BUFFER PACKET-POSITION TEMP-INT32 TEMP-PLAYER-NAME
-
-            *> Ignore UUID and generate our own
-            ADD 16 TO PACKET-POSITION
-            CALL "Players-NameToUUID" USING TEMP-PLAYER-NAME TEMP-UUID
-
-            *> Check username against the whitelist
-            IF SP-WHITELIST-ENABLE > 0
-                CALL "Whitelist-Check" USING TEMP-UUID TEMP-PLAYER-NAME TEMP-INT8
-                IF TEMP-INT8 = 0
-                    MOVE "You are not white-listed on this server!" TO BUFFER
-                    MOVE 40 TO BYTE-COUNT
-                    DISPLAY "Disconnecting " FUNCTION TRIM(TEMP-PLAYER-NAME) ": " BUFFER(1:BYTE-COUNT)
-                    CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                    CALL "Server-DisconnectClient" USING CLIENT-ID
-                    EXIT PARAGRAPH
-                END-IF
-            END-IF
-
-            *> If the player is already connected, disconnect them first
-            CALL "Players-FindConnectedByUUID" USING TEMP-UUID TEMP-INT8
-            IF TEMP-INT8 > 0
-                MOVE CLIENT-ID TO TEMP-INT64
-                MOVE PLAYER-CLIENT(TEMP-INT8) TO CLIENT-ID
-                MOVE "You logged in from another location" TO BUFFER
-                MOVE 35 TO BYTE-COUNT
-                DISPLAY "Disconnecting " FUNCTION TRIM(PLAYER-NAME(TEMP-INT8)) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                CALL "Server-DisconnectClient" USING CLIENT-ID
-                MOVE TEMP-INT64 TO CLIENT-ID
-            END-IF
-
-            *> Try to find an existing player for the UUID, or find a free slot to add a new player.
-            CALL "Players-Connect" USING CLIENT-ID TEMP-UUID TEMP-PLAYER-NAME TEMP-INT8
-            MOVE TEMP-INT8 TO CLIENT-PLAYER(CLIENT-ID)
-
-            *> If no player slot was found, the server is full
-            IF CLIENT-PLAYER(CLIENT-ID) = 0
-                MOVE "The server is full" TO BUFFER
-                MOVE 18 TO BYTE-COUNT
-                DISPLAY "Disconnecting " FUNCTION TRIM(TEMP-PLAYER-NAME) ": " BUFFER(1:BYTE-COUNT)
-                CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
-                CALL "Server-DisconnectClient" USING CLIENT-ID
-                EXIT PARAGRAPH
-            END-IF
-
-            *> Send login success. This should result in a "login acknowledged" packet by the client.
-            CALL "SendPacket-LoginSuccess" USING CLIENT-ID PLAYER-UUID(CLIENT-PLAYER(CLIENT-ID)) PLAYER-NAME(CLIENT-PLAYER(CLIENT-ID))
-
-        WHEN "minecraft:login_acknowledged"
-            *> Must not happen before login start
-            IF CLIENT-PLAYER(CLIENT-ID) = 0
-                DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Client sent unexpected login acknowledge"
-                CALL "Server-DisconnectClient" USING CLIENT-ID
-                EXIT PARAGRAPH
-            END-IF
-
-            *> Can move to configuration state
-            MOVE CLIENT-STATE-CONFIGURATION TO CLIENT-STATE(CLIENT-ID)
-
-        WHEN OTHER
-            DISPLAY "[state=" CLIENT-STATE(CLIENT-ID) "] Unexpected packet: " FUNCTION TRIM(PACKET-NAME)
-    END-EVALUATE
 
     EXIT PARAGRAPH.
 
