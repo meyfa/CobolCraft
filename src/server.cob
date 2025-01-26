@@ -776,16 +776,16 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
         DISPLAY "Error closing client socket: " ERRNO
     END-IF
 
-    *> If the client was playing, send a leave message to all other clients, and remove the player from their world
     IF CLIENT-STATE(LK-CLIENT-ID) = CLIENT-STATE-PLAY
+        MOVE CLIENT-PLAYER(LK-CLIENT-ID) TO PLAYER-ID
+
         *> send "<username> left the game" to all clients in play state, except the current client
         INITIALIZE BUFFER
-        STRING FUNCTION TRIM(PLAYER-NAME(CLIENT-PLAYER(LK-CLIENT-ID))) " left the game" INTO BUFFER
+        STRING FUNCTION TRIM(PLAYER-NAME(PLAYER-ID)) " left the game" INTO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BYTE-COUNT
         CALL "BroadcastChatMessageExcept" USING LK-CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
 
         *> remove the player from the player list, and despawn the player entity
-        MOVE CLIENT-PLAYER(LK-CLIENT-ID) TO PLAYER-ID
         PERFORM VARYING OTHER-CLIENT-ID FROM 1 BY 1 UNTIL OTHER-CLIENT-ID > MAX-CLIENTS
             IF CLIENT-PRESENT(OTHER-CLIENT-ID) = 1 AND CLIENT-STATE(OTHER-CLIENT-ID) = CLIENT-STATE-PLAY AND OTHER-CLIENT-ID NOT = LK-CLIENT-ID
                 CALL "SendPacket-RemovePlayer" USING OTHER-CLIENT-ID PLAYER-UUID(PLAYER-ID)
