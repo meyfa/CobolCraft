@@ -26,13 +26,19 @@
         03 PLAYER-SNEAKING              BINARY-CHAR UNSIGNED.
         03 PLAYER-FLYING                BINARY-CHAR UNSIGNED.
         03 PLAYER-HOTBAR                BINARY-CHAR UNSIGNED.
-        03 PLAYER-WINDOW.
-            04 PLAYER-WINDOW-ID             BINARY-LONG.
-            04 PLAYER-WINDOW-TYPE           BINARY-LONG.
-            04 PLAYER-WINDOW-STATE          BINARY-LONG.
         03 PLAYER-INVENTORY.
             04 PLAYER-INVENTORY-SLOT OCCURS 46 TIMES.
                 COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==PLAYER-INVENTORY==.
+        03 PLAYER-INVENTORY-STATE       BINARY-LONG.
+        03 PLAYER-WINDOW.
+            04 PLAYER-WINDOW-ID             BINARY-LONG.
+            04 PLAYER-WINDOW-TYPE           BINARY-LONG.
+            *> different windows have different states - in particular, this is different from PLAYER-INVENTORY-STATE.
+            04 PLAYER-WINDOW-STATE          BINARY-LONG.
+            *> window-specific slot contents; not including the regular player inventory
+            04 PLAYER-WINDOW-SLOTS.
+                05 PLAYER-WINDOW-SLOT OCCURS 54 TIMES.
+                    COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==PLAYER-WINDOW==.
         03 PLAYER-MOUSE-ITEM.
             COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==PLAYER-MOUSE==.
         03 PLAYER-BLOCK-BREAKING.

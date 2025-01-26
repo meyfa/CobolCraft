@@ -9,6 +9,8 @@ WORKING-STORAGE SECTION.
     *> payload
     01 HAND-ENUM                BINARY-LONG.
     01 SEQUENCE-ID              BINARY-LONG.
+    01 HEAD-YAW                 FLOAT-SHORT.
+    01 HEAD-PITCH               FLOAT-SHORT.
     *> variables
     01 SLOT-INDEX               BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
@@ -21,6 +23,8 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
 
     CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET HAND-ENUM
     CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET SEQUENCE-ID
+    CALL "Decode-Float" USING LK-BUFFER LK-OFFSET HEAD-YAW
+    CALL "Decode-Float" USING LK-BUFFER LK-OFFSET HEAD-PITCH
 
     *> hand enum: 0=main hand, 1=offhand
     IF HAND-ENUM = 0
@@ -45,9 +49,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     *> For survival mode, send the inventory slot contents, as they likely should have changed but we don't do that.
     *> TODO get smarter about this
     IF PLAYER-GAMEMODE(PLAYER-ID) NOT = 1
-        ADD 1 TO PLAYER-WINDOW-STATE(PLAYER-ID)
-        CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-WINDOW-STATE(PLAYER-ID)
-            PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
+        CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
     END-IF
 
     GOBACK.

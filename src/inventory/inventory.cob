@@ -1,3 +1,26 @@
+*> --- Inventory-SyncPlayerInventory ---
+*> Utility to synchronize the player's inventory with the client.
+*> This can be called even with other windows open, and will always update the player's inventory (window ID 0).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Inventory-SyncPlayerInventory.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-CLIENTS.
+    01 PLAYER-INVENTORY-WINDOW-TYPE BINARY-LONG                 VALUE -1.
+    01 SYNC-PTR                     PROGRAM-POINTER.
+LINKAGE SECTION.
+    01 LK-PLAYER                    BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-PLAYER.
+    IF SYNC-PTR = NULL
+        CALL "GetCallback-WindowSync" USING PLAYER-INVENTORY-WINDOW-TYPE SYNC-PTR
+    END-IF
+    CALL SYNC-PTR USING LK-PLAYER
+    GOBACK.
+
+END PROGRAM Inventory-SyncPlayerInventory.
+
 *> --- Inventory-PickItem ---
 *> Pick an item into the player's inventory (creative mode), switching to it if possible.
 IDENTIFICATION DIVISION.
