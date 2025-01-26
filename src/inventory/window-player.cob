@@ -68,7 +68,7 @@ PROCEDURE DIVISION.
         CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(LK-PLAYER) PLAYER-MOUSE-ITEM(LK-PLAYER)
         IF PLAYER-MOUSE-SLOT-COUNT(LK-PLAYER) > 0
             *> TODO drop item
-            CONTINUE
+            MOVE 0 TO PLAYER-MOUSE-SLOT-COUNT(LK-PLAYER)
         END-IF
 
         *> stash crafting input
@@ -76,7 +76,7 @@ PROCEDURE DIVISION.
             CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(LK-PLAYER) PLAYER-INVENTORY-SLOT(LK-PLAYER, SLOT + 1)
             IF PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, SLOT + 1) > 0
                 *> TODO drop item
-                CONTINUE
+                MOVE 0 TO PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, SLOT + 1)
             END-IF
         END-PERFORM
 
