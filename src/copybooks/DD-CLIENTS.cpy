@@ -18,7 +18,7 @@
         03 CLIENT-STATE         BINARY-CHAR.
         03 CONFIG-FINISH        BINARY-CHAR.
         *> The index of the associated player, or 0 if login has not been started
-        03 CLIENT-PLAYER        BINARY-CHAR.
+        03 CLIENT-PLAYER        BINARY-LONG.
         *> Last keepalive ID sent and received
         03 KEEPALIVE-SENT       BINARY-LONG-LONG.
         03 KEEPALIVE-RECV       BINARY-LONG-LONG.
