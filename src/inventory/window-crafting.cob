@@ -44,7 +44,6 @@ PROCEDURE DIVISION.
 
     PROCEDURE DIVISION USING LK-PLAYER.
         *> TODO can we avoid the copies?
-        INITIALIZE PLAYER-WINDOW-SLOTS(LK-PLAYER)
         PERFORM VARYING SLOT FROM 0 BY 1 UNTIL SLOT > 9
             MOVE PLAYER-WINDOW-SLOT(LK-PLAYER, SLOT + 1) TO WINDOW-SLOT(SLOT + 1)
         END-PERFORM
@@ -76,7 +75,7 @@ PROCEDURE DIVISION.
         CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(LK-PLAYER) PLAYER-MOUSE-ITEM(LK-PLAYER)
         IF PLAYER-MOUSE-SLOT-COUNT(LK-PLAYER) > 0
             *> TODO drop item
-            CONTINUE
+            MOVE 0 TO PLAYER-MOUSE-SLOT-COUNT(LK-PLAYER)
         END-IF
 
         *> stash crafting input
@@ -84,7 +83,7 @@ PROCEDURE DIVISION.
             CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(LK-PLAYER) PLAYER-WINDOW-SLOT(LK-PLAYER, SLOT + 1)
             IF PLAYER-WINDOW-SLOT(LK-PLAYER, SLOT + 1) > 0
                 *> TODO drop item
-                CONTINUE
+                MOVE 0 TO PLAYER-WINDOW-SLOT(LK-PLAYER, SLOT + 1)
             END-IF
         END-PERFORM
 
