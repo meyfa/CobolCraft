@@ -45,8 +45,8 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     *> For survival mode, send the inventory slot contents, as they likely should have changed but we don't do that.
     *> TODO get smarter about this
     IF PLAYER-GAMEMODE(PLAYER-ID) NOT = 1
-        ADD 1 TO PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
-        CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-CONTAINER-STATE-ID(PLAYER-ID)
+        ADD 1 TO PLAYER-WINDOW-STATE(PLAYER-ID)
+        CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-WINDOW-STATE(PLAYER-ID)
             PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
     END-IF
 
