@@ -128,7 +128,7 @@ PROCEDURE DIVISION.
 
                 INITIALIZE BUFFER
                 IF STATE-FAILURE NOT = 0
-                    STRING "Player " FUNCTION TRIM(TEMP-NAME) " is already whitelisted" INTO BUFFER
+                    STRING "Player is already whitelisted" INTO BUFFER
                 ELSE
                     STRING "Added " FUNCTION TRIM(TEMP-NAME) " to the whitelist" INTO BUFFER
                 END-IF
@@ -142,7 +142,7 @@ PROCEDURE DIVISION.
 
                 INITIALIZE BUFFER
                 IF STATE-FAILURE NOT = 0
-                    STRING "Player " FUNCTION TRIM(TEMP-NAME) " is not whitelisted" INTO BUFFER
+                    STRING "Player is not whitelisted" INTO BUFFER
                 ELSE
                     STRING "Removed " FUNCTION TRIM(TEMP-NAME) " from the whitelist" INTO BUFFER
                 END-IF
