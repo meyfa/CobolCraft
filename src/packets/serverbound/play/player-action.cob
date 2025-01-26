@@ -48,9 +48,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     END-EVALUATE
 
     *> TODO The following is a workaround to reset the player's inventory, since we don't implement dropping items yet.
-    ADD 1 TO PLAYER-WINDOW-STATE(PLAYER-ID)
-    CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-WINDOW-STATE(PLAYER-ID)
-        PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
+    CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
 
     GOBACK.
 

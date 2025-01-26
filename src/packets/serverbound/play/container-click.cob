@@ -8,6 +8,8 @@ WORKING-STORAGE SECTION.
     01 PLAYER-ID                BINARY-LONG.
     01 WINDOW-ID                BINARY-LONG.
     01 STATE-ID                 BINARY-LONG.
+    01 SYNC-PTR                 PROGRAM-POINTER.
+    01 SET-SLOT-PTR             PROGRAM-POINTER.
     01 SLOT                     BINARY-SHORT.
     01 BUTTON                   BINARY-CHAR.
     01 MODE-ENUM                BINARY-LONG.
@@ -38,21 +40,33 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     *> TODO We currently accept the client's changed slot data as correct, but we should really compute it ourselves
     *>      based on slot/button/mode and then check if it matches the client's data.
 
-    *> TOOD implement containers other than inventory
-    IF WINDOW-ID NOT = 0
-        PERFORM SyncInventory
+    *> ignore clicks in windows other than the current one
+    IF WINDOW-ID NOT = PLAYER-WINDOW-ID(PLAYER-ID)
+        GOBACK
+    END-IF
+
+    CALL "GetCallback-WindowSync" USING PLAYER-WINDOW-TYPE(PLAYER-ID) SYNC-PTR
+    CALL "GetCallback-WindowSetSlot" USING PLAYER-WINDOW-TYPE(PLAYER-ID) SET-SLOT-PTR
+    IF SYNC-PTR = NULL OR SET-SLOT-PTR = NULL
+        DISPLAY "RecvPacket-ContainerClick: Unable to handle window type " PLAYER-WINDOW-TYPE(PLAYER-ID)
         GOBACK
     END-IF
 
     *> sync client if state ID differs from last sent
-    IF STATE-ID NOT = PLAYER-WINDOW-STATE(PLAYER-ID)
-        PERFORM SyncInventory
+    IF (WINDOW-ID = 0 AND STATE-ID NOT = PLAYER-INVENTORY-STATE(PLAYER-ID)) OR (WINDOW-ID > 0 AND STATE-ID NOT = PLAYER-WINDOW-STATE(PLAYER-ID))
+        CALL SYNC-PTR USING LK-CLIENT
         GOBACK
     END-IF
 
     *> TODO support dropping items
     IF (MODE-ENUM = 0 AND SLOT = -999) OR (MODE-ENUM = 4)
-        PERFORM SyncInventory
+        CALL SYNC-PTR USING LK-CLIENT
+        GOBACK
+    END-IF
+
+    *> TODO handle offhand swap key (F) in containers
+    If WINDOW-ID > 0 AND MODE-ENUM = 2 AND BUTTON = 40
+        CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
         GOBACK
     END-IF
 
@@ -64,11 +78,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     PERFORM CHANGED-SLOT-COUNT TIMES
         CALL "Decode-Short" USING LK-BUFFER LK-OFFSET SLOT-NUMBER
         PERFORM DecodeSlot
-        IF SLOT-NUMBER >= 0 AND SLOT-NUMBER < 46
-            MOVE CLIENT-SLOT TO PLAYER-INVENTORY-SLOT(PLAYER-ID, SLOT-NUMBER + 1)
-        ELSE
-            DISPLAY "Invalid slot number: " SLOT-NUMBER
-        END-IF
+        CALL SET-SLOT-PTR USING PLAYER-ID SLOT-NUMBER CLIENT-SLOT
     END-PERFORM
 
     *> carried item
@@ -76,12 +86,6 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     MOVE CLIENT-SLOT TO PLAYER-MOUSE-ITEM(PLAYER-ID)
 
     GOBACK.
-
-SyncInventory.
-    ADD 1 TO PLAYER-WINDOW-STATE(PLAYER-ID)
-    CALL "SendPacket-SetContainerContent" USING LK-CLIENT PLAYER-WINDOW-STATE(PLAYER-ID)
-        PLAYER-INVENTORY(PLAYER-ID) PLAYER-MOUSE-ITEM(PLAYER-ID)
-    EXIT PARAGRAPH.
 
 DecodeSlot.
     *> TODO deduplicate slot decoding with "set creative slot" packet
