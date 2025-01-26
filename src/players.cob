@@ -531,6 +531,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-PLAYER-UUID LK-PLAYER-NAME LK-PLAYER-ID
             MOVE 20 TO PLAYER-FOOD-LEVEL(LK-PLAYER-ID)
             MOVE 5 TO PLAYER-SATURATION(LK-PLAYER-ID)
             MOVE 0 TO PLAYER-WINDOW-ID(LK-PLAYER-ID)
+            MOVE -1 TO PLAYER-WINDOW-TYPE(LK-PLAYER-ID)
             MOVE 0 TO PLAYER-WINDOW-STATE(LK-PLAYER-ID)
             MOVE -1 TO PLAYER-BLOCK-BREAKING-STAGE(LK-PLAYER-ID)
             *> Attempt to load existing player data
@@ -559,18 +560,27 @@ PROGRAM-ID. Players-Disconnect.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PLAYERS.
+    01 WINDOW-CLOSE-PTR         PROGRAM-POINTER.
     01 FAILURE                  BINARY-CHAR UNSIGNED.
 LINKAGE SECTION.
     01 LK-PLAYER-ID             BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-PLAYER-ID.
+    *> close any open windows (this deals with items held in the cursor, in the crafting grid, etc.)
+    CALL "GetCallback-WindowClose" USING PLAYER-WINDOW-TYPE(LK-PLAYER-ID) WINDOW-CLOSE-PTR
+    IF WINDOW-CLOSE-PTR NOT = NULL
+        CALL WINDOW-CLOSE-PTR USING LK-PLAYER-ID
+    END-IF
+
     *> save the player data
     CALL "Players-SavePlayer" USING LK-PLAYER-ID FAILURE
     IF FAILURE NOT = 0
         DISPLAY "Error: Failed to save player data"
     END-IF
+
     *> make the player slot available
     MOVE 0 TO PLAYER-CLIENT(LK-PLAYER-ID)
+
     GOBACK.
 
 END PROGRAM Players-Disconnect.

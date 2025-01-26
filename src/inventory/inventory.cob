@@ -91,3 +91,41 @@ FindEmptySlot.
     EXIT PARAGRAPH.
 
 END PROGRAM Inventory-PickItem.
+
+*> --- Inventory-StoreItem ---
+*> Store as much of the item stack as possible in the player's inventory. The remainder is returned in-place.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Inventory-StoreItem.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    78 HOTBAR-START                 VALUE 37.
+    78 HOTBAR-END                   VALUE 45.
+    78 MAIN-START                   VALUE 10.
+    78 MAIN-END                     VALUE 36.
+    01 SLOT                         BINARY-CHAR UNSIGNED.
+LINKAGE SECTION.
+    01 LK-INVENTORY.
+        02 LK-INVENTORY-SLOT OCCURS 46 TIMES.
+            COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK-INVENTORY==.
+    01 LK-ITEM.
+        COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK-ITEM==.
+
+PROCEDURE DIVISION USING LK-INVENTORY LK-ITEM.
+    PERFORM VARYING SLOT FROM HOTBAR-START BY 1 UNTIL SLOT > HOTBAR-END OR LK-ITEM-SLOT-COUNT <= 0
+        PERFORM StoreInSlot
+    END-PERFORM
+    PERFORM VARYING SLOT FROM MAIN-START BY 1 UNTIL SLOT > MAIN-END OR LK-ITEM-SLOT-COUNT <= 0
+        PERFORM StoreInSlot
+    END-PERFORM
+    GOBACK.
+
+StoreInSlot.
+    *> TODO handle compatible items (requires parsing data components, and knowledge of max stack sizes)
+    IF LK-INVENTORY-SLOT-COUNT(SLOT) = 0
+        MOVE LK-ITEM TO LK-INVENTORY-SLOT(SLOT)
+        MOVE 0 TO LK-ITEM-SLOT-COUNT
+    END-IF
+    EXIT PARAGRAPH.
+
+END PROGRAM Inventory-StoreItem.

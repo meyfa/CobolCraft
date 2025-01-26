@@ -87,6 +87,10 @@ WORKING-STORAGE SECTION.
     01 REGISTRY-ENTRY-NAME          PIC X(100).
 
 PROCEDURE DIVISION.
+Init.
+    CALL "Callbacks-Init"
+    .
+
 LoadRegistries.
     DISPLAY "Loading registries"
     CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
@@ -258,6 +262,13 @@ RegisterBlocks.
     CALL "RegisterBlock-Water"
     CALL "RegisterBlock-Lava"
     CALL "RegisterBlock-CraftingTable"
+    .
+
+RegisterWindows.
+    DISPLAY "Registering windows"
+
+    CALL "RegisterWindow-Player"
+    CALL "RegisterWindow-Crafting"
     .
 
 RegisterCommands.
@@ -766,7 +777,7 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-CLIENT-ID.
     IF CLIENT-PRESENT(LK-CLIENT-ID) = 0
-        EXIT PARAGRAPH
+        GOBACK
     END-IF
 
     MOVE 0 TO CLIENT-PRESENT(LK-CLIENT-ID)
@@ -870,24 +881,26 @@ WORKING-STORAGE SECTION.
     COPY DD-SERVER-PROPERTIES.
 
 PROCEDURE DIVISION.
-    CALL "Server-Save"
-
     DISPLAY "Stopping server"
 
-    *> Close all region files
-    CALL "Region-CloseAll" USING FAILURE
-    IF FAILURE NOT = 0
-        DISPLAY "Error while closing region files"
-    END-IF
-
-    *> Send a message to all clients
     MOVE "Server closed" TO BUFFER
     MOVE 13 TO BYTE-COUNT
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-PRESENT(CLIENT-ID) = 1
+            IF CLIENT-PLAYER(CLIENT-ID) > 0
+                CALL "Players-Disconnect" USING CLIENT-PLAYER(CLIENT-ID)
+                MOVE 0 TO CLIENT-PLAYER(CLIENT-ID)
+            END-IF
             CALL "SendPacket-Disconnect" USING CLIENT-ID CLIENT-STATE(CLIENT-ID) BUFFER BYTE-COUNT
         END-IF
     END-PERFORM
+
+    CALL "Server-Save"
+
+    CALL "Region-CloseAll" USING FAILURE
+    IF FAILURE NOT = 0
+        DISPLAY "Error while closing region files"
+    END-IF
 
     CALL "SocketClose" USING SERVER-HNDL GIVING ERRNO
     IF ERRNO NOT = 0

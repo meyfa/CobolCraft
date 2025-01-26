@@ -4,14 +4,20 @@ PROGRAM-ID. RegisterBlock-CraftingTable.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-CRAFTING_TABLE       PIC X(32) GLOBAL    VALUE "minecraft:crafting_table".
+    01 WINDOW-TYPE-CRAFTING             BINARY-LONG GLOBAL.
     01 INTERACT-PTR                     PROGRAM-POINTER.
     01 BLOCK-STATE-ID                   BINARY-LONG.
 
 PROCEDURE DIVISION.
     SET INTERACT-PTR TO ENTRY "Callback-Interact"
 
-    CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-CRAFTING_TABLE BLOCK-STATE-ID
+    CALL "Registries-Get-EntryId" USING "minecraft:menu" "minecraft:crafting" WINDOW-TYPE-CRAFTING
+    IF WINDOW-TYPE-CRAFTING < 0
+        DISPLAY "RegisterBlock-CraftingTable: Failed to get window type ID"
+        GOBACK
+    END-IF
+
+    CALL "Blocks-Get-DefaultStateId" USING "minecraft:crafting_table" BLOCK-STATE-ID
     CALL "SetCallback-BlockInteract" USING BLOCK-STATE-ID INTERACT-PTR
 
     GOBACK.
@@ -23,13 +29,14 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-PLAYERS.
-        *> TODO do not hardcode this here
-        01 WINDOW-TYPE-CRAFTING     BINARY-LONG                 VALUE 12.
     LINKAGE SECTION.
         COPY DD-CALLBACK-BLOCK-INTERACT.
 
     PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
+        *> TODO handle already open window
+
         ADD 1 TO PLAYER-WINDOW-ID(LK-PLAYER)
+        MOVE WINDOW-TYPE-CRAFTING TO PLAYER-WINDOW-TYPE(LK-PLAYER)
 
         CALL "SendPacket-OpenScreen" USING PLAYER-CLIENT(LK-PLAYER) PLAYER-WINDOW-ID(LK-PLAYER) WINDOW-TYPE-CRAFTING
         *> TODO container content
