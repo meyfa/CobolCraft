@@ -18,3 +18,11 @@
         03 CB-PTR-REPLACEABLE USAGE PROGRAM-POINTER.
         *> Called to determine the item form of a block, such as for the "pick block" action (middle-click).
         03 CB-PTR-BLOCK-ITEM USAGE PROGRAM-POINTER.
+
+*> One set of callbacks per window type (inventories, enchanting tables, etc.).
+*> The player inventory does not have a window type, and hence must be stored separately.
+01 WINDOW-CALLBACKS EXTERNAL.
+    02 CALLBACK OCCURS 100 TIMES.
+        03 CB-PTR-CLOSE USAGE PROGRAM-POINTER.
+    02 PLAYER-INVENTORY-CALLBACKS.
+        03 CB-PTR-CLOSE-PLAYER USAGE PROGRAM-POINTER.
