@@ -5,9 +5,10 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PACKET REPLACING IDENTIFIER BY "configuration/clientbound/minecraft:select_known_packs".
     *> known pack data
+    COPY DD-VERSION.
     01 PACK-NAMESPACE           PIC X(9)                VALUE "minecraft".
     01 PACK-ID                  PIC X(4)                VALUE "core".
-    01 PACK-VERSION             PIC X(6)                VALUE "1.21.4".
+    01 PACK-VERSION             PIC X(6)                VALUE GAME-VERSION-STRING.
     *> buffer used to store the packet data
     01 PAYLOAD                  PIC X(1024).
     01 PAYLOADPOS               BINARY-LONG UNSIGNED.
@@ -35,7 +36,7 @@ PROCEDURE DIVISION USING LK-CLIENT.
     CALL "Encode-String" USING PACK-ID INT32 PAYLOAD PAYLOADPOS
 
     *> pack version
-    MOVE LENGTH OF PACK-VERSION TO INT32
+    MOVE FUNCTION STORED-CHAR-LENGTH(PACK-VERSION) TO INT32
     CALL "Encode-String" USING PACK-VERSION INT32 PAYLOAD PAYLOADPOS
 
     *> send packet

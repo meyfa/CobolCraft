@@ -158,6 +158,23 @@ ParsePacket.
 
 END PROGRAM Packets-Parse.
 
+*> --- Packets-GetCount ---
+*> Get the number of packets defined in the packets.json file.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Packets-GetCount.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-PACKET-IDS.
+LINKAGE SECTION.
+    01 LK-COUNT                 BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-COUNT.
+    MOVE PACKET-ID-COUNT TO LK-COUNT
+    GOBACK.
+
+END PROGRAM Packets-GetCount.
+
 *> --- Packets-GetId ---
 *> Look up the numeric ID of a packet by its string reference (e.g. "play/clientbound/minecraft:block_changed_ack").
 IDENTIFICATION DIVISION.
