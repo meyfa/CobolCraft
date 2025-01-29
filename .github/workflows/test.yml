@@ -31,13 +31,13 @@ jobs:
       - run: cobc --version
 
       - name: Build
-        run: make -j $(nproc) ${{ matrix.image-tag == '24.10' && 'GCVERSION=32' || '' }}
+        run: make -j $(nproc)
 
       - name: Run tests
         shell: bash
         run: |
           set -eo pipefail
-          make test ${{ matrix.image-tag == '24.10' && 'GCVERSION=32' || '' }} | tee test.log
+          make test | tee test.log
           ! grep -q "FAIL\|ERROR" test.log
 
       - name: Smoke test
