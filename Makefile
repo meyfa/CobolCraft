@@ -34,21 +34,13 @@ GCVERSION := $(shell $(COBC) --version | head -n1 | sed 's/.*\s\([0-9]\+\)\.\([0
 
 # Common compiler options, note: COB_FLAGS can be user-specified
 COBC_OPTS = -free -DGCVERSION=$(GCVERSION) -I $(CPY_DIR) $(COB_FLAGS)
-ifneq ($(DEPONLY),Y)
 COBC_OPTS += -O2 --debug -Wall -fnotrunc -fstatic-call
-else
-COBC_OPTS += -fsyntax-only -w
-endif
 
 ifeq ($(shell test $(GCVERSION) -ge 32; echo $$?),0)
 COB_MTFLAGS = -MF $(basename $@).d -MT $@
 GLOBALDEPS =
-ifneq ($(DEPONLY),Y)
 # include dependency files for all existing object files
 -include $(OBJECTS:.o=.d)
-else
-.PHONY: $(OBJECTS) $(TEST_OBJECTS)
-endif
 else
 # if dependency generation is not available: use global copy dependency
 COB_MTFLAGS = 
@@ -95,19 +87,3 @@ $(TEST_OBJECTS): $(OBJECTS_DIR)/tests/%.o: $(ROOT_DIR)/tests/%.cob $(GLOBALDEPS)
 test: $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
 	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
 	./$(TEST_BIN)
-
-# note: the following is mostly for testing and not needed,
-#       it creates all dependency files that don't exist
-#       and allow a forced update using "make -B dependencies";
-#       on normal compiles those will be generated in any case
-ifeq ($(shell test $(GCVERSION) -ge 32; echo $$?),0)
-dependencies: $(patsubst $(ROOT_DIR)/src/%.cob, $(OBJECTS_DIR)/%.d, $(SRC)) $(patsubst $(ROOT_DIR)/tests/%.cob, $(OBJECTS_DIR)/tests/%.d, $(TEST_SRC))
-.PHONY: dependencies
-
-$(OBJECTS_DIR)/%.d: $(ROOT_DIR)/src/%.cob
-	@$(MAKE) $(basename $@).o DEPONLY=Y
-
-$(OBJECTS_DIR)/tests/%.d: $(ROOT_DIR)/tests/%.cob
-	@$(MAKE) $(basename $@).o DEPONLY=Y
-
-endif
