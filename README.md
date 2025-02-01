@@ -17,7 +17,7 @@ The following features are already working:
 - [X] breaking and placing blocks
 - [X] block interaction (right-clicking, e.g., to open doors)
 - [X] player inventory
-- [X] crafting, both 2x2 and 3x3 (however, not all recipes are supported, yet)
+- [X] crafting, both 2x2 and 3x3
 - [X] chat
 - [X] commands (in-game and via an interactive console)
 - [X] configuration via server.properties
