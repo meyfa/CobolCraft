@@ -997,7 +997,6 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX.
     *> not found, load or generate
     CALL "World-LoadChunk" USING LK-CHUNK-X LK-CHUNK-Z IO-FAILURE
     IF IO-FAILURE NOT = 0
-        DISPLAY "Generating chunk: " LK-CHUNK-X " " LK-CHUNK-Z
         MOVE 0 TO IO-FAILURE
         CALL "World-GenerateChunk" USING LK-CHUNK-X LK-CHUNK-Z
     END-IF
@@ -1341,9 +1340,6 @@ PROCEDURE DIVISION USING LK-FAILURE.
 
     *> Load the world metadata
     CALL "World-LoadLevel" USING LEVEL-SAVE-REQUIRED
-    IF LEVEL-SAVE-REQUIRED > 0
-        DISPLAY "Unable to read world data, generating a new world"
-    END-IF
 
     *> Load just the spawn area
     PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > WORLD-CHUNK-COUNT

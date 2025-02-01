@@ -15,9 +15,7 @@ It is intended as a checklist for project maintainers.
 
 ## Code
 
-* Update the version numbers in the "status" and "known packs" packets. "1.xy.0" is written as "1.xy".
-    Set the data item length accordingly.
-* Update the protocol version in the "status" packet.
+* Update the version numbers in the `DD-VERSION` copybook. "1.xy.0" is written as "1.xy".
 * Manually check the structure of every packet against the wiki. Make sure to explicitly check data types, since they
     change frequently (such as VarInt becoming int, or angles becoming floats).
 * Take a look at the version's changelog to find out about any other critical changes.
@@ -56,6 +54,7 @@ synchronization issues (since the client predicts many actions even if the serve
 * survival inventory management
 * switching hotbar items, adding/removing armor, changing offhand item (should be visible to other players)
 * picking blocks (middle-click)
+* 2x2 and 3x3 crafting
 * world time (day/night cycle)
 * server tick time on debug screen (F3 + 2)
 

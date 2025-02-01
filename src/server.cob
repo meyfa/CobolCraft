@@ -5,6 +5,7 @@ PROGRAM-ID. Server.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-VERSION.
     *> File names
     01 FILE-REGISTRIES              PIC X(255)              VALUE "data/generated/reports/registries.json".
     01 FILE-BLOCKS                  PIC X(255)              VALUE "data/generated/reports/blocks.json".
@@ -62,6 +63,7 @@ WORKING-STORAGE SECTION.
     01 TEMP-INT32                   BINARY-LONG.
     01 TEMP-INT64                   BINARY-LONG-LONG.
     01 TEMP-INT64-2                 BINARY-LONG-LONG.
+    01 DISPLAY-INT                  PIC -(9)9.
     *> Time measurement (microseconds)
     78 NANOSECOND-SCALE             VALUE 1000.
     01 CURRENT-TIME                 BINARY-LONG-LONG.
@@ -88,21 +90,36 @@ WORKING-STORAGE SECTION.
 
 PROCEDURE DIVISION.
 Init.
+    DISPLAY "Starting CobolCraft for v" GAME-VERSION-STRING
+
     CALL "Callbacks-Init"
+
+    CALL "IgnoreSIGPIPE"
+    CALL "SetConsoleNonBlocking" GIVING ERRNO
+    IF ERRNO NOT = 0
+        DISPLAY "Could not set console to non-blocking mode."
+        STOP RUN RETURNING 1
+    END-IF
     .
 
 LoadRegistries.
-    DISPLAY "Loading registries"
+    DISPLAY "Loading registries...           " WITH NO ADVANCING
+
     CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read: " FUNCTION TRIM(FILE-REGISTRIES)
         STOP RUN RETURNING 1
     END-IF
+
     CALL "Registries-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to parse registries"
         STOP RUN RETURNING 1
     END-IF
+
+    CALL "Registries-GetCount" USING TEMP-INT32
+    MOVE TEMP-INT32 TO DISPLAY-INT
+    DISPLAY FUNCTION TRIM(DISPLAY-INT) " registries loaded"
 
     *> Create additional registries not exported by the report generator.
     *> Set the flag to 1 to indicate that they need to be part of a Registry Data packet sent to the client.
@@ -122,21 +139,27 @@ LoadRegistries.
     .
 
 LoadBlocks.
-    DISPLAY "Loading blocks"
+    DISPLAY "Loading blocks...               " WITH NO ADVANCING
+
     CALL "Files-ReadAll" USING FILE-BLOCKS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read: " FUNCTION TRIM(FILE-BLOCKS)
         STOP RUN RETURNING 1
     END-IF
+
     CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to parse blocks"
         STOP RUN RETURNING 1
     END-IF
+
+    CALL "Blocks-GetCount" USING TEMP-INT32
+    MOVE TEMP-INT32 TO DISPLAY-INT
+    DISPLAY FUNCTION TRIM(DISPLAY-INT) " blocks loaded"
     .
 
 LoadDatapack.
-    DISPLAY "Loading vanilla datapack"
+    DISPLAY "Loading datapack..."
     CALL "Datapack-Load" USING FILE-DATAPACK-ROOT VANILLA-DATAPACK-NAME DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to load datapack"
@@ -156,21 +179,27 @@ LoadDatapack.
     .
 
 LoadPackets.
-    DISPLAY "Loading packets"
+    DISPLAY "Loading packets...              " WITH NO ADVANCING
+
     CALL "Files-ReadAll" USING FILE-PACKETS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read: " FUNCTION TRIM(FILE-PACKETS)
         STOP RUN RETURNING 1
     END-IF
+
     CALL "Packets-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to parse packets"
         STOP RUN RETURNING 1
     END-IF
+
+    CALL "Packets-GetCount" USING TEMP-INT32
+    MOVE TEMP-INT32 TO DISPLAY-INT
+    DISPLAY FUNCTION TRIM(DISPLAY-INT) " packets loaded"
     .
 
 RegisterPacketHandlers.
-    DISPLAY "Registering packet handlers"
+    DISPLAY "Registering packet handlers...  " WITH NO ADVANCING
 
     CALL "InitializePacketHandlers"
 
@@ -211,10 +240,12 @@ RegisterPacketHandlers.
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:swing"                       "RecvPacket-Swing"
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item_on"                 "RecvPacket-UseItemOn"
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item"                    "RecvPacket-UseItem"
+
+    DISPLAY "done"
     .
 
 RegisterItems.
-    DISPLAY "Registering items"
+    DISPLAY "Registering item behavior...    " WITH NO ADVANCING
 
     *> Register a generic block item for each item that has an identically-named block
     CALL "Registries-GetRegistryIndex" USING C-MINECRAFT-ITEM REGISTRY-INDEX
@@ -243,10 +274,12 @@ RegisterItems.
     CALL "RegisterItem-Bucket"
     CALL "RegisterItem-WaterBucket"
     CALL "RegisterItem-LavaBucket"
+
+    DISPLAY "done"
     .
 
 RegisterBlocks.
-    DISPLAY "Registering blocks"
+    DISPLAY "Registering block behavior...   " WITH NO ADVANCING
 
     *> Register generic handlers for every block state
     CALL "RegisterBlock-Generic"
@@ -262,17 +295,21 @@ RegisterBlocks.
     CALL "RegisterBlock-Water"
     CALL "RegisterBlock-Lava"
     CALL "RegisterBlock-CraftingTable"
+
+    DISPLAY "done"
     .
 
 RegisterWindows.
-    DISPLAY "Registering windows"
+    DISPLAY "Registering window behavior...  " WITH NO ADVANCING
 
     CALL "RegisterWindow-Player"
     CALL "RegisterWindow-Crafting"
+
+    DISPLAY "done"
     .
 
 RegisterCommands.
-    DISPLAY "Registering commands"
+    DISPLAY "Registering commands...         " WITH NO ADVANCING
 
     CALL "Commands-Init"
 
@@ -284,10 +321,12 @@ RegisterCommands.
     CALL "RegisterCommand-Stop"
     CALL "RegisterCommand-Time"
     CALL "RegisterCommand-Whitelist"
+
+    DISPLAY "done"
     .
 
 LoadProperties.
-    DISPLAY "Loading server properties"
+    DISPLAY "Loading server properties...    " WITH NO ADVANCING
     CALL "ServerProperties-Read" USING DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read server.properties"
@@ -301,37 +340,41 @@ LoadProperties.
         STOP RUN RETURNING 1
     END-IF
 
-    DISPLAY "Loading whitelist"
+    DISPLAY "done"
+    .
+
+LoadWhitelist.
+    DISPLAY "Loading whitelist...            " WITH NO ADVANCING
+
     CALL "Whitelist-Read" USING DATA-FAILURE
     IF DATA-FAILURE NOT = 0
         DISPLAY "Failed to read whitelist"
         STOP RUN RETURNING 1
     END-IF
+
+    DISPLAY "done"
     .
 
 GenerateWorld.
-    DISPLAY "Loading world"
-    *> prepare chunks
+    DISPLAY "Loading world...                " WITH NO ADVANCING
+
     CALL "World-Load" USING TEMP-INT8
     IF TEMP-INT8 NOT = 0
         DISPLAY "Failed to load world"
         STOP RUN RETURNING 1
     END-IF
+
     *> prepare player data
     CALL "Players-Init"
+
     *> don't autosave immediately
     CALL "SystemTimeMicros" USING LAST-AUTOSAVE
+
+    DISPLAY "done"
     .
 
 StartServer.
-    DISPLAY "Starting server"
-
-    CALL "IgnoreSIGPIPE"
-    CALL "SetConsoleNonBlocking" GIVING ERRNO
-    IF ERRNO NOT = 0
-        DISPLAY "Could not set console to non-blocking mode."
-        STOP RUN RETURNING 1
-    END-IF
+    DISPLAY "Starting server..."
 
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         MOVE 0 TO CLIENT-PRESENT(CLIENT-ID)
