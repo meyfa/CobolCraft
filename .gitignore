@@ -4,11 +4,13 @@
 .vscode
 
 # Build output
+/build*
 /data
 *.so
 /out
 /cobolcraft
 /*.c
+/*.d
 /*.h
 /*.i
 callgrind.out.*

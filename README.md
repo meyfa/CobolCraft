@@ -56,13 +56,7 @@ To deploy on Linux, make sure all prerequisites are installed:
 Run the following commands to build and run CobolCraft:
 
 ```sh
-# GnuCOBOL 3.2 or later
-make -j$(nproc) GCVERSION=32
-
-# GnuCOBOL 3.1
-make -j$(nproc)
-
-# start the server
+make --jobs=j$(nproc)
 make run
 ```
 
