@@ -1,8 +1,6 @@
 *> --- Copybook: shared data for the world state ---
 
-*> Constants
 78 WORLD-CHUNK-CAPACITY     VALUE 65536.
-78 WORLD-SECTION-COUNT      VALUE 24.
 
 *> Age of the world in ticks.
 01 WORLD-AGE                BINARY-LONG-LONG EXTERNAL.
