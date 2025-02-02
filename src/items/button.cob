@@ -33,9 +33,6 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-PLAYERS.
-        01 C-FACE                   PIC X(4)                VALUE "face".
-        01 C-FACING                 PIC X(6)                VALUE "facing".
-        *> Block state description for the block to place.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PLACE==.
         01 BLOCK-POSITION.
             02 BLOCK-X              BINARY-LONG.
@@ -56,13 +53,15 @@ PROCEDURE DIVISION.
             GOBACK
         END-IF
 
+        CALL "Facing-ToString" USING LK-FACE FACING
+
         *> TODO: check for solid block where the button will be placed
 
         MOVE LK-ITEM-NAME TO PLACE-NAME
 
         MOVE 3 TO PLACE-PROPERTY-COUNT
-        MOVE C-FACE TO PLACE-PROPERTY-NAME(1)
-        MOVE C-FACING TO PLACE-PROPERTY-NAME(2)
+        MOVE "face" TO PLACE-PROPERTY-NAME(1)
+        MOVE "facing" TO PLACE-PROPERTY-NAME(2)
         MOVE "powered" TO PLACE-PROPERTY-NAME(3)
         MOVE "false" TO PLACE-PROPERTY-VALUE(3)
 
