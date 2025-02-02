@@ -18,8 +18,8 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-ROOT-PATH LK-PACK-NAME LK-FAILURE.
     MOVE 0 TO LK-FAILURE
 
-    MOVE 0 TO TAGS-REGISTRY-COUNT
-    MOVE 0 TO RECIPES-SHAPELESS-COUNT
+    INITIALIZE TAGS
+    INITIALIZE RECIPES
 
     DISPLAY "    Loading entries...          " WITH NO ADVANCING
 
@@ -338,9 +338,6 @@ PROCEDURE DIVISION USING LK-PACK-NAME LK-TAG-NAME LK-TAG-PATH LK-FAILURE.
 
     *> end
     CALL "JsonParse-ObjectEnd" USING JSON-BUFFER JSON-POS LK-FAILURE
-    IF LK-FAILURE NOT = 0
-        GOBACK
-    END-IF
 
     GOBACK.
 
@@ -464,7 +461,6 @@ PROGRAM-ID. Datapack-LoadRecipes.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    COPY DD-RECIPES.
     01 DIR-PATH                     PIC X(255).
     01 DIR-PATH-LENGTH              BINARY-LONG UNSIGNED.
     01 DIR-HANDLE                   PIC X(8).
@@ -472,11 +468,11 @@ WORKING-STORAGE SECTION.
     01 DIR-ENTRY                    PIC X(255).
     01 ENTRY-PATH                   PIC X(255).
     01 RECIPE-SKIPPED               BINARY-CHAR UNSIGNED.
+    01 DISPLAY-INT                  PIC -(9)9.
+LOCAL-STORAGE SECTION.
     *> counters for number of recipe files read vs. able to be loaded
     01 RECIPE-FILE-COUNT            BINARY-LONG UNSIGNED.
     01 RECIPE-FILES-LOADED          BINARY-LONG UNSIGNED.
-    01 TOTAL-RECIPE-COUNT           BINARY-LONG UNSIGNED.
-    01 DISPLAY-INT                  PIC -(9)9.
 LINKAGE SECTION.
     01 LK-ROOT-PATH                 PIC X ANY LENGTH.
     01 LK-PACK-NAME                 PIC X ANY LENGTH.
@@ -518,17 +514,12 @@ PROCEDURE DIVISION USING LK-ROOT-PATH LK-PACK-NAME LK-FAILURE.
 
     CALL "CloseDirectory" USING DIR-HANDLE
 
-    ADD RECIPES-SHAPELESS-COUNT TO TOTAL-RECIPE-COUNT
-
-    MOVE TOTAL-RECIPE-COUNT TO DISPLAY-INT
-    DISPLAY FUNCTION TRIM(DISPLAY-INT) WITH NO ADVANCING
-    DISPLAY " recipes loaded (" WITH NO ADVANCING
     MOVE RECIPE-FILES-LOADED TO DISPLAY-INT
     DISPLAY FUNCTION TRIM(DISPLAY-INT) WITH NO ADVANCING
     DISPLAY " / " WITH NO ADVANCING
     MOVE RECIPE-FILE-COUNT TO DISPLAY-INT
     DISPLAY FUNCTION TRIM(DISPLAY-INT) WITH NO ADVANCING
-    DISPLAY " files)"
+    DISPLAY " recipes files loaded"
 
     GOBACK.
 
@@ -546,105 +537,50 @@ WORKING-STORAGE SECTION.
     01 JSON-BUFFER                  PIC X(4096).
     01 JSON-LENGTH                  BINARY-LONG UNSIGNED.
     01 JSON-POS                     BINARY-LONG UNSIGNED.
-    01 AT-END                       BINARY-CHAR UNSIGNED.
-    01 STR                          PIC X(256).
-    *> index of the item registry in the tags table (initialized on first use)
-    01 TAGS-ITEM-REGISTRY-INDEX     BINARY-LONG UNSIGNED        VALUE 0.
-LOCAL-STORAGE SECTION.
-    01 RECIPE-TYPE                  PIC X(128)                  VALUE SPACES.
-    *> result
-    01 RESULT-NAME                  PIC X(128)                  VALUE SPACES.
-    01 RESULT-ID                    BINARY-LONG                 VALUE 0.
-    01 RESULT-COUNT                 BINARY-LONG                 VALUE 0.
-    *> ingredients
-    01 INGREDIENTS-COUNT            BINARY-LONG UNSIGNED        VALUE 0.
-    01 INGREDIENTS-INDEX            BINARY-LONG UNSIGNED        VALUE 0.
-    01 INGREDIENT-NAMES.
-        02 INGREDIENT-NAME          OCCURS 9 TIMES PIC X(128)   VALUE SPACES.
-    01 INGREDIENT-IDS.
-        02 INGREDIENT-ID            OCCURS 9 TIMES BINARY-LONG  VALUE 0.
-    *> An ingredient can be an array or a tag reference, in which case the resolved values are stored here.
-    *> The ingredient will then not be included in the ingredient count.
-    *> TODO support more than one tag/array per recipe
-    01 INGREDIENT-CHOICE-COUNT      BINARY-LONG UNSIGNED        VALUE 0.
-    01 INGREDIENT-CHOICE-INDEX      BINARY-LONG UNSIGNED        VALUE 0.
-    01 INGREDIENT-CHOICE-IDS.
-        02 INGREDIENT-CHOICE-ID     OCCURS 16 TIMES BINARY-LONG VALUE 0.
-    01 INGREDIENT-CHOICE-COMBINED-IDS.
-        02 INGREDIENT-CHOICE-COMBINED-ID OCCURS 9 TIMES BINARY-LONG VALUE 0.
-    *> searching for tagged items
-    01 TAG-INDEX                    BINARY-LONG UNSIGNED        VALUE 0.
+    01 RECIPE-TYPE                  PIC X(128).
 LINKAGE SECTION.
     01 LK-RECIPE-PATH               PIC X ANY LENGTH.
     01 LK-FAILURE                   BINARY-CHAR UNSIGNED.
     01 LK-SKIPPED                   BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-RECIPE-PATH LK-FAILURE LK-SKIPPED.
-    MOVE 0 TO LK-FAILURE LK-SKIPPED
+    MOVE 0 TO LK-FAILURE
+    MOVE 1 TO LK-SKIPPED
 
-    IF TAGS-ITEM-REGISTRY-INDEX = 0
-        PERFORM VARYING TAG-INDEX FROM 1 BY 1 UNTIL TAG-INDEX > TAGS-REGISTRY-COUNT
-            IF TAGS-REGISTRY-NAME(TAG-INDEX) = "minecraft:item"
-                MOVE TAG-INDEX TO TAGS-ITEM-REGISTRY-INDEX
-                EXIT PERFORM
-            END-IF
-        END-PERFORM
-    END-IF
-
-    *> Read the recipe file
     CALL "Files-ReadAll" USING LK-RECIPE-PATH JSON-BUFFER JSON-LENGTH LK-FAILURE
     IF LK-FAILURE NOT = 0
         DISPLAY "Failure reading recipe file: " FUNCTION TRIM(LK-RECIPE-PATH)
         GOBACK
     END-IF
 
-    *> Parse the recipe file
+    *> Find just the specific parser to use
+
     MOVE 1 TO JSON-POS
     CALL "JsonParse-ObjectStart" USING JSON-BUFFER JSON-POS LK-FAILURE
     IF LK-FAILURE NOT = 0
         GOBACK
     END-IF
 
-    PERFORM UNTIL EXIT
-        CALL "JsonParse-ObjectKey" USING JSON-BUFFER JSON-POS LK-FAILURE STR
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
+    CALL "JsonParse-FindValue" USING JSON-BUFFER JSON-POS "type" LK-FAILURE
+    IF LK-FAILURE NOT = 0
+        GOBACK
+    END-IF
 
-        EVALUATE STR
-            WHEN "type"
-                PERFORM ParseType
-            WHEN "key"
-                PERFORM ParseKey
-            WHEN "pattern"
-                PERFORM ParsePattern
-            WHEN "ingredients"
-                PERFORM ParseIngredients
-            WHEN "result"
-                PERFORM ParseResult
-            WHEN OTHER
-                CALL "JsonParse-SkipValue" USING JSON-BUFFER JSON-POS LK-FAILURE
-        END-EVALUATE
+    CALL "JsonParse-String" USING JSON-BUFFER JSON-POS LK-FAILURE RECIPE-TYPE
+    IF LK-FAILURE NOT = 0
+        GOBACK
+    END-IF
 
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
-
-        CALL "JsonParse-Comma" USING JSON-BUFFER JSON-POS AT-END
-        IF AT-END NOT = 0
-            EXIT PERFORM
-        END-IF
-    END-PERFORM
-
-    MOVE 1 TO LK-SKIPPED
+    *> The parser starts from the beginning of the object for simplicity of implementation
+    MOVE 1 TO JSON-POS
 
     EVALUATE RECIPE-TYPE
         WHEN "minecraft:crafting_shapeless"
             MOVE 0 TO LK-SKIPPED
-            PERFORM AddShapelessRecipe
+            CALL "Parse-Recipe-Shapeless" USING JSON-BUFFER JSON-POS LK-FAILURE
         WHEN "minecraft:crafting_shaped"
-            *> TODO implement
-            CONTINUE
+            MOVE 0 TO LK-SKIPPED
+            CALL "Parse-Recipe-Shaped" USING JSON-BUFFER JSON-POS LK-FAILURE
         WHEN "minecraft:crafting_transmute"
             *> TODO implement
             CONTINUE
@@ -710,194 +646,6 @@ PROCEDURE DIVISION USING LK-RECIPE-PATH LK-FAILURE LK-SKIPPED.
             MOVE 1 TO LK-FAILURE
     END-EVALUATE
 
-    *> End of the recipe file
-    CALL "JsonParse-ObjectEnd" USING JSON-BUFFER JSON-POS LK-FAILURE
-    IF LK-FAILURE NOT = 0
-        GOBACK
-    END-IF
-
     GOBACK.
-
-ParseType.
-    CALL "JsonParse-String" USING JSON-BUFFER JSON-POS LK-FAILURE RECIPE-TYPE
-    .
-
-ParseKey.
-    *> TODO implement
-    CALL "JsonParse-SkipValue" USING JSON-BUFFER JSON-POS LK-FAILURE
-    .
-
-ParsePattern.
-    *> TODO implement
-    CALL "JsonParse-SkipValue" USING JSON-BUFFER JSON-POS LK-FAILURE
-    .
-
-ParseIngredients.
-    CALL "JsonParse-ArrayStart" USING JSON-BUFFER JSON-POS LK-FAILURE
-    IF LK-FAILURE NOT = 0
-        GOBACK
-    END-IF
-
-    PERFORM UNTIL EXIT
-        CALL "JsonParse-String" USING JSON-BUFFER JSON-POS LK-FAILURE STR
-
-        IF LK-FAILURE = 0
-            *> resolve tag as a choice
-            IF STR(1:1) = "#"
-                IF INGREDIENT-CHOICE-COUNT > 0
-                    *> this is not currently needed by any recipes, so it's not implemented
-                    DISPLAY "Recipe has more than one ingredient choice: " FUNCTION TRIM(LK-RECIPE-PATH)
-                    MOVE 1 TO LK-FAILURE
-                END-IF
-                PERFORM VARYING TAG-INDEX FROM 1 BY 1 UNTIL TAG-INDEX > TAGS-REGISTRY-LENGTH(TAGS-ITEM-REGISTRY-INDEX)
-                    IF TAGS-REGISTRY-TAG-NAME(TAGS-ITEM-REGISTRY-INDEX, TAG-INDEX) = STR(2:)
-                        PERFORM VARYING INGREDIENT-CHOICE-COUNT FROM 0 BY 1 UNTIL INGREDIENT-CHOICE-COUNT >= TAGS-REGISTRY-TAG-LENGTH(TAGS-ITEM-REGISTRY-INDEX, TAG-INDEX)
-                            MOVE TAGS-REGISTRY-TAG-ENTRY(TAGS-ITEM-REGISTRY-INDEX, TAG-INDEX, INGREDIENT-CHOICE-COUNT + 1) TO INGREDIENT-CHOICE-ID(INGREDIENT-CHOICE-COUNT + 1)
-                        END-PERFORM
-                        EXIT PERFORM
-                    END-IF
-                END-PERFORM
-                IF INGREDIENT-CHOICE-COUNT = 0
-                    DISPLAY "Unknown tag reference: " FUNCTION TRIM(STR) " in " FUNCTION TRIM(LK-RECIPE-PATH)
-                    MOVE 1 TO LK-FAILURE
-                END-IF
-            ELSE
-                ADD 1 TO INGREDIENTS-COUNT
-                MOVE STR TO INGREDIENT-NAME(INGREDIENTS-COUNT)
-            END-IF
-        ELSE
-            *> alternatives are represented as arrays of strings
-            CALL "JsonParse-ArrayStart" USING JSON-BUFFER JSON-POS LK-FAILURE
-            IF LK-FAILURE NOT = 0
-                GOBACK
-            END-IF
-
-            PERFORM UNTIL EXIT
-                CALL "JsonParse-String" USING JSON-BUFFER JSON-POS LK-FAILURE STR
-                IF LK-FAILURE NOT = 0
-                    GOBACK
-                END-IF
-
-                ADD 1 TO INGREDIENT-CHOICE-COUNT
-                CALL "Registries-Get-EntryId" USING "minecraft:item" STR INGREDIENT-CHOICE-ID(INGREDIENT-CHOICE-COUNT)
-                IF INGREDIENT-CHOICE-ID(INGREDIENT-CHOICE-COUNT) <= 0
-                    MOVE 1 TO LK-FAILURE
-                    GOBACK
-                END-IF
-
-                CALL "JsonParse-Comma" USING JSON-BUFFER JSON-POS AT-END
-                IF AT-END NOT = 0
-                    EXIT PERFORM
-                END-IF
-            END-PERFORM
-
-            CALL "JsonParse-ArrayEnd" USING JSON-BUFFER JSON-POS LK-FAILURE
-            IF LK-FAILURE NOT = 0
-                GOBACK
-            END-IF
-        END-IF
-
-        CALL "JsonParse-Comma" USING JSON-BUFFER JSON-POS AT-END
-        IF AT-END NOT = 0
-            EXIT PERFORM
-        END-IF
-    END-PERFORM
-
-    CALL "JsonParse-ArrayEnd" USING JSON-BUFFER JSON-POS LK-FAILURE
-    IF LK-FAILURE NOT = 0
-        GOBACK
-    END-IF
-    .
-
-ParseResult.
-    *> some recipe types just have a string
-    CALL "JsonParse-String" USING JSON-BUFFER JSON-POS LK-FAILURE RESULT-NAME
-    IF LK-FAILURE = 0
-        MOVE 1 TO RESULT-COUNT
-        GOBACK
-    END-IF
-    MOVE 0 TO LK-FAILURE
-
-    CALL "JsonParse-ObjectStart" USING JSON-BUFFER JSON-POS LK-FAILURE
-    IF LK-FAILURE NOT = 0
-        GOBACK
-    END-IF
-
-    PERFORM UNTIL EXIT
-        CALL "JsonParse-ObjectKey" USING JSON-BUFFER JSON-POS LK-FAILURE STR
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
-
-        EVALUATE STR
-            WHEN "count"
-                CALL "JsonParse-Integer" USING JSON-BUFFER JSON-POS LK-FAILURE RESULT-COUNT
-            WHEN "id"
-                CALL "JsonParse-String" USING JSON-BUFFER JSON-POS LK-FAILURE RESULT-NAME
-            WHEN OTHER
-                CALL "JsonParse-SkipValue" USING JSON-BUFFER JSON-POS LK-FAILURE
-        END-EVALUATE
-
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
-
-        CALL "JsonParse-Comma" USING JSON-BUFFER JSON-POS AT-END
-        IF AT-END NOT = 0
-            EXIT PERFORM
-        END-IF
-    END-PERFORM
-
-    CALL "JsonParse-ObjectEnd" USING JSON-BUFFER JSON-POS LK-FAILURE
-    IF LK-FAILURE NOT = 0
-        GOBACK
-    END-IF
-    .
-
-AddShapelessRecipe.
-    CALL "Registries-Get-EntryId" USING "minecraft:item" RESULT-NAME RESULT-ID
-
-    IF RESULT-ID <= 0 OR RESULT-COUNT <= 0
-        DISPLAY "Invalid recipe result: " FUNCTION TRIM(RESULT-ID) " x" FUNCTION TRIM(RESULT-COUNT)
-        MOVE 1 TO LK-FAILURE
-        GOBACK
-    END-IF
-
-    *> resolve ingredient IDs
-    PERFORM VARYING INGREDIENTS-INDEX FROM 1 BY 1 UNTIL INGREDIENTS-INDEX > INGREDIENTS-COUNT
-        MOVE INGREDIENT-NAME(INGREDIENTS-INDEX) TO STR
-        CALL "Registries-Get-EntryId" USING "minecraft:item" STR INGREDIENT-ID(INGREDIENTS-INDEX)
-        IF INGREDIENT-ID(INGREDIENTS-INDEX) <= 0
-            MOVE 1 TO LK-FAILURE
-            GOBACK
-        END-IF
-    END-PERFORM
-
-    IF INGREDIENT-CHOICE-COUNT = 0
-        *> default: simple shapeless recipe
-
-        *> sort the ingredients by ID, descending, such that lookup can be a string search
-        SORT INGREDIENT-ID ON DESCENDING KEY INGREDIENT-ID
-
-        ADD 1 TO RECIPES-SHAPELESS-COUNT
-        MOVE INGREDIENT-IDS TO RECIPE-SHAPELESS-INPUTS(RECIPES-SHAPELESS-COUNT)
-        MOVE RESULT-ID TO RECIPE-SHAPELESS-OUTPUT-ID(RECIPES-SHAPELESS-COUNT)
-        MOVE RESULT-COUNT TO RECIPE-SHAPELESS-OUTPUT-COUNT(RECIPES-SHAPELESS-COUNT)
-    ELSE
-        *> one recipe per choice
-        ADD 1 TO INGREDIENTS-COUNT
-        PERFORM VARYING INGREDIENT-CHOICE-INDEX FROM 1 BY 1 UNTIL INGREDIENT-CHOICE-INDEX > INGREDIENT-CHOICE-COUNT
-            MOVE INGREDIENT-IDS TO INGREDIENT-CHOICE-COMBINED-IDS
-            MOVE INGREDIENT-CHOICE-ID(INGREDIENT-CHOICE-INDEX) TO INGREDIENT-CHOICE-COMBINED-ID(INGREDIENTS-COUNT)
-
-            SORT INGREDIENT-CHOICE-COMBINED-ID ON DESCENDING KEY INGREDIENT-CHOICE-COMBINED-ID
-
-            ADD 1 TO RECIPES-SHAPELESS-COUNT
-            MOVE INGREDIENT-CHOICE-COMBINED-IDS TO RECIPE-SHAPELESS-INPUTS(RECIPES-SHAPELESS-COUNT)
-            MOVE RESULT-ID TO RECIPE-SHAPELESS-OUTPUT-ID(RECIPES-SHAPELESS-COUNT)
-            MOVE RESULT-COUNT TO RECIPE-SHAPELESS-OUTPUT-COUNT(RECIPES-SHAPELESS-COUNT)
-        END-PERFORM
-    END-IF
-    .
 
 END PROGRAM Datapack-LoadRecipe.
