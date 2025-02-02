@@ -4,8 +4,6 @@ PROGRAM-ID. SendPacket-SpawnEntity.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:add_entity".
-    *> registry data (cached on first use)
-    01 PLAYER-TYPE      BINARY-LONG             VALUE -1.
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(1024).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
@@ -14,8 +12,7 @@ LINKAGE SECTION.
     01 LK-CLIENT        BINARY-LONG UNSIGNED.
     01 LK-ENTITY-ID     BINARY-LONG.
     01 LK-ENTITY-UUID   PIC X(16).
-    *> TODO: support entity types other than player
-    *> 01 LK-TYPE          BINARY-LONG.
+    01 LK-ENTITY-TYPE   BINARY-LONG.
     01 LK-POSITION.
         02 LK-X         FLOAT-LONG.
         02 LK-Y         FLOAT-LONG.
@@ -24,13 +21,8 @@ LINKAGE SECTION.
         02 LK-YAW       FLOAT-SHORT.
         02 LK-PITCH     FLOAT-SHORT.
 
-PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-ENTITY-UUID LK-POSITION LK-ROTATION.
+PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-ENTITY-UUID LK-ENTITY-TYPE LK-POSITION LK-ROTATION.
     COPY PROC-PACKET-INIT.
-
-    *> obtain and cache ID of player entity type
-    IF PLAYER-TYPE < 0
-        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:player" PLAYER-TYPE
-    END-IF
 
     MOVE 1 TO PAYLOADPOS
 
@@ -42,7 +34,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-ENTITY-UUID LK-POSITION LK-RO
     ADD 16 TO PAYLOADPOS
 
     *> entity type
-    CALL "Encode-VarInt" USING PLAYER-TYPE PAYLOAD PAYLOADPOS
+    CALL "Encode-VarInt" USING LK-ENTITY-TYPE PAYLOAD PAYLOADPOS
 
     *> entity position
     CALL "Encode-Double" USING LK-X PAYLOAD PAYLOADPOS
