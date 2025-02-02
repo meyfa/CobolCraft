@@ -32,15 +32,10 @@ PROGRAM-ID. World-AllocateChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    *> Constants
-    01 C-MINECRAFT-WORLDGEN-BIOME       PIC X(50)           VALUE "minecraft:worldgen/biome".
-    01 C-MINECRAFT-PLAINS               PIC X(50)           VALUE "minecraft:plains".
-    *> Temporary variables
-    01 BIOME-ID             BINARY-LONG UNSIGNED.
-    01 SECTION-INDEX        BINARY-LONG UNSIGNED.
-    *> World data
     COPY DD-WORLD.
     COPY DD-CHUNK-REF.
+    01 BIOME-ID             BINARY-LONG UNSIGNED.
+    01 SECTION-INDEX        BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-CHUNK-X           BINARY-LONG.
     01 LK-CHUNK-Z           BINARY-LONG.
@@ -71,7 +66,7 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX.
     INITIALIZE WORLD-BLOCK-ENTITIES REPLACING NUMERIC BY -1
 
     *> Set all sections to the plains biome
-    CALL "Registries-Get-EntryId" USING C-MINECRAFT-WORLDGEN-BIOME C-MINECRAFT-PLAINS BIOME-ID
+    CALL "Registries-Get-EntryId" USING "minecraft:worldgen/biome" "minecraft:plains" BIOME-ID
     PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > WORLD-SECTION-COUNT
         INITIALIZE WORLD-SECTION-BIOMES(SECTION-INDEX) REPLACING NUMERIC BY BIOME-ID
     END-PERFORM
@@ -88,10 +83,6 @@ PROGRAM-ID. World-GenerateChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    *> Constants
-    01 C-MINECRAFT-STONE            PIC X(50) VALUE "minecraft:stone".
-    01 C-MINECRAFT-GRASS_BLOCK      PIC X(50) VALUE "minecraft:grass_block".
-    *> World data
     COPY DD-WORLD.
     COPY DD-CHUNK-REF.
 LOCAL-STORAGE SECTION.
@@ -112,7 +103,7 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z.
     SET ADDRESS OF WORLD-CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
 
     *> turn all blocks with Y <= 63 (= the bottom 128 blocks = the bottom 8 sections) into stone
-    CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-STONE TEMP-INT32
+    CALL "Blocks-Get-DefaultStateId" USING "minecraft:stone" TEMP-INT32
     PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > 8
         PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > 4096
             MOVE TEMP-INT32 TO WORLD-BLOCK-ID(SECTION-INDEX, BLOCK-INDEX)
@@ -121,7 +112,7 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z.
     END-PERFORM
 
     *> turn all blocks with Y = 63 (i.e., the top 16x16 blocks) into grass
-    CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-GRASS_BLOCK TEMP-INT32
+    CALL "Blocks-Get-DefaultStateId" USING "minecraft:grass_block" TEMP-INT32
     MOVE 8 TO SECTION-INDEX
     COMPUTE BLOCK-INDEX = 4096 - 256 + 1
     PERFORM 256 TIMES
@@ -143,8 +134,6 @@ PROGRAM-ID. World-SaveChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-WORLDGEN-BIOME PIC X(32) VALUE "minecraft:worldgen/biome".
-    01 C-MINECRAFT-BLOCK_ENTITY_TYPE PIC X(32) VALUE "minecraft:block_entity_type".
     01 NBT-BUFFER               PIC X(1048576).
     01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
     01 CHUNK-SECTION-MIN-Y      BINARY-LONG             VALUE -4.
@@ -333,7 +322,7 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
                 IF PALETTE-INDEX(CURRENT-BIOME-ID + 1) = 0
                     ADD 1 TO PALETTE-LENGTH
                     MOVE PALETTE-LENGTH TO PALETTE-INDEX(CURRENT-BIOME-ID + 1)
-                    CALL "Registries-Get-EntryName" USING C-MINECRAFT-WORLDGEN-BIOME CURRENT-BIOME-ID STR
+                    CALL "Registries-Get-EntryName" USING "minecraft:worldgen/biome" CURRENT-BIOME-ID STR
                     MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
                     CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED STR STR-LEN
                 END-IF
@@ -401,7 +390,7 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
                 MOVE "id" TO TAG-NAME
                 MOVE 2 TO NAME-LEN
                 MOVE WORLD-BLOCK-ENTITY-ID(BLOCK-INDEX) TO INT32
-                CALL "Registries-Get-EntryName" USING C-MINECRAFT-BLOCK_ENTITY_TYPE INT32 STR
+                CALL "Registries-Get-EntryName" USING "minecraft:block_entity_type" INT32 STR
                 MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
                 CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
 
@@ -462,9 +451,6 @@ PROGRAM-ID. World-LoadChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-CHUNK-STATUS PIC X(32) VALUE "minecraft:chunk_status".
-    01 C-MINECRAFT-SURFACE      PIC X(32) VALUE "minecraft:surface".
-    01 C-MINECRAFT-BLOCK_ENTITY_TYPE PIC X(32) VALUE "minecraft:block_entity_type".
     01 NBT-BUFFER               PIC X(1048576).
     01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
     *> Temporary variables
@@ -549,15 +535,15 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
     *> We are unable to continue generating partially-generated chunks ("proto-chunks"). Since we don't require light
     *> or heightmap data, any chunk that has progressed to at least the "surface" stage is acceptable.
     IF CHUNK-STATUS NOT = SPACES
-        CALL "Registries-Get-EntryId" USING C-MINECRAFT-CHUNK-STATUS CHUNK-STATUS CHUNK-STATUS-ID
+        CALL "Registries-Get-EntryId" USING "minecraft:chunk_status" CHUNK-STATUS CHUNK-STATUS-ID
         IF CHUNK-STATUS-ID < 0
             DISPLAY "Unknown chunk status: " FUNCTION TRIM(CHUNK-STATUS)
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
-        CALL "Registries-Get-EntryId" USING C-MINECRAFT-CHUNK-STATUS C-MINECRAFT-SURFACE ACCEPTED-CHUNK-STATUS-ID
+        CALL "Registries-Get-EntryId" USING "minecraft:chunk_status" "minecraft:surface" ACCEPTED-CHUNK-STATUS-ID
         IF ACCEPTED-CHUNK-STATUS-ID < 0
-            DISPLAY "Unknown chunk status: " FUNCTION TRIM(C-MINECRAFT-SURFACE)
+            DISPLAY "Unknown chunk status: minecraft:surface"
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
@@ -637,7 +623,7 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
                 EVALUATE TAG-NAME(1:NAME-LEN)
                     WHEN "id"
                         CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
-                        CALL "Registries-Get-EntryId" USING C-MINECRAFT-BLOCK_ENTITY_TYPE STR(1:STR-LEN) ENTITY-ID
+                        CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" STR(1:STR-LEN) ENTITY-ID
                     WHEN "x"
                         CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-X
                     WHEN "y"
@@ -862,7 +848,6 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        01 C-MINECRAFT-WORLDGEN-BIOME       PIC X(50)       VALUE "minecraft:worldgen/biome".
         COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-BEGIN==.
         01 AT-END                   BINARY-CHAR UNSIGNED.
         01 TAG-NAME                 PIC X(256).
@@ -914,7 +899,7 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
         CALL "NbtDecode-List" USING LK-STATE LK-BUFFER PALETTE-LENGTH
         PERFORM VARYING PALETTE-INDEX FROM 1 BY 1 UNTIL PALETTE-INDEX > PALETTE-LENGTH
             CALL "NbtDecode-String" USING LK-STATE LK-BUFFER STR STR-LEN
-            CALL "Registries-Get-EntryId" USING C-MINECRAFT-WORLDGEN-BIOME STR(1:STR-LEN) PALETTE-BIOME-IDS(PALETTE-INDEX)
+            CALL "Registries-Get-EntryId" USING "minecraft:worldgen/biome" STR(1:STR-LEN) PALETTE-BIOME-IDS(PALETTE-INDEX)
         END-PERFORM
         CALL "NbtDecode-EndList" USING LK-STATE LK-BUFFER
 
@@ -1426,7 +1411,7 @@ PROGRAM-ID. World-SetBlock.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-WORLD-EVENT-BLOCK-BREAK    BINARY-LONG UNSIGNED    VALUE 2001.
+    01 WORLD-EVENT-BLOCK-BREAK      BINARY-LONG UNSIGNED    VALUE 2001.
     COPY DD-WORLD.
     COPY DD-CHUNK-REF.
     COPY DD-CLIENT-STATES.
@@ -1499,7 +1484,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-BLOCK-ID.
             CALL "SendPacket-BlockUpdate" USING CLIENT-ID LK-POSITION LK-BLOCK-ID
             *> play block break sound and particles
             IF CLIENT-ID NOT = LK-CLIENT AND LK-BLOCK-ID = 0
-                CALL "SendPacket-WorldEvent" USING CLIENT-ID C-WORLD-EVENT-BLOCK-BREAK LK-POSITION PREVIOUS-BLOCK-ID
+                CALL "SendPacket-WorldEvent" USING CLIENT-ID WORLD-EVENT-BLOCK-BREAK LK-POSITION PREVIOUS-BLOCK-ID
             END-IF
         END-IF
     END-PERFORM

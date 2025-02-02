@@ -5,8 +5,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:login".
     *> constants
-    01 C-MINECRAFT-DIMENSION_TYPE   PIC X(24)                   VALUE "minecraft:dimension_type".
-    01 C-MINECRAFT-OVERWORLD        PIC X(19)                   VALUE "minecraft:overworld".
+    01 MINECRAFT-OVERWORLD          PIC X(19)                   VALUE "minecraft:overworld".
     *> temporary data used during encoding
     01 INT32                        BINARY-LONG.
     *> buffer used to store the packet data
@@ -38,8 +37,8 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-VIEW-DISTANCE LK-GAMEMODE LK-
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 
     *> dimension name array=["minecraft:overworld"]
-    MOVE LENGTH OF C-MINECRAFT-OVERWORLD TO INT32
-    CALL "Encode-String" USING C-MINECRAFT-OVERWORLD INT32 PAYLOAD PAYLOADPOS
+    MOVE LENGTH OF MINECRAFT-OVERWORLD TO INT32
+    CALL "Encode-String" USING MINECRAFT-OVERWORLD INT32 PAYLOAD PAYLOADPOS
 
     *> max players
     CALL "Encode-VarInt" USING LK-MAX-PLAYERS PAYLOAD PAYLOADPOS
@@ -63,12 +62,12 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-VIEW-DISTANCE LK-GAMEMODE LK-
     ADD 1 TO PAYLOADPOS
 
     *> dimension type (ID in the minecraft:dimension_type registry)
-    CALL "Registries-Get-EntryId" USING C-MINECRAFT-DIMENSION_TYPE C-MINECRAFT-OVERWORLD INT32
+    CALL "Registries-Get-EntryId" USING "minecraft:dimension_type" MINECRAFT-OVERWORLD INT32
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 
     *> dimension name="minecraft:overworld"
-    MOVE LENGTH OF C-MINECRAFT-OVERWORLD TO INT32
-    CALL "Encode-String" USING C-MINECRAFT-OVERWORLD INT32 PAYLOAD PAYLOADPOS
+    MOVE LENGTH OF MINECRAFT-OVERWORLD TO INT32
+    CALL "Encode-String" USING MINECRAFT-OVERWORLD INT32 PAYLOAD PAYLOADPOS
 
     *> hashed seed=0 (8-byte long)
     MOVE X"0000000000000000" TO PAYLOAD(PAYLOADPOS:8)

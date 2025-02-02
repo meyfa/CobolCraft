@@ -4,8 +4,6 @@ PROGRAM-ID. SendPacket-PlayerChat.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:player_chat".
-    01 C-MINECRAFT-CHAT_TYPE        PIC X(19)                   VALUE "minecraft:chat_type".
-    01 C-MINECRAFT-CHAT             PIC X(14)                   VALUE "minecraft:chat".
     *> temporary data used during encoding
     01 UINT16                       BINARY-LONG-LONG UNSIGNED.
     01 INT32                        BINARY-LONG.
@@ -67,7 +65,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-SENDER-UUID LK-SENDER-NAME LK-MESSAGE LK-M
     *> --- chat formatting ---
 
     *> chat type
-    CALL "Registries-Get-EntryId" USING C-MINECRAFT-CHAT_TYPE C-MINECRAFT-CHAT INT32
+    CALL "Registries-Get-EntryId" USING "minecraft:chat_type" "minecraft:chat" INT32
     ADD 1 TO INT32
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 

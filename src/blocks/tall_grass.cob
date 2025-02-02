@@ -4,17 +4,16 @@ PROGRAM-ID. RegisterBlock-TallGrass.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-TALL_GRASS           PIC X(32) GLOBAL    VALUE "minecraft:tall_grass".
-    01 HARDNESS                         FLOAT-SHORT         VALUE 0.0.
-    01 FACE-PTR                         PROGRAM-POINTER.
-    01 REPLACEABLE-PTR                  PROGRAM-POINTER.
-    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
-    01 BLOCK-TYPE                       PIC X(64).
-    01 BLOCK-NAME                       PIC X(64).
-    01 BLOCK-MINIMUM-STATE-ID           BINARY-LONG.
-    01 BLOCK-MAXIMUM-STATE-ID           BINARY-LONG.
-    01 STATE-ID                         BINARY-LONG.
+    01 HARDNESS                 FLOAT-SHORT                 VALUE 0.0.
+    01 FACE-PTR                 PROGRAM-POINTER.
+    01 REPLACEABLE-PTR          PROGRAM-POINTER.
+    01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-TYPE               PIC X(64).
+    01 BLOCK-NAME               PIC X(64).
+    01 BLOCK-MINIMUM-STATE-ID   BINARY-LONG.
+    01 BLOCK-MAXIMUM-STATE-ID   BINARY-LONG.
+    01 STATE-ID                 BINARY-LONG.
 
 PROCEDURE DIVISION.
     SET FACE-PTR TO ENTRY "Callback-Face"
@@ -28,7 +27,7 @@ PROCEDURE DIVISION.
         *> Note: The "minecraft:tall_grass" block itself doesn't have the type "minecraft:tall_grass" like the other
         *> grass types, but rather "minecraft:double_plant". However, "minecraft:double_plant" in general is not
         *> replaceable, so this is a special case.
-        IF BLOCK-TYPE = C-MINECRAFT-TALL_GRASS OR BLOCK-NAME = C-MINECRAFT-TALL_GRASS
+        IF BLOCK-TYPE = "minecraft:tall_grass" OR BLOCK-NAME = "minecraft:tall_grass"
             CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
             PERFORM VARYING STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL STATE-ID > BLOCK-MAXIMUM-STATE-ID
                 CALL "SetCallback-BlockFace" USING STATE-ID FACE-PTR

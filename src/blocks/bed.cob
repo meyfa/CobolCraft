@@ -4,16 +4,15 @@ PROGRAM-ID. RegisterBlock-Bed.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-BED                  PIC X(32) GLOBAL    VALUE "minecraft:bed".
-    01 HARDNESS                         FLOAT-SHORT         VALUE 0.2.
-    01 DESTROY-PTR                      PROGRAM-POINTER.
-    01 FACE-PTR                         PROGRAM-POINTER.
-    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
-    01 BLOCK-TYPE                       PIC X(64).
-    01 BLOCK-MINIMUM-STATE-ID           BINARY-LONG.
-    01 BLOCK-MAXIMUM-STATE-ID           BINARY-LONG.
-    01 STATE-ID                         BINARY-LONG.
+    01 HARDNESS                 FLOAT-SHORT                 VALUE 0.2.
+    01 DESTROY-PTR              PROGRAM-POINTER.
+    01 FACE-PTR                 PROGRAM-POINTER.
+    01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-TYPE               PIC X(64).
+    01 BLOCK-MINIMUM-STATE-ID   BINARY-LONG.
+    01 BLOCK-MAXIMUM-STATE-ID   BINARY-LONG.
+    01 STATE-ID                 BINARY-LONG.
 
 PROCEDURE DIVISION.
     SET DESTROY-PTR TO ENTRY "Callback-Destroy"
@@ -23,7 +22,7 @@ PROCEDURE DIVISION.
     CALL "Blocks-GetCount" USING BLOCK-COUNT
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
-        IF BLOCK-TYPE = C-MINECRAFT-BED
+        IF BLOCK-TYPE = "minecraft:bed"
             CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
             PERFORM VARYING STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL STATE-ID > BLOCK-MAXIMUM-STATE-ID
                 CALL "SetCallback-BlockDestroy" USING STATE-ID DESTROY-PTR
@@ -44,8 +43,6 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         01 AIR-BLOCK-STATE          BINARY-LONG             VALUE 0.
         01 NULL-CLIENT              BINARY-LONG             VALUE 0.
-        01 C-FACING                 PIC X(6)                VALUE "facing".
-        01 C-PART                   PIC X(4)                VALUE "part".
         01 BLOCK-ID                 BINARY-LONG.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==OTHER-PART==.
@@ -70,8 +67,8 @@ PROCEDURE DIVISION.
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) LK-POSITION AIR-BLOCK-STATE
 
         *> Find the other half
-        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION C-FACING FACING-VALUE-CLICKED
-        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION C-PART PART-VALUE-CLICKED
+        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION "facing" FACING-VALUE-CLICKED
+        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION "part" PART-VALUE-CLICKED
         MOVE LK-POSITION TO BLOCK-POSITION
         EVALUATE FACING-VALUE-CLICKED ALSO PART-VALUE-CLICKED
             WHEN "north" ALSO "foot"
@@ -98,7 +95,7 @@ PROCEDURE DIVISION.
         IF OTHER-PART-NAME NOT = CLICKED-NAME
             GOBACK
         END-IF
-        CALL "Blocks-Description-GetValue" USING OTHER-PART-DESCRIPTION C-PART PART-VALUE-OTHER
+        CALL "Blocks-Description-GetValue" USING OTHER-PART-DESCRIPTION "part" PART-VALUE-OTHER
         IF PART-VALUE-CLICKED = PART-VALUE-OTHER
             GOBACK
         END-IF
@@ -106,6 +103,7 @@ PROCEDURE DIVISION.
         *> Set the other half to air
         *> Note: We don't pass the player client here because they should receive the particle and sound effects, too.
         *>       For the clicked block, the client has already predicted the removal and played the effects.
+        *> TODO use OMITTED instead of NULL-CLIENT
         CALL "World-SetBlock" USING NULL-CLIENT BLOCK-POSITION AIR-BLOCK-STATE
 
         GOBACK.
