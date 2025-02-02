@@ -42,23 +42,24 @@ LINKAGE SECTION.
     01 LK-CHUNK-INDEX       BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX.
-    *> Check if the chunk is already present
+    *> Check if the chunk is already present and free it if needed
     PERFORM VARYING LK-CHUNK-INDEX FROM 1 BY 1 UNTIL LK-CHUNK-INDEX > WORLD-CHUNK-COUNT
         SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(LK-CHUNK-INDEX)
         IF LK-CHUNK-X = CHUNK-X AND LK-CHUNK-Z = CHUNK-Z
+            CALL "World-FreeChunk" USING LK-CHUNK-INDEX
             EXIT PERFORM
         END-IF
     END-PERFORM
-    *> If not present, allocate a new chunk
-    IF LK-CHUNK-INDEX > WORLD-CHUNK-COUNT
-        IF LK-CHUNK-INDEX > WORLD-CHUNK-CAPACITY
-            DISPLAY "Warning: Failed to allocate chunk (no capacity)"
-            MOVE 0 TO LK-CHUNK-INDEX
-            GOBACK
-        END-IF
-        ALLOCATE CHUNK
-        SET WORLD-CHUNK-POINTER(LK-CHUNK-INDEX) TO ADDRESS OF CHUNK
+
+    *> Allocate a new chunk
+    COMPUTE LK-CHUNK-INDEX = WORLD-CHUNK-COUNT + 1
+    IF LK-CHUNK-INDEX >= WORLD-CHUNK-CAPACITY
+        DISPLAY "Warning: Failed to allocate chunk (no capacity)"
+        MOVE 0 TO LK-CHUNK-INDEX
+        GOBACK
     END-IF
+    ALLOCATE CHUNK
+    SET WORLD-CHUNK-POINTER(LK-CHUNK-INDEX) TO ADDRESS OF CHUNK
 
     INITIALIZE CHUNK
     MOVE LK-CHUNK-X TO CHUNK-X
@@ -76,6 +77,31 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX.
     GOBACK.
 
 END PROGRAM World-AllocateChunk.
+
+*> --- World-FreeChunk ---
+*> Free a chunk slot, properly deallocating any dynamically allocated memory.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-FreeChunk.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-WORLD.
+    COPY DD-CHUNK-REF.
+LINKAGE SECTION.
+    01 LK-CHUNK-INDEX       BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-CHUNK-INDEX.
+    SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(LK-CHUNK-INDEX)
+
+    FREE WORLD-CHUNK-POINTER(LK-CHUNK-INDEX)
+
+    *> move the last slot into the freed slot
+    SET WORLD-CHUNK-POINTER(LK-CHUNK-INDEX) TO WORLD-CHUNK-POINTER(WORLD-CHUNK-COUNT)
+    SUBTRACT 1 FROM WORLD-CHUNK-COUNT
+
+    GOBACK.
+
+END PROGRAM World-FreeChunk.
 
 *> --- World-GenerateChunk ---
 IDENTIFICATION DIVISION.
@@ -1092,10 +1118,8 @@ PROCEDURE DIVISION USING LK-VIEW-DISTANCE LK-FAILURE.
                     END-IF
                 END-IF
                 *> free the memory
-                FREE WORLD-CHUNK-POINTER(CHUNK-INDEX)
-                *> move the last slot into the freed slot
-                SET WORLD-CHUNK-POINTER(CHUNK-INDEX) TO WORLD-CHUNK-POINTER(WORLD-CHUNK-COUNT)
-                SUBTRACT 1 FROM WORLD-CHUNK-COUNT
+                CALL "World-FreeChunk" USING CHUNK-INDEX
+                *> since the chunk was removed, the next chunk will be at the same index
                 SUBTRACT 1 FROM CHUNK-INDEX
             END-IF
         END-IF
@@ -1327,10 +1351,9 @@ PROCEDURE DIVISION USING LK-FAILURE.
     CALL "World-LoadLevel" USING LEVEL-SAVE-REQUIRED
 
     *> Load just the spawn area
-    PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > WORLD-CHUNK-COUNT
-        FREE WORLD-CHUNK-POINTER(CHUNK-INDEX)
+    PERFORM UNTIL WORLD-CHUNK-COUNT = 0
+        CALL "World-FreeChunk" USING WORLD-CHUNK-COUNT
     END-PERFORM
-    MOVE 0 TO WORLD-CHUNK-COUNT
     CALL "World-EnsureSpawnChunks" USING CHUNK-SAVE-REQUIRED
 
     *> Save the world if necessary
