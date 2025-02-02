@@ -52,9 +52,13 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     END-IF
 
     *> Determine the item's "use" callback
-    MOVE PLAYER-INVENTORY-SLOT-ID(PLAYER-ID, SLOT-INDEX + 1) TO ITEM-ID
-    CALL "Registries-Get-EntryName" USING "minecraft:item" ITEM-ID ITEM-IDENTIFIER
-    CALL "GetCallback-ItemUse" USING ITEM-IDENTIFIER CALLBACK-PTR-ITEM
+    IF PLAYER-INVENTORY-SLOT-COUNT(PLAYER-ID, SLOT-INDEX + 1) = 0
+        SET CALLBACK-PTR-ITEM TO NULL
+    ELSE
+        MOVE PLAYER-INVENTORY-SLOT-ID(PLAYER-ID, SLOT-INDEX + 1) TO ITEM-ID
+        CALL "Registries-Get-EntryName" USING "minecraft:item" ITEM-ID ITEM-IDENTIFIER
+        CALL "GetCallback-ItemUse" USING ITEM-IDENTIFIER CALLBACK-PTR-ITEM
+    END-IF
 
     *> Determine the current block's "interact" callback
     CALL "World-GetBlock" USING LOCATION BLOCK-STATE-ID

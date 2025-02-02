@@ -45,10 +45,10 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
             PERFORM CancelledDigging
         WHEN ACTION-ENUM = 2
             PERFORM FinishedDigging
+        WHEN OTHER
+            *> TODO The following is a workaround to reset the player's inventory until we support all actions fully
+            CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
     END-EVALUATE
-
-    *> TODO The following is a workaround to reset the player's inventory, since we don't implement dropping items yet.
-    CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
 
     GOBACK.
 
@@ -84,13 +84,12 @@ StartedDigging.
     END-EVALUATE
 
     CALL "SendPacket-AckBlockChange" USING LK-CLIENT SEQUENCE-ID
-
-    GOBACK.
+    .
 
 CancelledDigging.
     PERFORM ResetBlockBreaking
     CALL "SendPacket-AckBlockChange" USING LK-CLIENT SEQUENCE-ID
-    GOBACK.
+    .
 
 FinishedDigging.
     *> TODO check whether the player was actually breaking the block...
@@ -99,7 +98,7 @@ FinishedDigging.
         PERFORM BreakBlock
     END-IF
     CALL "SendPacket-AckBlockChange" USING LK-CLIENT SEQUENCE-ID
-    GOBACK.
+    .
 
 *> called by either StartedDigging or FinishedDigging, depending on gamemode and block destroy speed
 BreakBlock.

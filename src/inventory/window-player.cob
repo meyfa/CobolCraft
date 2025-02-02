@@ -116,7 +116,7 @@ PROCEDURE DIVISION.
                     CRAFTING-GRID-SIZE CRAFTING-GRID-START CRAFTING-OUTPUT-SLOT
                 MOVE 1 TO LK-SYNC-REQUIRED
 
-            WHEN 10 THRU 45 *> player inventory
+            WHEN 5 THRU 45 *> armor, inventory, offhand
                 MOVE LK-SLOT TO PLAYER-INVENTORY-SLOT(LK-PLAYER, LK-INDEX + 1)
 
             WHEN OTHER
