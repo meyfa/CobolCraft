@@ -72,6 +72,12 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
         PERFORM AbortEarly
     END-IF
 
+    *> TODO implement painting properly
+    *> For now we ignore all but the end event, assuming the client will send the changed slots with the end event.
+    IF MODE-ENUM = 5 AND NOT (BUTTON = 2 OR 6 OR 10)
+        PERFORM AbortEarly
+    END-IF
+
     *> iterate changed slots
     CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET CHANGED-SLOT-COUNT
     IF CHANGED-SLOT-COUNT < 0 OR CHANGED-SLOT-COUNT > 128
@@ -119,9 +125,7 @@ DecodeSlot.
     CALL "Decode-Byte" USING LK-BUFFER LK-OFFSET DECODE-SLOT-COUNT
     MOVE DECODE-SLOT-COUNT TO CLIENT-SLOT-COUNT
 
-    IF DECODE-SLOT-COUNT = 0
-        MOVE 0 TO CLIENT-SLOT-ID
-    ELSE
+    IF DECODE-SLOT-COUNT > 0
         *> id
         CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET CLIENT-SLOT-ID
 
