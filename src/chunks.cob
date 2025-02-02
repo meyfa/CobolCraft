@@ -286,7 +286,7 @@ PROCEDURE DIVISION USING LK-CLIENT.
             CALL "World-EnsureChunk" USING X-POS Z-POS CHUNK-INDEX
             IF CHUNK-INDEX > 0
                 SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
-                CALL "SendPacket-ChunkData" USING LK-CLIENT CHUNK
+                CALL "SendPacket-ChunkData" USING LK-CLIENT CHUNK-X CHUNK-Z CHUNK-SECTIONS CHUNK-BLOCK-ENTITIES
             END-IF
             *> Stop once a chunk has been sent
             EXIT PERFORM
