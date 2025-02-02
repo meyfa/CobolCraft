@@ -111,7 +111,7 @@ FindEmptySlot.
         END-IF
     END-PERFORM
     MOVE 0 TO EMPTY-SLOT
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM Inventory-PickItem.
 
@@ -149,7 +149,7 @@ StoreInSlot.
         MOVE LK-ITEM TO LK-INVENTORY-SLOT(SLOT)
         MOVE 0 TO LK-ITEM-SLOT-COUNT
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM Inventory-StoreItem.
 

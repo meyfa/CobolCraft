@@ -56,7 +56,6 @@ EncodeWindowTitle.
 
     CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE PAYLOAD
     MOVE NBT-ENCODER-OFFSET TO PAYLOADPOS
-
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM SendPacket-OpenScreen.

@@ -131,7 +131,6 @@ DecodeSlot.
 
         MOVE COMPONENTS-OFFSET TO LK-OFFSET
     END-IF
-
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM RecvPacket-ContainerClick.

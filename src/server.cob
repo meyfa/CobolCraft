@@ -518,8 +518,7 @@ ServerLoop.
 GameLoop.
     *> Update the world age
     CALL "World-UpdateAge"
-
-    EXIT PARAGRAPH.
+    .
 
 ConsoleInput.
     *> Read from the console (configured as non-blocking). Note that this will only return full lines.
@@ -530,7 +529,7 @@ ConsoleInput.
         MOVE 0 TO TEMP-INT32
         CALL "HandleCommand" USING TEMP-INT32 BUFFER BYTE-COUNT
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 NetworkRead.
     CALL "SocketPoll" USING SERVER-HNDL TEMP-HNDL GIVING ERRNO
@@ -570,8 +569,7 @@ NetworkRead.
     IF ERRNO NOT = 0
         PERFORM HandleServerError
     END-IF
-
-    EXIT PARAGRAPH.
+    .
 
 InsertClient.
     INITIALIZE CLIENT(CLIENT-ID)
@@ -581,8 +579,7 @@ InsertClient.
     MOVE CLIENT-STATE-HANDSHAKE TO CLIENT-STATE(CLIENT-ID)
 
     ALLOCATE RECEIVE-BUFFER-LENGTH CHARACTERS RETURNING PACKET-BUFFER(CLIENT-ID)
-
-    EXIT PARAGRAPH.
+    .
 
 KeepAlive.
     *> Give the client some time for keepalive when the connection is established
@@ -604,8 +601,7 @@ KeepAlive.
         MOVE CURRENT-TIME TO KEEPALIVE-SENT(CLIENT-ID)
         CALL "SendPacket-KeepAlive" USING CLIENT-ID KEEPALIVE-SENT(CLIENT-ID)
     END-IF
-
-    EXIT PARAGRAPH.
+    .
 
 SendDebugSamples.
     COMPUTE TEMP-INT64 = TICK-STARTTIME - DEBUG-SUBSCRIPTION-VALIDITY
@@ -614,7 +610,7 @@ SendDebugSamples.
             CALL "SendPacket-DebugSample" USING CLIENT-ID DEBUG-SAMPLE
         END-IF
     END-PERFORM
-    EXIT PARAGRAPH.
+    .
 
 ReceivePacket.
     *> Ignore any attempts to receive data for clients that are not in a valid state
@@ -685,21 +681,20 @@ ReceivePacket.
     *> Reset length for the next packet
     MOVE 0 TO PACKET-LENGTH(CLIENT-ID)
     MOVE 0 TO PACKET-BUFFERLEN(CLIENT-ID)
-
-    EXIT PARAGRAPH.
+    .
 
 HandleServerError.
     IF ERRNO NOT = 0
         DISPLAY "Server socket error: " ERRNO
         STOP RUN RETURNING 1
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 HandleClientError.
     IF ERRNO NOT = 0
         CALL "Server-ClientError" USING CLIENT-ID ERRNO
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM Server.
 

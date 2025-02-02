@@ -112,13 +112,13 @@ BreakBlock.
         END-IF
     END-IF
     PERFORM ResetBlockBreaking
-    EXIT PARAGRAPH.
+    .
 
 StartBreakingBlock.
     MOVE LOCATION TO PLAYER-BLOCK-BREAKING-POSITION(PLAYER-ID)
     MOVE 0 TO PLAYER-BLOCK-BREAKING-STAGE(PLAYER-ID)
     *> TODO update the block breaking stage continuously until the block is broken
-    EXIT PARAGRAPH.
+    .
 
 ResetBlockBreaking.
     IF PLAYER-BLOCK-BREAKING-STAGE(PLAYER-ID) < 0
@@ -131,6 +131,6 @@ ResetBlockBreaking.
                 PLAYER-BLOCK-BREAKING-STAGE(PLAYER-ID)
         END-IF
     END-PERFORM
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM RecvPacket-PlayerAction.

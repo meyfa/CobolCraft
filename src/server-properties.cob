@@ -213,13 +213,11 @@ AppendKeyValue.
     ADD BYTE-COUNT TO LK-BUFFER-LENGTH
 
     PERFORM AppendNewline
-
-    EXIT PARAGRAPH.
+    .
 
 AppendNewline.
     MOVE NEWLINE TO LK-BUFFER(LK-BUFFER-LENGTH + 1:1)
     ADD 1 TO LK-BUFFER-LENGTH
-
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM ServerProperties-Serialize.
