@@ -42,7 +42,6 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         01 AIR-BLOCK-STATE          BINARY-LONG             VALUE 0.
-        01 NULL-CLIENT              BINARY-LONG             VALUE 0.
         01 BLOCK-ID                 BINARY-LONG.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==OTHER-PART==.
@@ -103,8 +102,7 @@ PROCEDURE DIVISION.
         *> Set the other half to air
         *> Note: We don't pass the player client here because they should receive the particle and sound effects, too.
         *>       For the clicked block, the client has already predicted the removal and played the effects.
-        *> TODO use OMITTED instead of NULL-CLIENT
-        CALL "World-SetBlock" USING NULL-CLIENT BLOCK-POSITION AIR-BLOCK-STATE
+        CALL "World-SetBlock" USING OMITTED BLOCK-POSITION AIR-BLOCK-STATE
 
         GOBACK.
 
