@@ -37,13 +37,14 @@ COBC_OPTS = -free -DGCVERSION=$(GCVERSION) -I $(CPY_DIR) $(COB_FLAGS)
 COBC_OPTS += -O2 --debug -Wall -fnotrunc -fstatic-call
 
 ifeq ($(shell test $(GCVERSION) -ge 32; echo $$?),0)
+COBC_OPTS += -Werror=typing
 COB_MTFLAGS = -MF $(basename $@).d -MT $@
 GLOBALDEPS =
 # include dependency files for all existing object files
 -include $(OBJECTS:.o=.d)
 else
 # if dependency generation is not available: use global copy dependency
-COB_MTFLAGS = 
+COB_MTFLAGS =
 GLOBALDEPS = $(wildcard $(CPY_DIR)/*.cpy)
 endif
 
