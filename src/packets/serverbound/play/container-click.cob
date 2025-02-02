@@ -10,6 +10,7 @@ WORKING-STORAGE SECTION.
     01 STATE-ID                 BINARY-LONG.
     01 SYNC-PTR                 PROGRAM-POINTER.
     01 SET-SLOT-PTR             PROGRAM-POINTER.
+    01 DROP-PTR                 PROGRAM-POINTER.
     01 SLOT-SYNC-REQUIRED       BINARY-CHAR UNSIGNED.
     01 SYNC-REQUIRED            BINARY-CHAR UNSIGNED.
     01 SLOT                     BINARY-SHORT.
@@ -49,7 +50,8 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
 
     CALL "GetCallback-WindowSync" USING PLAYER-WINDOW-TYPE(PLAYER-ID) SYNC-PTR
     CALL "GetCallback-WindowSetSlot" USING PLAYER-WINDOW-TYPE(PLAYER-ID) SET-SLOT-PTR
-    IF SYNC-PTR = NULL OR SET-SLOT-PTR = NULL
+    CALL "GetCallback-WindowDrop" USING PLAYER-WINDOW-TYPE(PLAYER-ID) DROP-PTR
+    IF SYNC-PTR = NULL OR SET-SLOT-PTR = NULL OR DROP-PTR = NULL
         DISPLAY "RecvPacket-ContainerClick: Unable to handle window type " PLAYER-WINDOW-TYPE(PLAYER-ID)
         PERFORM AbortEarly
     END-IF
@@ -60,16 +62,30 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
         PERFORM AbortEarly
     END-IF
 
-    *> TODO support dropping items
-    IF (MODE-ENUM = 0 AND SLOT = -999) OR (MODE-ENUM = 4)
-        CALL SYNC-PTR USING PLAYER-ID
-        PERFORM AbortEarly
-    END-IF
-
     *> TODO handle offhand swap key (F) in containers
     If WINDOW-ID > 0 AND MODE-ENUM = 2 AND BUTTON = 40
         CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
         PERFORM AbortEarly
+    END-IF
+
+    IF MODE-ENUM = 0 AND SLOT = -999 AND PLAYER-MOUSE-SLOT-COUNT(PLAYER-ID) > 0
+        *> click outside inventory; button 0: drop stack, button 1: drop single item
+        MOVE PLAYER-MOUSE-ITEM(PLAYER-ID) TO CLIENT-SLOT
+        IF BUTTON = 0
+            MOVE 0 TO PLAYER-MOUSE-SLOT-COUNT(PLAYER-ID)
+        ELSE
+            MOVE 1 TO CLIENT-SLOT-COUNT
+            SUBTRACT 1 FROM PLAYER-MOUSE-SLOT-COUNT(PLAYER-ID)
+        END-IF
+        CALL "World-DropItem" USING PLAYER-POSITION(PLAYER-ID) CLIENT-SLOT
+    END-IF
+
+    IF MODE-ENUM = 4
+        *> drop specific slot
+        IF SLOT = -999
+            PERFORM AbortEarly
+        END-IF
+        CALL DROP-PTR USING PLAYER-ID SLOT BUTTON SYNC-REQUIRED
     END-IF
 
     *> TODO implement painting properly

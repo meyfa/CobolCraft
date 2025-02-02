@@ -34,8 +34,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
         WHEN 0 THRU 45
             MOVE CLIENT-SLOT TO PLAYER-INVENTORY-SLOT(PLAYER-ID, SLOT-NUMBER + 1)
         WHEN -1
-            *> TODO: spawn item entity
-            CONTINUE
+            CALL "World-DropItem" USING PLAYER-POSITION(PLAYER-ID) CLIENT-SLOT
         WHEN OTHER
             DISPLAY "Invalid slot number: " SLOT-NUMBER
     END-EVALUATE
