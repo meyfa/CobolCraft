@@ -4,12 +4,11 @@ PROGRAM-ID. RegisterItem-Stairs.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-STAIR                PIC X(32) GLOBAL    VALUE "minecraft:stair".
-    01 USE-PTR                          PROGRAM-POINTER.
-    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
-    01 BLOCK-NAME                       PIC X(64).
-    01 BLOCK-TYPE                       PIC X(64).
+    01 USE-PTR                  PROGRAM-POINTER.
+    01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-NAME               PIC X(64).
+    01 BLOCK-TYPE               PIC X(64).
 
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
@@ -18,7 +17,7 @@ PROCEDURE DIVISION.
     CALL "Blocks-GetCount" USING BLOCK-COUNT
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
-        IF BLOCK-TYPE = C-MINECRAFT-STAIR
+        IF BLOCK-TYPE = "minecraft:stair"
             CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
             CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
         END-IF
@@ -33,11 +32,6 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-PLAYERS.
-        01 C-HALF                   PIC X(4)                VALUE "half".
-        01 C-FACING                 PIC X(6)                VALUE "facing".
-        01 C-SHAPE                  PIC X(5)                VALUE "shape".
-        01 C-WATERLOGGED            PIC X(11)               VALUE "waterlogged".
-        *> Block state description for the block to place.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PLACE==.
         01 BLOCK-POSITION.
             02 BLOCK-X              BINARY-LONG.
@@ -60,11 +54,11 @@ PROCEDURE DIVISION.
         END-IF
 
         MOVE 4 TO PLACE-PROPERTY-COUNT
-        MOVE C-HALF TO PLACE-PROPERTY-NAME(1)
-        MOVE C-FACING TO PLACE-PROPERTY-NAME(2)
-        MOVE C-SHAPE TO PLACE-PROPERTY-NAME(3)
+        MOVE "half" TO PLACE-PROPERTY-NAME(1)
+        MOVE "facing" TO PLACE-PROPERTY-NAME(2)
+        MOVE "shape" TO PLACE-PROPERTY-NAME(3)
         MOVE "straight" TO PLACE-PROPERTY-VALUE(3)
-        MOVE C-WATERLOGGED TO PLACE-PROPERTY-NAME(4)
+        MOVE "waterlogged" TO PLACE-PROPERTY-NAME(4)
         MOVE "false" TO PLACE-PROPERTY-VALUE(4)
 
         *> Which stair half is placed (top or bottom) depends on where the player clicked

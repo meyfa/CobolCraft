@@ -4,16 +4,15 @@ PROGRAM-ID. RegisterBlock-Door.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-DOOR                 PIC X(32) GLOBAL    VALUE "minecraft:door".
-    01 DESTROY-PTR                      PROGRAM-POINTER.
-    01 INTERACT-PTR                     PROGRAM-POINTER.
-    01 FACE-PTR                         PROGRAM-POINTER.
-    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
-    01 BLOCK-TYPE                       PIC X(64).
-    01 BLOCK-MINIMUM-STATE-ID           BINARY-LONG.
-    01 BLOCK-MAXIMUM-STATE-ID           BINARY-LONG.
-    01 STATE-ID                         BINARY-LONG.
+    01 DESTROY-PTR              PROGRAM-POINTER.
+    01 INTERACT-PTR             PROGRAM-POINTER.
+    01 FACE-PTR                 PROGRAM-POINTER.
+    01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-TYPE               PIC X(64).
+    01 BLOCK-MINIMUM-STATE-ID   BINARY-LONG.
+    01 BLOCK-MAXIMUM-STATE-ID   BINARY-LONG.
+    01 STATE-ID                 BINARY-LONG.
 
 PROCEDURE DIVISION.
     SET DESTROY-PTR TO ENTRY "Callback-Destroy"
@@ -25,7 +24,7 @@ PROCEDURE DIVISION.
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
         *> TODO check for door block type (e.g., iron doors cannot be opened by clicking)
-        IF BLOCK-TYPE = C-MINECRAFT-DOOR
+        IF BLOCK-TYPE = "minecraft:door"
             CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
             PERFORM VARYING STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL STATE-ID > BLOCK-MAXIMUM-STATE-ID
                 CALL "SetCallback-BlockDestroy" USING STATE-ID DESTROY-PTR
@@ -46,7 +45,6 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         01 AIR-BLOCK-STATE          BINARY-LONG             VALUE 0.
         01 NULL-CLIENT              BINARY-LONG             VALUE 0.
-        01 C-HALF                   PIC X(4)                VALUE "half".
         01 BLOCK-ID                 BINARY-LONG.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==OTHER-HALF==.
@@ -70,7 +68,7 @@ PROCEDURE DIVISION.
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) LK-POSITION AIR-BLOCK-STATE
 
         *> Find the other half
-        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION C-HALF HALF-VALUE-CLICKED
+        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION "half" HALF-VALUE-CLICKED
         MOVE LK-POSITION TO BLOCK-POSITION
         IF HALF-VALUE-CLICKED = "upper"
             SUBTRACT 1 FROM BLOCK-Y
@@ -84,7 +82,7 @@ PROCEDURE DIVISION.
         IF OTHER-HALF-NAME NOT = CLICKED-NAME
             GOBACK
         END-IF
-        CALL "Blocks-Description-GetValue" USING OTHER-HALF-DESCRIPTION C-HALF HALF-VALUE-OTHER
+        CALL "Blocks-Description-GetValue" USING OTHER-HALF-DESCRIPTION "half" HALF-VALUE-OTHER
         IF HALF-VALUE-CLICKED = HALF-VALUE-OTHER
             GOBACK
         END-IF
@@ -92,6 +90,7 @@ PROCEDURE DIVISION.
         *> Set the other half to air
         *> Note: We don't pass the player client here because they should receive the particle and sound effects, too.
         *>       For the clicked block, the client has already predicted the removal and played the effects.
+        *> TODO use OMITTED instead of NULL-CLIENT
         CALL "World-SetBlock" USING NULL-CLIENT BLOCK-POSITION AIR-BLOCK-STATE
 
         GOBACK.
@@ -104,8 +103,6 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        01 C-HALF                   PIC X(4)                VALUE "half".
-        01 C-OPEN                   PIC X(4)                VALUE "open".
         01 BLOCK-ID                 BINARY-LONG.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==OTHER-HALF==.
@@ -126,18 +123,18 @@ PROCEDURE DIVISION.
         CALL "Blocks-Get-StateDescription" USING BLOCK-ID CLICKED-DESCRIPTION
 
         *> Toggle the "open" property for the clicked half
-        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION C-OPEN OPEN-VALUE
+        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION "open" OPEN-VALUE
         IF OPEN-VALUE = "true"
             MOVE "false" TO OPEN-VALUE
         ELSE
             MOVE "true" TO OPEN-VALUE
         END-IF
-        CALL "Blocks-Description-SetValue" USING CLICKED-DESCRIPTION C-OPEN OPEN-VALUE
+        CALL "Blocks-Description-SetValue" USING CLICKED-DESCRIPTION "open" OPEN-VALUE
         CALL "Blocks-Get-StateId" USING CLICKED-DESCRIPTION BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) LK-POSITION BLOCK-ID
 
         *> Find the other half
-        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION C-HALF HALF-VALUE-CLICKED
+        CALL "Blocks-Description-GetValue" USING CLICKED-DESCRIPTION "half" HALF-VALUE-CLICKED
         MOVE LK-POSITION TO BLOCK-POSITION
         IF HALF-VALUE-CLICKED = "upper"
             SUBTRACT 1 FROM BLOCK-Y
@@ -151,13 +148,13 @@ PROCEDURE DIVISION.
         IF OTHER-HALF-NAME NOT = CLICKED-NAME
             GOBACK
         END-IF
-        CALL "Blocks-Description-GetValue" USING OTHER-HALF-DESCRIPTION C-HALF HALF-VALUE-OTHER
+        CALL "Blocks-Description-GetValue" USING OTHER-HALF-DESCRIPTION "half" HALF-VALUE-OTHER
         IF HALF-VALUE-CLICKED = HALF-VALUE-OTHER
             GOBACK
         END-IF
 
         *> Toggle the "open" property for the other half
-        CALL "Blocks-Description-SetValue" USING OTHER-HALF-DESCRIPTION C-OPEN OPEN-VALUE
+        CALL "Blocks-Description-SetValue" USING OTHER-HALF-DESCRIPTION "open" OPEN-VALUE
         CALL "Blocks-Get-StateId" USING OTHER-HALF-DESCRIPTION BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
 

@@ -6,27 +6,13 @@ PROGRAM-ID. Server.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-VERSION.
-    *> File names
+    COPY DD-CLIENT-STATES.
+    COPY DD-PACKET-DIRECTIONS.
+    *> File paths
     01 FILE-REGISTRIES              PIC X(255)              VALUE "data/generated/reports/registries.json".
     01 FILE-BLOCKS                  PIC X(255)              VALUE "data/generated/reports/blocks.json".
     01 FILE-PACKETS                 PIC X(255)              VALUE "data/generated/reports/packets.json".
     01 FILE-DATAPACK-ROOT           PIC X(255)              VALUE "data/generated/data/".
-    *> Constants
-    COPY DD-CLIENT-STATES.
-    COPY DD-PACKET-DIRECTIONS.
-    01 C-MINECRAFT-WORLDGEN-BIOME   PIC X(50)               VALUE "minecraft:worldgen/biome".
-    01 C-MINECRAFT-CHAT_TYPE        PIC X(50)               VALUE "minecraft:chat_type".
-    01 C-MINECRAFT-TRIM_PATTERN     PIC X(50)               VALUE "minecraft:trim_pattern".
-    01 C-MINECRAFT-TRIM_MATERIAL    PIC X(50)               VALUE "minecraft:trim_material".
-    01 C-MINECRAFT-WOLF_VARIANT     PIC X(50)               VALUE "minecraft:wolf_variant".
-    01 C-MINECRAFT-PAINTING_VARIANT PIC X(50)               VALUE "minecraft:painting_variant".
-    01 C-MINECRAFT-DIMENSION_TYPE   PIC X(50)               VALUE "minecraft:dimension_type".
-    01 C-MINECRAFT-DAMAGE_TYPE      PIC X(50)               VALUE "minecraft:damage_type".
-    01 C-MINECRAFT-BANNER_PATTERN   PIC X(50)               VALUE "minecraft:banner_pattern".
-    01 C-MINECRAFT-ENCHANTMENT      PIC X(50)               VALUE "minecraft:enchantment".
-    01 C-MINECRAFT-JUKEBOX_SONG     PIC X(50)               VALUE "minecraft:jukebox_song".
-    01 C-MINECRAFT-ITEM             PIC X(50)               VALUE "minecraft:item".
-    01 C-MINECRAFT-INSTRUMENT       PIC X(50)               VALUE "minecraft:instrument".
     *> Configuration
     COPY DD-SERVER-PROPERTIES.
     *> The amount of microseconds between autosaves, and the last autosave timestamp.
@@ -124,18 +110,18 @@ LoadRegistries.
     *> Create additional registries not exported by the report generator.
     *> Set the flag to 1 to indicate that they need to be part of a Registry Data packet sent to the client.
     MOVE 1 TO TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-WORLDGEN-BIOME TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-CHAT_TYPE TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-TRIM_PATTERN TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-TRIM_MATERIAL TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-WOLF_VARIANT TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-PAINTING_VARIANT TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-DIMENSION_TYPE TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-DAMAGE_TYPE TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-BANNER_PATTERN TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-ENCHANTMENT TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-JUKEBOX_SONG TEMP-INT8
-    CALL "Registries-Create" USING C-MINECRAFT-INSTRUMENT TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:worldgen/biome" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:chat_type" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:trim_pattern" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:trim_material" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:wolf_variant" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:painting_variant" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:dimension_type" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:damage_type" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:banner_pattern" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:enchantment" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:jukebox_song" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:instrument" TEMP-INT8
     .
 
 LoadBlocks.
@@ -248,9 +234,9 @@ RegisterItems.
     DISPLAY "Registering item behavior...    " WITH NO ADVANCING
 
     *> Register a generic block item for each item that has an identically-named block
-    CALL "Registries-GetRegistryIndex" USING C-MINECRAFT-ITEM REGISTRY-INDEX
+    CALL "Registries-GetRegistryIndex" USING "minecraft:item" REGISTRY-INDEX
     IF REGISTRY-INDEX <= 0
-        DISPLAY "Failed to find " FUNCTION TRIM(C-MINECRAFT-ITEM) " registry"
+        DISPLAY "Failed to find item registry"
         STOP RUN RETURNING 1
     END-IF
     CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
@@ -793,8 +779,6 @@ PROGRAM-ID. Server-DisconnectClient.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    *> constants
-    01 C-COLOR-YELLOW           PIC X(16)                   VALUE "yellow".
     01 BLOCK-DESTRUCTION-RESET  BINARY-CHAR                 VALUE -1.
     *> shared data
     COPY DD-CLIENT-STATES.
@@ -829,7 +813,7 @@ PROCEDURE DIVISION USING LK-CLIENT-ID.
         INITIALIZE BUFFER
         STRING FUNCTION TRIM(PLAYER-NAME(PLAYER-ID)) " left the game" INTO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BYTE-COUNT
-        CALL "BroadcastChatMessageExcept" USING LK-CLIENT-ID BUFFER BYTE-COUNT C-COLOR-YELLOW
+        CALL "BroadcastChatMessageExcept" USING LK-CLIENT-ID BUFFER BYTE-COUNT "yellow"
 
         *> remove the player from the player list, and despawn the player entity
         PERFORM VARYING OTHER-CLIENT-ID FROM 1 BY 1 UNTIL OTHER-CLIENT-ID > MAX-CLIENTS

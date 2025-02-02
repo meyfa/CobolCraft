@@ -4,13 +4,11 @@ PROGRAM-ID. RegisterItem-Bed.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-BLOCK_ENTITY_TYPE    PIC X(32) GLOBAL    VALUE "minecraft:block_entity_type".
-    01 C-MINECRAFT-BED                  PIC X(32) GLOBAL    VALUE "minecraft:bed".
-    01 USE-PTR                          PROGRAM-POINTER.
-    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
-    01 BLOCK-NAME                       PIC X(64).
-    01 BLOCK-TYPE                       PIC X(64).
+    01 USE-PTR                  PROGRAM-POINTER.
+    01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-NAME               PIC X(64).
+    01 BLOCK-TYPE               PIC X(64).
 
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
@@ -19,7 +17,7 @@ PROCEDURE DIVISION.
     CALL "Blocks-GetCount" USING BLOCK-COUNT
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
-        IF BLOCK-TYPE = C-MINECRAFT-BED
+        IF BLOCK-TYPE = "minecraft:bed"
             CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
             CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
         END-IF
@@ -34,10 +32,6 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-PLAYERS.
-        01 C-OCCUPIED               PIC X(8)                VALUE "occupied".
-        01 C-PART                   PIC X(4)                VALUE "part".
-        01 C-FACING                 PIC X(6)                VALUE "facing".
-        *> Block state description for the block to place.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PLACE==.
         01 BED-FACE                 BINARY-LONG.
         01 BLOCK-POSITION-FOOT.
@@ -70,10 +64,10 @@ PROCEDURE DIVISION.
         MOVE LK-ITEM-NAME TO PLACE-NAME
 
         MOVE 3 TO PLACE-PROPERTY-COUNT
-        MOVE C-OCCUPIED TO PLACE-PROPERTY-NAME(1)
+        MOVE "occupied" TO PLACE-PROPERTY-NAME(1)
         MOVE "false" TO PLACE-PROPERTY-VALUE(1)
-        MOVE C-PART TO PLACE-PROPERTY-NAME(2)
-        MOVE C-FACING TO PLACE-PROPERTY-NAME(3)
+        MOVE "part" TO PLACE-PROPERTY-NAME(2)
+        MOVE "facing" TO PLACE-PROPERTY-NAME(3)
 
         *> Use the player's yaw to determine the facing
         EVALUATE FUNCTION MOD(PLAYER-YAW(LK-PLAYER) + 45, 360)
@@ -109,7 +103,7 @@ PROCEDURE DIVISION.
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION-HEAD BLOCK-ID
 
         *> Place the block entities
-        CALL "Registries-Get-EntryId" USING C-MINECRAFT-BLOCK_ENTITY_TYPE C-MINECRAFT-BED BLOCK-ENTITY-TYPE
+        CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" "minecraft:bed" BLOCK-ENTITY-TYPE
         CALL "World-SetBlockEntity" USING BLOCK-POSITION-FOOT BLOCK-ENTITY-TYPE
         CALL "World-SetBlockEntity" USING BLOCK-POSITION-HEAD BLOCK-ENTITY-TYPE
 

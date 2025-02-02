@@ -3,7 +3,6 @@ PROGRAM-ID. RecvPacket-UseItemOn.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-ITEM         PIC X(14) VALUE "minecraft:item".
     COPY DD-CLIENTS.
     COPY DD-PLAYERS.
     01 PLAYER-ID                BINARY-LONG.
@@ -54,7 +53,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
 
     *> Determine the item's "use" callback
     MOVE PLAYER-INVENTORY-SLOT-ID(PLAYER-ID, SLOT-INDEX + 1) TO ITEM-ID
-    CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM ITEM-ID ITEM-IDENTIFIER
+    CALL "Registries-Get-EntryName" USING "minecraft:item" ITEM-ID ITEM-IDENTIFIER
     CALL "GetCallback-ItemUse" USING ITEM-IDENTIFIER CALLBACK-PTR-ITEM
 
     *> Determine the current block's "interact" callback

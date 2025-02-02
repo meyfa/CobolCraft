@@ -4,19 +4,13 @@ PROGRAM-ID. RegisterItem-Torch.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-TORCH                PIC X(32) GLOBAL    VALUE "minecraft:torch".
-    01 C-MINECRAFT-SOUL_TORCH           PIC X(32) GLOBAL    VALUE "minecraft:soul_torch".
-    01 C-MINECRAFT-REDSTONE_TORCH       PIC X(32) GLOBAL    VALUE "minecraft:redstone_torch".
-    01 C-MINECRAFT-WALL_TORCH           PIC X(32) GLOBAL    VALUE "minecraft:wall_torch".
-    01 C-MINECRAFT-SOUL_WALL_TORCH      PIC X(32) GLOBAL    VALUE "minecraft:soul_wall_torch".
-    01 C-MINECRAFT-REDSTONE_WALL_TORCH  PIC X(32) GLOBAL    VALUE "minecraft:redstone_wall_torch".
-    01 USE-PTR                          PROGRAM-POINTER.
+    01 USE-PTR                  PROGRAM-POINTER.
 
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
-    CALL "SetCallback-ItemUse" USING C-MINECRAFT-TORCH USE-PTR
-    CALL "SetCallback-ItemUse" USING C-MINECRAFT-SOUL_TORCH USE-PTR
-    CALL "SetCallback-ItemUse" USING C-MINECRAFT-REDSTONE_TORCH USE-PTR
+    CALL "SetCallback-ItemUse" USING "minecraft:torch" USE-PTR
+    CALL "SetCallback-ItemUse" USING "minecraft:soul_torch" USE-PTR
+    CALL "SetCallback-ItemUse" USING "minecraft:redstone_torch" USE-PTR
     GOBACK.
 
     *> --- Callback-Use ---
@@ -25,7 +19,6 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        01 FACING-UP                PIC X(4) GLOBAL         VALUE "up".
         *> Block state description for the wall torch variant.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==WALL_TORCH==.
         01 BLOCK-POSITION.
@@ -64,7 +57,7 @@ PROCEDURE DIVISION.
             SUBTRACT 1 FROM TARGET-BLOCK-Y
             CALL "World-GetBlock" USING TARGET-BLOCK-POSITION BLOCK-ID
             CALL "GetCallback-BlockFace" USING BLOCK-ID FACE-CALLBACK
-            CALL FACE-CALLBACK USING BLOCK-ID FACING-UP BLOCK-FACE
+            CALL FACE-CALLBACK USING BLOCK-ID "up" BLOCK-FACE
             IF BLOCK-FACE = 0
                 GOBACK
             END-IF
@@ -94,12 +87,12 @@ PROCEDURE DIVISION.
 
             *> Use the correct wall torch type
             EVALUATE LK-ITEM-NAME
-                WHEN C-MINECRAFT-TORCH
-                    MOVE C-MINECRAFT-WALL_TORCH TO WALL_TORCH-NAME
-                WHEN C-MINECRAFT-SOUL_TORCH
-                    MOVE C-MINECRAFT-SOUL_WALL_TORCH TO WALL_TORCH-NAME
-                WHEN C-MINECRAFT-REDSTONE_TORCH
-                    MOVE C-MINECRAFT-REDSTONE_WALL_TORCH TO WALL_TORCH-NAME
+                WHEN "minecraft:torch"
+                    MOVE "minecraft:wall_torch" TO WALL_TORCH-NAME
+                WHEN "minecraft:soul_torch"
+                    MOVE "minecraft:soul_wall_torch" TO WALL_TORCH-NAME
+                WHEN "minecraft:redstone_torch"
+                    MOVE "minecraft:redstone_wall_torch" TO WALL_TORCH-NAME
             END-EVALUATE
 
             MOVE 1 TO WALL_TORCH-PROPERTY-COUNT

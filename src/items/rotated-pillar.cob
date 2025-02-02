@@ -5,12 +5,11 @@ PROGRAM-ID. RegisterItem-RotatedPillar.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-ROTATED_PILLAR       PIC X(32) GLOBAL    VALUE "minecraft:rotated_pillar".
-    01 USE-PTR                          PROGRAM-POINTER.
-    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
-    01 BLOCK-NAME                       PIC X(64).
-    01 BLOCK-TYPE                       PIC X(64).
+    01 USE-PTR                  PROGRAM-POINTER.
+    01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-NAME               PIC X(64).
+    01 BLOCK-TYPE               PIC X(64).
 
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
@@ -19,7 +18,7 @@ PROCEDURE DIVISION.
     CALL "Blocks-GetCount" USING BLOCK-COUNT
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
-        IF BLOCK-TYPE = C-MINECRAFT-ROTATED_PILLAR
+        IF BLOCK-TYPE = "minecraft:rotated_pillar"
             CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
             CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
         END-IF

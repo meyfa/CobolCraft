@@ -10,9 +10,7 @@ WORKING-STORAGE SECTION.
     01 PAYLOADPOS               BINARY-LONG UNSIGNED.
     01 PAYLOADLEN               BINARY-LONG UNSIGNED.
     *> constants
-    01 C-MINECRAFT-WORLDGEN-BIOME PIC X(24) VALUE "minecraft:worldgen/biome".
     01 BLOCK-COUNT              BINARY-SHORT                VALUE 4096.
-    *> length of tables for palette encoding
     01 BLOCK-STATES-LENGTH      BINARY-LONG UNSIGNED        VALUE 4096.
     01 BIOMES-LENGTH            BINARY-LONG UNSIGNED        VALUE 64.
     *> highest possible ID values; determines the number of bits per entry
@@ -56,7 +54,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK.
 
     CALL "Blocks-Get-MaximumStateId" USING MAX-BLOCK-STATE-ID
 
-    CALL "Registries-GetRegistryIndex" USING C-MINECRAFT-WORLDGEN-BIOME INT32
+    CALL "Registries-GetRegistryIndex" USING "minecraft:worldgen/biome" INT32
     CALL "Registries-GetRegistryLength" USING INT32 MAX-BIOME-ID
     SUBTRACT 1 FROM MAX-BIOME-ID
 

@@ -4,12 +4,11 @@ PROGRAM-ID. RegisterItem-Slab.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-SLAB                 PIC X(32) GLOBAL    VALUE "minecraft:slab".
-    01 USE-PTR                          PROGRAM-POINTER.
-    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
-    01 BLOCK-NAME                       PIC X(64).
-    01 BLOCK-TYPE                       PIC X(64).
+    01 USE-PTR                  PROGRAM-POINTER.
+    01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-NAME               PIC X(64).
+    01 BLOCK-TYPE               PIC X(64).
 
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
@@ -18,7 +17,7 @@ PROCEDURE DIVISION.
     CALL "Blocks-GetCount" USING BLOCK-COUNT
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
-        IF BLOCK-TYPE = C-MINECRAFT-SLAB
+        IF BLOCK-TYPE = "minecraft:slab"
             CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
             CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
         END-IF
@@ -33,7 +32,6 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-PLAYERS.
-        01 C-TYPE                   PIC X(4)                VALUE "type".
         *> Block state description for the block currently in the world.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CURRENT==.
         01 CURRENT-TYPE             PIC X(16).
@@ -57,7 +55,7 @@ PROCEDURE DIVISION.
         MOVE LK-ITEM-NAME TO SLAB-NAME
 
         MOVE 2 TO SLAB-PROPERTY-COUNT
-        MOVE C-TYPE TO SLAB-PROPERTY-NAME(1)
+        MOVE "type" TO SLAB-PROPERTY-NAME(1)
         MOVE "waterlogged" TO SLAB-PROPERTY-NAME(2)
         MOVE "false" TO SLAB-PROPERTY-VALUE(2)
 
@@ -91,7 +89,7 @@ PROCEDURE DIVISION.
         *> Otherwise, check if the clicked position is a single slab, and double it.
         CALL "Blocks-Get-StateDescription" USING BLOCK-ID CURRENT-DESCRIPTION
         IF CURRENT-NAME = SLAB-NAME
-            CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION C-TYPE CURRENT-TYPE
+            CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION "type" CURRENT-TYPE
             EVALUATE FACING ALSO CURRENT-TYPE
                 WHEN "up" ALSO "bottom"
                     MOVE "double" TO SLAB-PROPERTY-VALUE(1)
@@ -120,7 +118,7 @@ PROCEDURE DIVISION.
         *> Try doubling the adjacent block.
         CALL "Blocks-Get-StateDescription" USING BLOCK-ID CURRENT-DESCRIPTION
         IF CURRENT-NAME = SLAB-NAME
-            CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION C-TYPE CURRENT-TYPE
+            CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION "type" CURRENT-TYPE
             *> Counter-intuitively, Minecraft does not care about the slab type (top/bottom) here.
             EVALUATE CURRENT-TYPE
                 WHEN "double"

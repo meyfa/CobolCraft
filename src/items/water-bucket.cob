@@ -4,13 +4,11 @@ PROGRAM-ID. RegisterItem-WaterBucket.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-WATER_BUCKET         PIC X(32) GLOBAL    VALUE "minecraft:water_bucket".
-    01 C-MINECRAFT-WATER                PIC X(32) GLOBAL    VALUE "minecraft:water".
-    01 USE-PTR                          PROGRAM-POINTER.
+    01 USE-PTR                  PROGRAM-POINTER.
 
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
-    CALL "SetCallback-ItemUse" USING C-MINECRAFT-WATER_BUCKET USE-PTR
+    CALL "SetCallback-ItemUse" USING "minecraft:water_bucket" USE-PTR
     GOBACK.
 
     *> --- Callback-Use ---
@@ -39,7 +37,7 @@ PROCEDURE DIVISION.
         END-IF
 
         *> Place the fluid
-        CALL "Blocks-Get-DefaultStateId" USING C-MINECRAFT-WATER BLOCK-ID
+        CALL "Blocks-Get-DefaultStateId" USING "minecraft:water" BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
 
         GOBACK.

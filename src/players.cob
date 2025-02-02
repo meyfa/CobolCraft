@@ -42,8 +42,6 @@ PROGRAM-ID. Players-SavePlayer.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PLAYERS.
-    *> Constants
-    01 C-MINECRAFT-ITEM         PIC X(16) VALUE "minecraft:item".
     *> File name and data
     01 PLAYER-FILE-NAME         PIC X(64).
     01 ERRNO                    BINARY-LONG.
@@ -168,7 +166,7 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
             MOVE "id" TO TAG-NAME
             MOVE 2 TO NAME-LEN
             *> item ID needs to be converted to a string for future-proofing
-            CALL "Registries-Get-EntryName" USING C-MINECRAFT-ITEM PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, INVENTORY-INDEX) STR
+            CALL "Registries-Get-EntryName" USING "minecraft:item" PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, INVENTORY-INDEX) STR
             MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
             CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
 
@@ -231,8 +229,6 @@ PROGRAM-ID. Players-LoadPlayer.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PLAYERS.
-    *> Constants
-    01 C-MINECRAFT-ITEM         PIC X(16) VALUE "minecraft:item".
     *> File name and data
     01 PLAYER-FILE-NAME         PIC X(255).
     01 ERRNO                    BINARY-LONG.
@@ -374,7 +370,7 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                             WHEN "id"
                                 *> Item ID needs to be converted from a string to a number
                                 CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
-                                CALL "Registries-Get-EntryId" USING C-MINECRAFT-ITEM STR INVENTORY-SLOT-ID
+                                CALL "Registries-Get-EntryId" USING "minecraft:item" STR INVENTORY-SLOT-ID
 
                             WHEN "count"
                                 CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-SLOT-COUNT

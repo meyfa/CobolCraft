@@ -4,15 +4,12 @@ PROGRAM-ID. SendPacket-SpawnEntity.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:add_entity".
+    *> registry data (cached on first use)
+    01 PLAYER-TYPE      BINARY-LONG             VALUE -1.
     *> buffer used to store the packet data
     01 PAYLOAD          PIC X(1024).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
     01 PAYLOADLEN       BINARY-LONG UNSIGNED.
-    *> registry data (cached on first use)
-    01 PLAYER-TYPE      BINARY-LONG             VALUE -1.
-    *> constants
-    01 C-ENTITY_TYPE    PIC X(64)               VALUE "minecraft:entity_type".
-    01 C-PLAYER         PIC X(64)               VALUE "minecraft:player".
 LINKAGE SECTION.
     01 LK-CLIENT        BINARY-LONG UNSIGNED.
     01 LK-ENTITY-ID     BINARY-LONG.
@@ -32,7 +29,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-ENTITY-UUID LK-POSITION LK-RO
 
     *> obtain and cache ID of player entity type
     IF PLAYER-TYPE < 0
-        CALL "Registries-Get-EntryId" USING C-ENTITY_TYPE C-PLAYER PLAYER-TYPE
+        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:player" PLAYER-TYPE
     END-IF
 
     MOVE 1 TO PAYLOADPOS

@@ -4,12 +4,11 @@ PROGRAM-ID. RegisterItem-Door.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 C-MINECRAFT-DOOR                 PIC X(32) GLOBAL    VALUE "minecraft:door".
-    01 USE-PTR                          PROGRAM-POINTER.
-    01 BLOCK-COUNT                      BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX                      BINARY-LONG UNSIGNED.
-    01 BLOCK-NAME                       PIC X(64).
-    01 BLOCK-TYPE                       PIC X(64).
+    01 USE-PTR                  PROGRAM-POINTER.
+    01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
+    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-NAME               PIC X(64).
+    01 BLOCK-TYPE               PIC X(64).
 
 PROCEDURE DIVISION.
     SET USE-PTR TO ENTRY "Callback-Use"
@@ -18,7 +17,7 @@ PROCEDURE DIVISION.
     CALL "Blocks-GetCount" USING BLOCK-COUNT
     PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
         CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
-        IF BLOCK-TYPE = C-MINECRAFT-DOOR
+        IF BLOCK-TYPE = "minecraft:door"
             CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
             CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
         END-IF
@@ -33,11 +32,6 @@ PROCEDURE DIVISION.
     DATA DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-PLAYERS.
-        01 C-FACING                 PIC X(6)                VALUE "facing".
-        01 C-HINGE                  PIC X(5)                VALUE "hinge".
-        01 C-HALF                   PIC X(4)                VALUE "half".
-        01 C-OPEN                   PIC X(4)                VALUE "open".
-        01 C-POWERED                PIC X(7)                VALUE "powered".
         *> Block state description for the block to place.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PLACE==.
         01 BLOCK-POSITION-LOWER.
@@ -95,13 +89,13 @@ PROCEDURE DIVISION.
 
         MOVE 5 TO PLACE-PROPERTY-COUNT
         *> facing, hinge: set depending on player facing and cursor position; half: set when placing the blocks
-        MOVE C-FACING TO PLACE-PROPERTY-NAME(1)
-        MOVE C-HINGE TO PLACE-PROPERTY-NAME(2)
-        MOVE C-HALF TO PLACE-PROPERTY-NAME(3)
+        MOVE "facing" TO PLACE-PROPERTY-NAME(1)
+        MOVE "hinge" TO PLACE-PROPERTY-NAME(2)
+        MOVE "half" TO PLACE-PROPERTY-NAME(3)
         *> open, powered: set to false
-        MOVE C-OPEN TO PLACE-PROPERTY-NAME(4)
+        MOVE "open" TO PLACE-PROPERTY-NAME(4)
         MOVE "false" TO PLACE-PROPERTY-VALUE(4)
-        MOVE C-POWERED TO PLACE-PROPERTY-NAME(5)
+        MOVE "powered" TO PLACE-PROPERTY-NAME(5)
         MOVE "false" TO PLACE-PROPERTY-VALUE(5)
 
         *> Use the player's yaw to determine the facing
@@ -153,26 +147,28 @@ PROCEDURE DIVISION.
                 ADD 1 TO NEIGHBOR-LEFT-Z
                 SUBTRACT 1 FROM NEIGHBOR-RIGHT-Z
         END-EVALUATE
+
         *> left
         CALL "World-GetBlock" USING NEIGHBOR-LEFT-POSITION BLOCK-ID
         CALL "Blocks-Get-StateDescription" USING BLOCK-ID NEIGHBOR-DESCRIPTION
         MOVE 0 TO HAS-DOOR-LEFT
         IF NEIGHBOR-NAME = PLACE-NAME
-            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION C-FACING NEIGHBOR-FACING
-            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION C-HINGE NEIGHBOR-HINGE
-            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION C-HALF NEIGHBOR-HALF
+            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION "facing" NEIGHBOR-FACING
+            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION "hinge" NEIGHBOR-HINGE
+            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION "half" NEIGHBOR-HALF
             IF NEIGHBOR-FACING = FACING AND NEIGHBOR-HINGE = "left" AND NEIGHBOR-HALF = "lower"
                 MOVE 1 TO HAS-DOOR-LEFT
             END-IF
         END-IF
+
         *> right
         CALL "World-GetBlock" USING NEIGHBOR-RIGHT-POSITION BLOCK-ID
         CALL "Blocks-Get-StateDescription" USING BLOCK-ID NEIGHBOR-DESCRIPTION
         MOVE 0 TO HAS-DOOR-RIGHT
         IF NEIGHBOR-NAME = PLACE-NAME
-            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION C-FACING NEIGHBOR-FACING
-            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION C-HINGE NEIGHBOR-HINGE
-            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION C-HALF NEIGHBOR-HALF
+            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION "facing" NEIGHBOR-FACING
+            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION "hinge" NEIGHBOR-HINGE
+            CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION "half" NEIGHBOR-HALF
             IF NEIGHBOR-FACING = FACING AND NEIGHBOR-HINGE = "right" AND NEIGHBOR-HALF = "lower"
                 MOVE 1 TO HAS-DOOR-RIGHT
             END-IF
