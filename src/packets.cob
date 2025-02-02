@@ -91,8 +91,7 @@ ParseState.
     END-PERFORM
 
     CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
-
-    EXIT PARAGRAPH.
+    .
 
 ParseDirection.
     CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
@@ -110,8 +109,7 @@ ParseDirection.
     END-PERFORM
 
     CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
-
-    EXIT PARAGRAPH.
+    .
 
 ParsePacket.
     INITIALIZE PACKET-REFERENCE
@@ -153,8 +151,7 @@ ParsePacket.
     MOVE PACKET-ID TO PACKET-ID-NUMBER(PACKET-ID-COUNT)
 
     MOVE PACKET-NAME TO PACKET-REF-NAME(STATE-ID + 1, DIRECTION-ID + 1, PACKET-ID + 1)
-
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM Packets-Parse.
 
@@ -408,7 +405,6 @@ HandleError.
         MOVE ERRNO TO CLIENT-ERRNO-SEND(LK-CLIENT)
         GOBACK
     END-IF
-
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM SendPacket.

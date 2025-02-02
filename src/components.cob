@@ -403,42 +403,42 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
 
 VarInt.
     CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS SUB-INT32
-    EXIT PARAGRAPH.
+    .
 
 Int.
     ADD 4 TO BUFFERPOS
-    EXIT PARAGRAPH.
+    .
 
 Bool.
     ADD 1 TO BUFFERPOS
-    EXIT PARAGRAPH.
+    .
 
 Str.
     CALL "Decode-String" USING LK-BUFFER BUFFERPOS SUB-INT32 SUB-STR
-    EXIT PARAGRAPH.
+    .
 
 Identifier.
     PERFORM Str
-    EXIT PARAGRAPH.
+    .
 
 FloatShort.
     ADD 4 TO BUFFERPOS
-    EXIT PARAGRAPH.
+    .
 
 FloatDouble.
     ADD 8 TO BUFFERPOS
-    EXIT PARAGRAPH.
+    .
 
 Nbt.
     MOVE BUFFERPOS TO NBT-DECODER-OFFSET
     MOVE 0 TO NBT-DECODER-LEVEL
     CALL "NbtDecode-Skip" USING NBT-DECODER-STATE LK-BUFFER
     MOVE NBT-DECODER-OFFSET TO BUFFERPOS
-    EXIT PARAGRAPH.
+    .
 
 TextComponent.
     PERFORM Nbt
-    EXIT PARAGRAPH.
+    .
 
 SoundEvent.
     PERFORM Identifier
@@ -446,7 +446,7 @@ SoundEvent.
     IF SUB-INT8 NOT = 0
         PERFORM FloatShort
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 PotionEffect.
     PERFORM VarInt
@@ -459,7 +459,7 @@ PotionEffect.
     IF SUB-INT8 NOT = 0
         PERFORM Bool
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 BlockPredicate.
     CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS SUB-INT8
@@ -484,7 +484,7 @@ BlockPredicate.
     IF SUB-INT8 NOT = 0
         PERFORM Nbt
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 IdSet.
     CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS SUB-INT32
@@ -495,15 +495,15 @@ IdSet.
             PERFORM VarInt
         END-PERFORM
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 Position8.
     ADD 8 TO BUFFERPOS
-    EXIT PARAGRAPH.
+    .
 
 Uuid.
     ADD 16 TO BUFFERPOS
-    EXIT PARAGRAPH.
+    .
 
 Slot.
     *> count
@@ -522,7 +522,7 @@ Slot.
             PERFORM VarInt
         END-PERFORM
     END-IF
-    EXIT PARAGRAPH.
+    .
 
 TrimMaterial.
     PERFORM Str
@@ -534,14 +534,14 @@ TrimMaterial.
         PERFORM Str
     END-PERFORM
     PERFORM TextComponent
-    EXIT PARAGRAPH.
+    .
 
 TrimPattern.
     PERFORM Str
     PERFORM VarInt
     PERFORM TextComponent
     PERFORM Bool
-    EXIT PARAGRAPH.
+    .
 
 Instrument.
     CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS SUB-INT32
@@ -551,7 +551,7 @@ Instrument.
     PERFORM FloatShort
     PERFORM FloatShort
     PERFORM TextComponent
-    EXIT PARAGRAPH.
+    .
 
 JukeboxSong.
     CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS SUB-INT32
@@ -561,7 +561,7 @@ JukeboxSong.
     PERFORM TextComponent
     PERFORM FloatShort
     PERFORM VarInt
-    EXIT PARAGRAPH.
+    .
 
 FireworkExplosion.
     PERFORM VarInt
@@ -575,10 +575,10 @@ FireworkExplosion.
     END-PERFORM
     PERFORM Bool
     PERFORM Bool
-    EXIT PARAGRAPH.
+    .
 
 DyeColor.
     PERFORM VarInt
-    EXIT PARAGRAPH.
+    .
 
 END PROGRAM Components-LengthOf.
