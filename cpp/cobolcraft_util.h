@@ -3,6 +3,11 @@
 typedef int socket_t;
 
 /**
+ * Generate a random UUID and store it into the given buffer (128 bits = 16 bytes).
+ */
+EXTERN_DECL int RandomUUID(char *buffer);
+
+/**
  * Get the current system time in microseconds.
  */
 EXTERN_DECL int SystemTimeMicros(long long *timestamp);

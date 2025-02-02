@@ -502,8 +502,7 @@ ServerLoop.
     .
 
 GameLoop.
-    *> Update the world age
-    CALL "World-UpdateAge"
+    CALL "World-Tick"
     .
 
 ConsoleInput.

@@ -1,4 +1,5 @@
 #include "cobolcraft_util.h"
+#include <random>
 #include <cstring>
 #include <chrono>
 #include <csignal>
@@ -18,6 +19,24 @@
 
 std::set<socket_t> CLIENT_SOCKETS;
 constexpr int SOCKET_CHUNK_LIMIT = 64000;
+
+EXTERN_DECL int RandomUUID(char *buffer)
+{
+    // This implementation is far from perfect (such as not having true 128 bits of randomness),
+    // but it is probably good enough for a game.
+
+    static std::random_device random_device;
+    static std::mt19937_64 generator(random_device());
+    static std::uniform_int_distribution<unsigned long long> distribution(0);
+
+    unsigned long long uuid[2];
+    uuid[0] = distribution(generator);
+    uuid[1] = distribution(generator);
+
+    memcpy(buffer, uuid, 16);
+
+    return 0;
+}
 
 EXTERN_DECL int SystemTimeMicros(long long *timestamp)
 {
