@@ -81,9 +81,9 @@ PROCEDURE DIVISION.
         *> stash crafting input
         PERFORM VARYING SLOT FROM 1 BY 1 UNTIL SLOT > 9
             CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(LK-PLAYER) PLAYER-WINDOW-SLOT(LK-PLAYER, SLOT + 1)
-            IF PLAYER-WINDOW-SLOT(LK-PLAYER, SLOT + 1) > 0
+            IF PLAYER-WINDOW-SLOT-COUNT(LK-PLAYER, SLOT + 1) > 0
                 *> TODO drop item
-                MOVE 0 TO PLAYER-WINDOW-SLOT(LK-PLAYER, SLOT + 1)
+                MOVE 0 TO PLAYER-WINDOW-SLOT-COUNT(LK-PLAYER, SLOT + 1)
             END-IF
         END-PERFORM
 
