@@ -44,37 +44,37 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
 
     *> ignore clicks in windows other than the current one
     IF WINDOW-ID NOT = PLAYER-WINDOW-ID(PLAYER-ID)
-        GOBACK
+        PERFORM AbortEarly
     END-IF
 
     CALL "GetCallback-WindowSync" USING PLAYER-WINDOW-TYPE(PLAYER-ID) SYNC-PTR
     CALL "GetCallback-WindowSetSlot" USING PLAYER-WINDOW-TYPE(PLAYER-ID) SET-SLOT-PTR
     IF SYNC-PTR = NULL OR SET-SLOT-PTR = NULL
         DISPLAY "RecvPacket-ContainerClick: Unable to handle window type " PLAYER-WINDOW-TYPE(PLAYER-ID)
-        GOBACK
+        PERFORM AbortEarly
     END-IF
 
     *> sync client if state ID differs from last sent
     IF (WINDOW-ID = 0 AND STATE-ID NOT = PLAYER-INVENTORY-STATE(PLAYER-ID)) OR (WINDOW-ID > 0 AND STATE-ID NOT = PLAYER-WINDOW-STATE(PLAYER-ID))
         CALL SYNC-PTR USING PLAYER-ID
-        GOBACK
+        PERFORM AbortEarly
     END-IF
 
     *> TODO support dropping items
     IF (MODE-ENUM = 0 AND SLOT = -999) OR (MODE-ENUM = 4)
         CALL SYNC-PTR USING PLAYER-ID
-        GOBACK
+        PERFORM AbortEarly
     END-IF
 
     *> TODO handle offhand swap key (F) in containers
     If WINDOW-ID > 0 AND MODE-ENUM = 2 AND BUTTON = 40
         CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
-        GOBACK
+        PERFORM AbortEarly
     END-IF
 
     *> iterate changed slots
     CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET CHANGED-SLOT-COUNT
-    IF CHANGED-SLOT-COUNT <= 0 OR CHANGED-SLOT-COUNT > 128
+    IF CHANGED-SLOT-COUNT < 0 OR CHANGED-SLOT-COUNT > 128
         GOBACK
     END-IF
     PERFORM CHANGED-SLOT-COUNT TIMES
@@ -93,6 +93,22 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
     IF SYNC-REQUIRED = 1
         CALL SYNC-PTR USING PLAYER-ID
     END-IF
+
+    GOBACK.
+
+AbortEarly.
+    *> Call when reading the packet is aborted early to still consume all slot data,
+    *> which avoids a warning in the log about unread data.
+
+    CALL "Decode-VarInt" USING LK-BUFFER LK-OFFSET CHANGED-SLOT-COUNT
+    IF CHANGED-SLOT-COUNT < 0 OR CHANGED-SLOT-COUNT > 128
+        EXIT PARAGRAPH
+    END-IF
+    PERFORM CHANGED-SLOT-COUNT TIMES
+        CALL "Decode-Short" USING LK-BUFFER LK-OFFSET SLOT-NUMBER
+        PERFORM DecodeSlot
+    END-PERFORM
+    PERFORM DecodeSlot
 
     GOBACK.
 
