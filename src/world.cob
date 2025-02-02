@@ -1427,7 +1427,7 @@ WORKING-STORAGE SECTION.
     01 IS-SAME-BLOCK-TYPE   BINARY-CHAR UNSIGNED.
     01 CLIENT-ID            BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    *> The client that performed the action, to avoid playing sounds/particles for them
+    *> The client that performed the action, to avoid playing sounds/particles for them (optional)
     01 LK-CLIENT            BINARY-LONG UNSIGNED.
     01 LK-POSITION.
         02 LK-X                 BINARY-LONG.
@@ -1435,7 +1435,7 @@ LINKAGE SECTION.
         02 LK-Z                 BINARY-LONG.
     01 LK-BLOCK-ID          BINARY-LONG UNSIGNED.
 
-PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-BLOCK-ID.
+PROCEDURE DIVISION USING OPTIONAL LK-CLIENT LK-POSITION LK-BLOCK-ID.
     *> Find the chunk, section, and block indices
     DIVIDE LK-X BY 16 GIVING CHUNK-X ROUNDED MODE IS TOWARD-LESSER
     DIVIDE LK-Z BY 16 GIVING CHUNK-Z ROUNDED MODE IS TOWARD-LESSER
@@ -1483,7 +1483,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-POSITION LK-BLOCK-ID.
         IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
             CALL "SendPacket-BlockUpdate" USING CLIENT-ID LK-POSITION LK-BLOCK-ID
             *> play block break sound and particles
-            IF CLIENT-ID NOT = LK-CLIENT AND LK-BLOCK-ID = 0
+            IF (LK-CLIENT IS OMITTED OR CLIENT-ID NOT = LK-CLIENT) AND LK-BLOCK-ID = 0
                 CALL "SendPacket-WorldEvent" USING CLIENT-ID WORLD-EVENT-BLOCK-BREAK LK-POSITION PREVIOUS-BLOCK-ID
             END-IF
         END-IF
