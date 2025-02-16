@@ -1665,7 +1665,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY.
     *> To ensure that the spawn packet and metadata packet are processed in the same tick,
     *> send one packet bundle delimiter before and one after.
     CALL "SendPacket-BundleDelimiter" USING LK-CLIENT
-    CALL "SendPacket-SpawnEntity" USING LK-CLIENT LK-ENTITY-ID LK-ENTITY-UUID LK-ENTITY-TYPE LK-ENTITY-POSITION LK-ENTITY-ROTATION
+    CALL "SendPacket-SpawnEntity" USING LK-CLIENT LK-ENTITY-ID LK-ENTITY-UUID LK-ENTITY-TYPE LK-ENTITY-POSITION LK-ENTITY-ROTATION LK-ENTITY-VELOCITY
     PERFORM SendMetadata
     CALL "SendPacket-BundleDelimiter" USING LK-CLIENT
     GOBACK.
@@ -2074,7 +2074,7 @@ TickEntity.
 
         PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
             IF CLIENT-PRESENT(CLIENT-ID) = 1 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                CALL "SendPacket-EntityPositionSync" USING CLIENT-ID ENTITY-ID ENTITY-POSITION ENTITY-ROTATION
+                CALL "SendPacket-EntityPositionSync" USING CLIENT-ID ENTITY-ID ENTITY-POSITION ENTITY-ROTATION ENTITY-VELOCITY
             END-IF
         END-PERFORM
     ELSE

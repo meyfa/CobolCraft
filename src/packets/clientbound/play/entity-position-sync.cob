@@ -5,53 +5,47 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:entity_position_sync".
     *> buffer used to store the packet data
-    01 PAYLOAD          PIC X(255).
-    01 PAYLOADPOS       BINARY-LONG UNSIGNED.
-    01 PAYLOADLEN       BINARY-LONG UNSIGNED.
-    01 VELOCITY.
-        02 VELOCITY-X  FLOAT-LONG               VALUE 0.
-        02 VELOCITY-Y  FLOAT-LONG               VALUE 0.
-        02 VELOCITY-Z  FLOAT-LONG               VALUE 0.
+    01 PAYLOAD                  PIC X(255).
+    01 PAYLOADPOS               BINARY-LONG UNSIGNED.
+    01 PAYLOADLEN               BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    01 LK-CLIENT        BINARY-LONG UNSIGNED.
-    01 LK-ENTITY-ID     BINARY-LONG.
+    01 LK-CLIENT                BINARY-LONG UNSIGNED.
+    01 LK-ENTITY-ID             BINARY-LONG.
     01 LK-POSITION.
-        02 LK-X         FLOAT-LONG.
-        02 LK-Y         FLOAT-LONG.
-        02 LK-Z         FLOAT-LONG.
+        02 LK-X                 FLOAT-LONG.
+        02 LK-Y                 FLOAT-LONG.
+        02 LK-Z                 FLOAT-LONG.
     01 LK-ROTATION.
-        02 LK-YAW       FLOAT-SHORT.
-        02 LK-PITCH     FLOAT-SHORT.
+        02 LK-YAW               FLOAT-SHORT.
+        02 LK-PITCH             FLOAT-SHORT.
+    01 LK-VELOCITY.
+        02 LK-VELOCITY-X        FLOAT-LONG                  VALUE 0.
+        02 LK-VELOCITY-Y        FLOAT-LONG                  VALUE 0.
+        02 LK-VELOCITY-Z        FLOAT-LONG                  VALUE 0.
 
-PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-POSITION LK-ROTATION.
+PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY-ID LK-POSITION LK-ROTATION LK-VELOCITY.
     COPY PROC-PACKET-INIT.
 
     MOVE 1 TO PAYLOADPOS
 
-    *> entity ID
     CALL "Encode-VarInt" USING LK-ENTITY-ID PAYLOAD PAYLOADPOS
 
-    *> position
     CALL "Encode-Double" USING LK-X PAYLOAD PAYLOADPOS
     CALL "Encode-Double" USING LK-Y PAYLOAD PAYLOADPOS
     CALL "Encode-Double" USING LK-Z PAYLOAD PAYLOADPOS
 
-    *> velocity
-    *> TODO implement
-    CALL "Encode-Double" USING VELOCITY-X PAYLOAD PAYLOADPOS
-    CALL "Encode-Double" USING VELOCITY-Y PAYLOAD PAYLOADPOS
-    CALL "Encode-Double" USING VELOCITY-Z PAYLOAD PAYLOADPOS
+    CALL "Encode-Double" USING LK-VELOCITY-X PAYLOAD PAYLOADPOS
+    CALL "Encode-Double" USING LK-VELOCITY-Y PAYLOAD PAYLOADPOS
+    CALL "Encode-Double" USING LK-VELOCITY-Z PAYLOAD PAYLOADPOS
 
-    *> rotation
     CALL "Encode-Float" USING LK-YAW PAYLOAD PAYLOADPOS
     CALL "Encode-Float" USING LK-PITCH PAYLOAD PAYLOADPOS
 
-    *> on ground
+    *> "on ground" flag
     *> TODO: check if entity is on ground
     MOVE X"00" TO PAYLOAD(PAYLOADPOS:1)
     ADD 1 TO PAYLOADPOS
 
-    *> send packet
     COMPUTE PAYLOADLEN = PAYLOADPOS - 1
     CALL "SendPacket" USING LK-CLIENT PACKET-ID PAYLOAD PAYLOADLEN
     GOBACK.
