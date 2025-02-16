@@ -48,10 +48,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
 
     CALL "Registries-Get-EntryId" USING "minecraft:item" IDENTIFIER ITEM-ID
     IF ITEM-ID > 0
-        CALL "Inventory-PickItem" USING PLAYER-HOTBAR(PLAYER-ID) PLAYER-INVENTORY(PLAYER-ID) ITEM-ID
-        CALL "SendPacket-SetHeldItem" USING LK-CLIENT PLAYER-HOTBAR(PLAYER-ID)
-        *> TODO send only changed slots
-        CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
+        CALL "Inventory-PickItem" USING PLAYER-ID ITEM-ID
     END-IF
 
     GOBACK.
