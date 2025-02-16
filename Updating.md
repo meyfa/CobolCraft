@@ -39,7 +39,7 @@ synchronization issues (since the client predicts many actions even if the serve
 
 * movement (walking, sprinting, sneaking, flying; head rotation)
 * arm swing animation
-* block breaking and placing (changes blocks, plays effect and sound)
+* block breaking and placing (changes blocks, plays effect and sound, spawns item entities)
 * block interaction (right-clicking, e.g., to open doors) - see `src/blocks/` for interesting blocks
 * item interaction (such as water bucket) - see `src/items/` for interesting items
 * player list (shown when pressing Tab)

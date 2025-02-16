@@ -5,11 +5,11 @@ PROGRAM-ID. RegisterBlock-Generic.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 HARDNESS                 FLOAT-SHORT                 VALUE 1.0.
     01 DESTROY-PTR              PROGRAM-POINTER.
     01 FACE-PTR                 PROGRAM-POINTER.
     01 REPLACEABLE-PTR          PROGRAM-POINTER.
     01 ITEM-PTR                 PROGRAM-POINTER.
-    01 HARDNESS                 FLOAT-SHORT                 VALUE 1.0.
     01 BLOCK-COUNT              BINARY-LONG.
     01 BLOCK-INDEX              BINARY-LONG.
     01 BLOCK-MINIMUM-STATE-ID   BINARY-LONG.
@@ -44,13 +44,45 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        01 AIR-BLOCK-STATE          BINARY-LONG             VALUE 0.
         COPY DD-PLAYERS.
+        01 AIR-BLOCK-STATE          BINARY-LONG             VALUE 0.
+        01 BLOCK-ID                 BINARY-LONG.
+        COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
+        01 DROPPED-ITEM-SLOT.
+            COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==DROPPED-ITEM==.
+        01 ITEM-POSITION.
+            02 ITEM-X               FLOAT-LONG.
+            02 ITEM-Y               FLOAT-LONG.
+            02 ITEM-Z               FLOAT-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-BLOCK-DESTROY.
 
     PROCEDURE DIVISION USING LK-PLAYER LK-POSITION LK-FACE.
+        CALL "World-GetBlock" USING LK-POSITION BLOCK-ID
+        IF BLOCK-ID = AIR-BLOCK-STATE
+            GOBACK
+        END-IF
+
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) LK-POSITION AIR-BLOCK-STATE
+
+        IF PLAYER-GAMEMODE(LK-PLAYER) = 0 OR 2
+            CALL "Blocks-Get-StateDescription" USING BLOCK-ID CLICKED-DESCRIPTION
+            CALL "Registries-Get-EntryId" USING "minecraft:item" CLICKED-NAME DROPPED-ITEM-SLOT-ID
+            IF DROPPED-ITEM-SLOT-ID >= 0
+                MOVE 1 TO DROPPED-ITEM-SLOT-COUNT
+                *> TODO data components
+                MOVE 2 TO DROPPED-ITEM-SLOT-NBT-LENGTH
+                MOVE X"0000" TO DROPPED-ITEM-SLOT-NBT-DATA(1:2)
+
+                *> TODO randomize offset like the vanilla game
+                COMPUTE ITEM-X = LK-POSITION-X + 0.5
+                COMPUTE ITEM-Y = LK-POSITION-Y + 0.5
+                COMPUTE ITEM-Z = LK-POSITION-Z + 0.375
+
+                CALL "World-DropItem" USING ITEM-POSITION DROPPED-ITEM-SLOT
+            END-IF
+        END-IF
+
         GOBACK.
 
     END PROGRAM Callback-Destroy.
