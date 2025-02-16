@@ -23,6 +23,8 @@
             04 PLAYER-VELOCITY-X            FLOAT-LONG.
             04 PLAYER-VELOCITY-Y            FLOAT-LONG.
             04 PLAYER-VELOCITY-Z            FLOAT-LONG.
+        03 PLAYER-ON-GROUND             BINARY-CHAR UNSIGNED.
+        03 PLAYER-AGAINST-WALL          BINARY-CHAR UNSIGNED.
         03 PLAYER-HEALTH                FLOAT-SHORT.
         03 PLAYER-FOOD-LEVEL            BINARY-LONG UNSIGNED.
         03 PLAYER-SATURATION            FLOAT-SHORT.
