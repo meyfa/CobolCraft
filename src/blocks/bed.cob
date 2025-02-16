@@ -56,10 +56,6 @@ PROCEDURE DIVISION.
             02 BLOCK-Z              BINARY-LONG.
         01 DROPPED-ITEM-SLOT.
             COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==DROPPED-ITEM==.
-        01 ITEM-POSITION.
-            02 ITEM-X               FLOAT-LONG.
-            02 ITEM-Y               FLOAT-LONG.
-            02 ITEM-Z               FLOAT-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-BLOCK-DESTROY.
 
@@ -80,12 +76,7 @@ PROCEDURE DIVISION.
                 MOVE 2 TO DROPPED-ITEM-SLOT-NBT-LENGTH
                 MOVE X"0000" TO DROPPED-ITEM-SLOT-NBT-DATA(1:2)
 
-                *> TODO randomize offset like the vanilla game
-                COMPUTE ITEM-X = LK-POSITION-X + 0.5
-                COMPUTE ITEM-Y = LK-POSITION-Y + 0.5
-                COMPUTE ITEM-Z = LK-POSITION-Z + 0.375
-
-                CALL "World-DropItem" USING ITEM-POSITION DROPPED-ITEM-SLOT
+                CALL "World-DropItem-FromBlock" USING DROPPED-ITEM-SLOT LK-POSITION
             END-IF
         END-IF
 
