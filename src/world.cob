@@ -1662,8 +1662,15 @@ LINKAGE SECTION.
         COPY DD-ENTITY REPLACING LEADING ==ENTITY== BY ==LK-ENTITY==.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY.
+    *> To ensure that the spawn packet and metadata packet are processed in the same tick,
+    *> send one packet bundle delimiter before and one after.
+    CALL "SendPacket-BundleDelimiter" USING LK-CLIENT
     CALL "SendPacket-SpawnEntity" USING LK-CLIENT LK-ENTITY-ID LK-ENTITY-UUID LK-ENTITY-TYPE LK-ENTITY-POSITION LK-ENTITY-ROTATION
+    PERFORM SendMetadata
+    CALL "SendPacket-BundleDelimiter" USING LK-CLIENT
+    GOBACK.
 
+SendMetadata.
     IF ENTITY-TYPE-ITEM < 0
         CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE-ITEM
     END-IF
@@ -1704,8 +1711,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY.
         SUBTRACT 1 FROM BUFFERPOS
         CALL "SendPacket-SetEntityMetadata" USING LK-CLIENT LK-ENTITY-ID BUFFERPOS BUFFER
     END-IF
-
-    GOBACK.
+    .
 
 END PROGRAM World-SendEntity.
 
