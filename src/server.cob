@@ -525,6 +525,7 @@ ServerLoop.
 
 GameLoop.
     CALL "World-Tick"
+    CALL "Players-Tick"
     .
 
 ConsoleInput.

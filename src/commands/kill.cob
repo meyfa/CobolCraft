@@ -32,11 +32,11 @@ PROCEDURE DIVISION.
         COPY DD-CLIENTS.
         COPY DD-PLAYERS.
         COPY DD-SERVER-PROPERTIES.
-        01 ENTITY-EVENT-DEATH       BINARY-CHAR UNSIGNED        VALUE 3.
+        *> as close to infinity as we can get
+        01 DAMAGE-AMOUNT            FLOAT-SHORT                 VALUE 3.40282346638528859811704183484516925E+38.
+        01 DAMAGE-TYPE              BINARY-LONG.
         01 BUFFER                   PIC X(255).
         01 PLAYER-ID                BINARY-LONG UNSIGNED.
-        01 BYTE-COUNT               BINARY-LONG UNSIGNED.
-        01 OTHER-PLAYER-ID          BINARY-LONG UNSIGNED.
     LINKAGE SECTION.
         COPY DD-CALLBACK-COMMAND-EXECUTE.
 
@@ -63,22 +63,8 @@ PROCEDURE DIVISION.
             END-IF
         END-IF
 
-        MOVE 0 TO PLAYER-HEALTH(PLAYER-ID)
-        CALL "SendPacket-SetHealth" USING PLAYER-CLIENT(PLAYER-ID) PLAYER-HEALTH(PLAYER-ID) PLAYER-FOOD-LEVEL(PLAYER-ID) PLAYER-SATURATION(PLAYER-ID)
-
-        *> Play the death sound and animation to all players (including the dying player).
-        *> For this to have any effect, the player must have 0 health. For the dying player, this is already the case.
-        *> For all others, it will be handled by "set entity metadata" in the main loop.
-        PERFORM VARYING OTHER-PLAYER-ID FROM 1 BY 1 UNTIL OTHER-PLAYER-ID > MAX-PLAYERS
-            IF PLAYER-CLIENT(OTHER-PLAYER-ID) NOT = 0
-                CALL "SendPacket-EntityEvent" USING PLAYER-CLIENT(OTHER-PLAYER-ID) PLAYER-ID ENTITY-EVENT-DEATH
-            END-IF
-        END-PERFORM
-
-        INITIALIZE BUFFER
-        STRING FUNCTION TRIM(PLAYER-NAME(PLAYER-ID)) " was killed" INTO BUFFER
-        MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BYTE-COUNT
-        CALL "BroadcastChatMessage" USING BUFFER BYTE-COUNT OMITTED
+        CALL "Registries-Get-EntryId" USING "minecraft:damage_type" "minecraft:generic_kill" DAMAGE-TYPE
+        CALL "Players-Damage" USING PLAYER-ID DAMAGE-AMOUNT DAMAGE-TYPE
 
         INITIALIZE BUFFER
         STRING "Killed " FUNCTION TRIM(PLAYER-NAME(PLAYER-ID)) INTO BUFFER
