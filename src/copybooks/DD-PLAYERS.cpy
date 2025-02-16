@@ -1,9 +1,12 @@
 *> --- Copybook: shared data for player state ---
 
+*> The maximum size of the PLAYERS table. The actual limit may be less, depending on the value set in server.properties.
+78 PLAYER-CAPACITY VALUE 100.
+
 *> Player data. Once a new player is connected, their data is stored here. When they disconnect, the client is
 *> set to 0, but the player data remains to be reclaimed if the same player connects again.
 01 PLAYERS EXTERNAL.
-    02 PLAYER OCCURS 100 TIMES.
+    02 PLAYER OCCURS PLAYER-CAPACITY TIMES.
         03 PLAYER-CLIENT                BINARY-LONG UNSIGNED.
         03 PLAYER-UUID                  PIC X(16).
         03 PLAYER-NAME                  PIC X(16).

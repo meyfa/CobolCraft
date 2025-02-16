@@ -1798,8 +1798,10 @@ LINKAGE SECTION.
         02 LK-Z                 FLOAT-LONG.
     01 LK-SLOT.
         COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK==.
+    *> Index of the player that dropped the item, if applicable
+    01 LK-THROWER               BINARY-LONG UNSIGNED.
 
-PROCEDURE DIVISION USING LK-POSITION LK-SLOT.
+PROCEDURE DIVISION USING LK-POSITION LK-SLOT OPTIONAL LK-THROWER.
     IF LK-SLOT-COUNT < 1
         GOBACK
     END-IF
@@ -1812,6 +1814,13 @@ PROCEDURE DIVISION USING LK-POSITION LK-SLOT.
     MOVE ENTITY-TYPE-ITEM TO ENTITY-TYPE
     MOVE LK-POSITION TO ENTITY-POSITION
     MOVE LK-SLOT TO ENTITY-ITEM-SLOT
+
+    *> By default, items can be picked up after 0.5 seconds. Items dropped by players have a 2-second delay instead.
+    IF LK-THROWER IS OMITTED
+        MOVE 10 TO ENTITY-ITEM-PICKUP-DELAY
+    ELSE
+        MOVE 40 TO ENTITY-ITEM-PICKUP-DELAY
+    END-IF
 
     CALL "World-SpawnEntity" USING ENTITY
 
@@ -1876,16 +1885,40 @@ WORKING-STORAGE SECTION.
     COPY DD-WORLD.
     COPY DD-CHUNK-REF.
     COPY DD-CHUNK-ENTITY.
+    COPY DD-PLAYERS.
+    COPY DD-CLIENTS.
+    COPY DD-CLIENT-STATES.
+    COPY DD-SERVER-PROPERTIES.
+    01 PLAYER-INDEX         BINARY-LONG UNSIGNED.
     01 CHUNK-INDEX          BINARY-LONG UNSIGNED.
     01 ENTITY-PTR           POINTER.
+    *> Pre-computed player bounding boxes
+    01 PLAYER-AABBS.
+        02 PLAYER-AABB OCCURS PLAYER-CAPACITY TIMES.
+            COPY DD-AABB REPLACING LEADING ==PREFIX== BY ==PLAYER==.
+    01 ENTITY-AABB.
+        COPY DD-AABB REPLACING LEADING ==PREFIX== BY ==ENTITY==.
+    01 COLLISION            BINARY-CHAR UNSIGNED.
+    01 PREVIOUS-ITEM-COUNT  BINARY-LONG UNSIGNED.
+    01 COLLECTED-ITEM-COUNT BINARY-LONG UNSIGNED.
+    01 CLIENT-ID            BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
     ADD 1 TO WORLD-AGE
     ADD 1 TO WORLD-TIME
 
+    *> Compute player bounding boxes
+    PERFORM VARYING PLAYER-INDEX FROM 1 BY 1 UNTIL PLAYER-INDEX > MAX-PLAYERS
+        IF PLAYER-CLIENT(PLAYER-INDEX) > 0
+            CALL "PlayerAABB" USING PLAYER-POSITION(PLAYER-INDEX) PLAYER-SNEAKING(PLAYER-INDEX) PLAYER-AABB(PLAYER-INDEX)
+        END-IF
+    END-PERFORM
+
+    *> Tick chunks
     PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > WORLD-CHUNK-COUNT
         SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
 
+        *> Tick entities
         SET ENTITY-PTR TO CHUNK-ENTITY-LIST
         PERFORM UNTIL ENTITY-PTR = NULL
             *> The order here ensures that we have the next-pointer available in case the entity is deallocated
@@ -1901,9 +1934,55 @@ TickEntity.
     ADD 1 TO ENTITY-AGE
 
     *> TODO This should be specific to item entities
+
     IF ENTITY-AGE >  6000
         CALL "World-RemoveEntity" USING ENTITY-LIST-ENTITY
+        EXIT PARAGRAPH
     END-IF
+
+    COMPUTE ENTITY-ITEM-PICKUP-DELAY = FUNCTION MAX(ENTITY-ITEM-PICKUP-DELAY - 1, 0)
+
+    IF ENTITY-ITEM-PICKUP-DELAY <= 0
+        *> Compute the entity AABB, expanded by 1 block horizontally and 0.5 blocks vertically, since the player's pickup
+        *> bounding box is larger than their regular hitbox, but we don't want to recompute each player's AABB for every
+        *> item entity.
+        COMPUTE ENTITY-AABB-MIN-X = ENTITY-X - 0.125 - 1
+        COMPUTE ENTITY-AABB-MAX-X = ENTITY-X + 0.125 + 1
+        COMPUTE ENTITY-AABB-MIN-Y = ENTITY-Y         - 0.5
+        COMPUTE ENTITY-AABB-MAX-Y = ENTITY-Y + 0.25  + 0.5
+        COMPUTE ENTITY-AABB-MIN-Z = ENTITY-Z - 0.125 - 1
+        COMPUTE ENTITY-AABB-MAX-Z = ENTITY-Z + 0.125 + 1
+
+        *> Check for player collisions
+        PERFORM VARYING PLAYER-INDEX FROM 1 BY 1 UNTIL PLAYER-INDEX > MAX-PLAYERS
+            IF PLAYER-CLIENT(PLAYER-INDEX) > 0
+                CALL "CheckCollisionAABB" USING ENTITY-AABB PLAYER-AABB(PLAYER-INDEX) COLLISION
+                IF COLLISION NOT = 0
+                    MOVE ENTITY-ITEM-SLOT-COUNT TO PREVIOUS-ITEM-COUNT
+                    CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(PLAYER-INDEX) ENTITY-ITEM-SLOT
+                    IF ENTITY-ITEM-SLOT-COUNT < PREVIOUS-ITEM-COUNT
+                        COMPUTE COLLECTED-ITEM-COUNT = ENTITY-ITEM-SLOT-COUNT - PREVIOUS-ITEM-COUNT
+                        PERFORM SendPickupItem
+                        *> TODO sync just the slot that changed
+                        CALL "Inventory-SyncPlayerInventory" USING PLAYER-INDEX
+                    END-IF
+                    IF ENTITY-ITEM-SLOT-COUNT < 1
+                        PERFORM SendPickupItem
+                        CALL "World-RemoveEntity" USING ENTITY-LIST-ENTITY
+                        EXIT PARAGRAPH
+                    END-IF
+                END-IF
+            END-IF
+        END-PERFORM
+    END-IF
+    .
+
+SendPickupItem.
+    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
+        IF CLIENT-PRESENT(CLIENT-ID) NOT = 0 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
+            CALL "SendPacket-TakeItemEntity" USING CLIENT-ID ENTITY-ID PLAYER-INDEX COLLECTED-ITEM-COUNT
+        END-IF
+    END-PERFORM
     .
 
 END PROGRAM World-Tick.

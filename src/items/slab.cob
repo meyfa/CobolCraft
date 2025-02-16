@@ -46,7 +46,8 @@ PROCEDURE DIVISION.
         01 BLOCK-ID                 BINARY-LONG.
         01 CB-PTR-REPLACEABLE       PROGRAM-POINTER.
         *> hitbox for the block to place
-        COPY DD-AABB REPLACING LEADING ==PREFIX== BY ==PLACE==.
+        01 PLACE-AABB.
+            COPY DD-AABB REPLACING LEADING ==PREFIX== BY ==PLACE==.
         01 IS-BOTTOM                BINARY-CHAR UNSIGNED.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
