@@ -19,6 +19,10 @@
         03 PLAYER-ROTATION.
             04 PLAYER-YAW                   FLOAT-SHORT.
             04 PLAYER-PITCH                 FLOAT-SHORT.
+        03 PLAYER-VELOCITY.
+            04 PLAYER-VELOCITY-X            FLOAT-LONG.
+            04 PLAYER-VELOCITY-Y            FLOAT-LONG.
+            04 PLAYER-VELOCITY-Z            FLOAT-LONG.
         03 PLAYER-HEALTH                FLOAT-SHORT.
         03 PLAYER-FOOD-LEVEL            BINARY-LONG UNSIGNED.
         03 PLAYER-SATURATION            FLOAT-SHORT.
