@@ -136,6 +136,9 @@ WORKING-STORAGE SECTION.
     78 MAIN-START                   VALUE 10.
     78 MAIN-END                     VALUE 36.
     01 SLOT                         BINARY-CHAR UNSIGNED.
+    01 MAX-STACK-SIZE               BINARY-LONG UNSIGNED.
+    01 COMPATIBLE                   BINARY-CHAR UNSIGNED.
+    01 STORED                       BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-INVENTORY.
         02 LK-INVENTORY-SLOT OCCURS 46 TIMES.
@@ -144,6 +147,7 @@ LINKAGE SECTION.
         COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK-ITEM==.
 
 PROCEDURE DIVISION USING LK-INVENTORY LK-ITEM.
+    CALL "Items-Get-MaxStackSize" USING LK-ITEM-SLOT-ID MAX-STACK-SIZE
     PERFORM VARYING SLOT FROM HOTBAR-START BY 1 UNTIL SLOT > HOTBAR-END OR LK-ITEM-SLOT-COUNT <= 0
         PERFORM StoreInSlot
     END-PERFORM
@@ -153,14 +157,59 @@ PROCEDURE DIVISION USING LK-INVENTORY LK-ITEM.
     GOBACK.
 
 StoreInSlot.
-    *> TODO handle compatible items (requires parsing data components, and knowledge of max stack sizes)
     IF LK-INVENTORY-SLOT-COUNT(SLOT) = 0
         MOVE LK-ITEM TO LK-INVENTORY-SLOT(SLOT)
         MOVE 0 TO LK-ITEM-SLOT-COUNT
+        EXIT PARAGRAPH
+    END-IF
+
+    IF LK-INVENTORY-SLOT-COUNT(SLOT) < MAX-STACK-SIZE
+        CALL "Inventory-CompareItems" USING LK-INVENTORY-SLOT(SLOT) LK-ITEM COMPATIBLE
+        IF COMPATIBLE = 1
+            COMPUTE STORED = FUNCTION MIN(MAX-STACK-SIZE - LK-INVENTORY-SLOT-COUNT(SLOT), LK-ITEM-SLOT-COUNT)
+            COMPUTE LK-INVENTORY-SLOT-COUNT(SLOT) = LK-INVENTORY-SLOT-COUNT(SLOT) + STORED
+            COMPUTE LK-ITEM-SLOT-COUNT = LK-ITEM-SLOT-COUNT - STORED
+        END-IF
     END-IF
     .
 
 END PROGRAM Inventory-StoreItem.
+
+*> --- Inventory-CompareItems ---
+*> Compare two items for compatibility, i.e., if they could be stacked together (ignoring max stack size).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Inventory-CompareItems.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-FIRST.
+        COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK-FIRST==.
+    01 LK-SECOND.
+        COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK-SECOND==.
+    01 LK-COMPATIBLE                BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-FIRST LK-SECOND LK-COMPATIBLE.
+    IF LK-FIRST-SLOT-COUNT = 0 OR LK-SECOND-SLOT-COUNT = 0
+        MOVE 0 TO LK-COMPATIBLE *> error, at least one slot is empty
+        GOBACK
+    END-IF
+
+    IF LK-FIRST-SLOT-ID NOT = LK-SECOND-SLOT-ID
+        MOVE 0 TO LK-COMPATIBLE *> different item IDs cannot be stacked
+        GOBACK
+    END-IF
+
+    *> TODO check data components - for now, we assume items are compatible only if they have empty data components
+    IF LK-FIRST-SLOT-NBT-LENGTH NOT = LK-SECOND-SLOT-NBT-LENGTH OR
+            LK-FIRST-SLOT-NBT-DATA(1:LK-FIRST-SLOT-NBT-LENGTH) NOT = LK-SECOND-SLOT-NBT-DATA(1:LK-SECOND-SLOT-NBT-LENGTH)
+        MOVE 0 TO LK-COMPATIBLE
+        GOBACK
+    END-IF
+
+    MOVE 1 TO LK-COMPATIBLE
+    GOBACK.
+
+END PROGRAM Inventory-CompareItems.
 
 *> --- Inventory-UpdateCraftingOutput ---
 *> Update the crafting output slot based on the current crafting grid.

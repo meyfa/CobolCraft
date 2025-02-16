@@ -10,6 +10,7 @@ WORKING-STORAGE SECTION.
     COPY DD-PACKET-DIRECTIONS.
     *> File paths
     01 FILE-REGISTRIES              PIC X(255)              VALUE "data/generated/reports/registries.json".
+    01 FILE-ITEMS                   PIC X(255)              VALUE "data/generated/reports/items.json".
     01 FILE-BLOCKS                  PIC X(255)              VALUE "data/generated/reports/blocks.json".
     01 FILE-PACKETS                 PIC X(255)              VALUE "data/generated/reports/packets.json".
     01 FILE-DATAPACK-ROOT           PIC X(255)              VALUE "data/generated/data/".
@@ -124,6 +125,26 @@ LoadRegistries.
     CALL "Registries-Create" USING "minecraft:instrument" TEMP-INT8
     .
 
+LoadItems.
+    DISPLAY "Loading items...                " WITH NO ADVANCING
+
+    CALL "Files-ReadAll" USING FILE-ITEMS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-ITEMS)
+        STOP RUN RETURNING 1
+    END-IF
+
+    CALL "Items-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
+    IF DATA-FAILURE NOT = 0
+        DISPLAY "Failed to parse: " FUNCTION TRIM(FILE-ITEMS)
+        STOP RUN RETURNING 1
+    END-IF
+
+    CALL "Items-GetCount" USING TEMP-INT32
+    MOVE TEMP-INT32 TO DISPLAY-INT
+    DISPLAY FUNCTION TRIM(DISPLAY-INT) " items loaded"
+    .
+
 LoadBlocks.
     DISPLAY "Loading blocks...               " WITH NO ADVANCING
 
@@ -135,7 +156,7 @@ LoadBlocks.
 
     CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
     IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to parse blocks"
+        DISPLAY "Failed to parse: " FUNCTION TRIM(FILE-BLOCKS)
         STOP RUN RETURNING 1
     END-IF
 
