@@ -107,6 +107,8 @@ PROCEDURE DIVISION.
         CALL "World-SetBlockEntity" USING BLOCK-POSITION-FOOT BLOCK-ENTITY-TYPE
         CALL "World-SetBlockEntity" USING BLOCK-POSITION-HEAD BLOCK-ENTITY-TYPE
 
+        CALL "ItemUtil-ConsumeItem" USING LK-PLAYER
+
         GOBACK.
 
     END PROGRAM Callback-Use.

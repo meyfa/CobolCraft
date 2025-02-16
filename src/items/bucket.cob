@@ -21,6 +21,7 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
         01 BLOCK-POSITION.
             02 BLOCK-X              BINARY-LONG.
             02 BLOCK-Y              BINARY-LONG.
@@ -28,7 +29,7 @@ PROCEDURE DIVISION.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CURRENT==.
         01 FLUID-LEVEL              PIC X(32).
         01 BLOCK-ID                 BINARY-LONG.
-        COPY DD-PLAYERS.
+        01 ITEM-ID                  BINARY-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
@@ -51,6 +52,20 @@ PROCEDURE DIVISION.
         *> Place air
         CALL "Blocks-Get-DefaultStateId" USING "minecraft:air" BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+
+        *> Replace the bucket with a water or lava bucket
+        IF PLAYER-GAMEMODE(LK-PLAYER) NOT = 1
+            EVALUATE CURRENT-NAME
+                WHEN "minecraft:water"
+                    CALL "Registries-Get-EntryId" USING "minecraft:item" "minecraft:water_bucket" ITEM-ID
+                WHEN "minecraft:lava"
+                    CALL "Registries-Get-EntryId" USING "minecraft:item" "minecraft:lava_bucket" ITEM-ID
+            END-EVALUATE
+
+            IF ITEM-ID >= 0
+                CALL "ItemUtil-ConsumeItem" USING LK-PLAYER ITEM-ID
+            END-IF
+        END-IF
 
         GOBACK.
 

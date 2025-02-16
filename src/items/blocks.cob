@@ -58,6 +58,8 @@ PROCEDURE DIVISION USING LK-ITEM-NAME.
             CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
         END-IF
 
+        CALL "ItemUtil-ConsumeItem" USING LK-PLAYER
+
         GOBACK.
 
     END PROGRAM Callback-Use.

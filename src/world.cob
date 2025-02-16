@@ -1828,6 +1828,37 @@ PROCEDURE DIVISION USING LK-POSITION LK-SLOT OPTIONAL LK-THROWER.
 
 END PROGRAM World-DropItem.
 
+*> --- World-DropItem-FromPlayer ---
+*> Utility program to drop an item entity originating from a player (at their head position).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. World-DropItem-FromPlayer.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-PLAYERS.
+    01 ITEM-POS.
+        02 ITEM-X               FLOAT-LONG.
+        02 ITEM-Y               FLOAT-LONG.
+        02 ITEM-Z               FLOAT-LONG.
+LINKAGE SECTION.
+    01 LK-THROWER               BINARY-LONG UNSIGNED.
+    01 LK-SLOT.
+        COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK==.
+
+PROCEDURE DIVISION USING LK-THROWER LK-SLOT.
+    MOVE PLAYER-POSITION(LK-THROWER) TO ITEM-POS
+    IF PLAYER-SNEAKING(LK-THROWER) = 0
+        *> Regular eye height 1.62, -0.125 to center the item
+        ADD 1.495 TO ITEM-Y
+    ELSE
+        *> Sneaking eye height 1.27, -0.125 to center the item
+        ADD 1.145 TO ITEM-Y
+    END-IF
+    CALL "World-DropItem" USING ITEM-POS LK-SLOT LK-THROWER
+    GOBACK.
+
+END PROGRAM World-DropItem-FromPlayer.
+
 *> --- World-GetAge ---
 IDENTIFICATION DIVISION.
 PROGRAM-ID. World-GetAge.

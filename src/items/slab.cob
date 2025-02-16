@@ -158,6 +158,9 @@ PROCEDURE DIVISION.
 
         CALL "Blocks-Get-StateId" USING SLAB-DESCRIPTION BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+
+        CALL "ItemUtil-ConsumeItem" USING LK-PLAYER
+
         GOBACK.
 
     END PROGRAM Callback-Use.

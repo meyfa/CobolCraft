@@ -17,6 +17,7 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
         01 BLOCK-POSITION.
             02 BLOCK-X              BINARY-LONG.
             02 BLOCK-Y              BINARY-LONG.
@@ -25,7 +26,7 @@ PROCEDURE DIVISION.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CURRENT==.
         01 BLOCK-ID                 BINARY-LONG.
         01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
-        COPY DD-PLAYERS.
+        01 ITEM-ID                  BINARY-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
@@ -39,6 +40,14 @@ PROCEDURE DIVISION.
         *> Place the fluid
         CALL "Blocks-Get-DefaultStateId" USING "minecraft:lava" BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+
+        *> Replace the bucket with an empty bucket
+        IF PLAYER-GAMEMODE(LK-PLAYER) NOT = 1
+            CALL "Registries-Get-EntryId" USING "minecraft:bucket" LK-ITEM-NAME ITEM-ID
+            IF ITEM-ID >= 0
+                CALL "ItemUtil-ConsumeItem" USING LK-PLAYER ITEM-ID
+            END-IF
+        END-IF
 
         GOBACK.
 
