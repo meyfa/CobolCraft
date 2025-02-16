@@ -73,7 +73,7 @@ PROCEDURE DIVISION.
         *> stash the mouse item
         CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(LK-PLAYER) PLAYER-MOUSE-ITEM(LK-PLAYER)
         IF PLAYER-MOUSE-SLOT-COUNT(LK-PLAYER) > 0
-            CALL "World-DropItem" USING PLAYER-POSITION(LK-PLAYER) PLAYER-MOUSE-ITEM(LK-PLAYER) LK-PLAYER
+            CALL "World-DropItem-FromPlayer" USING LK-PLAYER PLAYER-MOUSE-ITEM(LK-PLAYER)
             MOVE 0 TO PLAYER-MOUSE-SLOT-COUNT(LK-PLAYER)
         END-IF
 
@@ -81,7 +81,7 @@ PROCEDURE DIVISION.
         PERFORM VARYING SLOT FROM 1 BY 1 UNTIL SLOT > 4
             CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(LK-PLAYER) PLAYER-INVENTORY-SLOT(LK-PLAYER, SLOT + 1)
             IF PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, SLOT + 1) > 0
-                CALL "World-DropItem" USING PLAYER-POSITION(LK-PLAYER) PLAYER-INVENTORY-SLOT(LK-PLAYER, SLOT + 1) LK-PLAYER
+                CALL "World-DropItem-FromPlayer" USING LK-PLAYER PLAYER-INVENTORY-SLOT(LK-PLAYER, SLOT + 1)
                 MOVE 0 TO PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, SLOT + 1)
             END-IF
         END-PERFORM
@@ -164,7 +164,7 @@ PROCEDURE DIVISION.
                             SUBTRACT 1 FROM PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, SLOT-INDEX + 1)
                         END-IF
                     END-PERFORM
-                    CALL "World-DropItem" USING PLAYER-POSITION(LK-PLAYER) DROP-SLOT LK-PLAYER
+                    CALL "World-DropItem-FromPlayer" USING LK-PLAYER DROP-SLOT
                     PERFORM UpdateCrafting
                 END-IF
 
@@ -175,7 +175,7 @@ PROCEDURE DIVISION.
                         MOVE 1 TO DROP-SLOT-COUNT
                     END-IF
                     SUBTRACT DROP-SLOT-COUNT FROM PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, LK-INDEX + 1)
-                    CALL "World-DropItem" USING PLAYER-POSITION(LK-PLAYER) DROP-SLOT LK-PLAYER
+                    CALL "World-DropItem-FromPlayer" USING LK-PLAYER DROP-SLOT
                     PERFORM UpdateCrafting
                 END-IF
 
@@ -186,7 +186,7 @@ PROCEDURE DIVISION.
                         MOVE 1 TO DROP-SLOT-COUNT
                     END-IF
                     SUBTRACT DROP-SLOT-COUNT FROM PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, LK-INDEX + 1)
-                    CALL "World-DropItem" USING PLAYER-POSITION(LK-PLAYER) DROP-SLOT LK-PLAYER
+                    CALL "World-DropItem-FromPlayer" USING LK-PLAYER DROP-SLOT
                 END-IF
 
             WHEN OTHER

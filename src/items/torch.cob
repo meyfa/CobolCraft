@@ -65,6 +65,8 @@ PROCEDURE DIVISION.
             *> Place the torch
             CALL "Blocks-Get-DefaultStateId" USING LK-ITEM-NAME BLOCK-ID
             CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+
+            CALL "ItemUtil-ConsumeItem" USING LK-PLAYER
         ELSE
             *> Check for solid block where the torch would attach
             MOVE BLOCK-POSITION TO TARGET-BLOCK-POSITION
@@ -101,6 +103,8 @@ PROCEDURE DIVISION.
 
             CALL "Blocks-Get-StateId" USING WALL_TORCH-DESCRIPTION BLOCK-ID
             CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+
+            CALL "ItemUtil-ConsumeItem" USING LK-PLAYER
         END-IF
 
         GOBACK.
