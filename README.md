@@ -18,12 +18,12 @@ The following features are already working:
 - [X] block interaction (right-clicking, e.g., to open doors)
 - [X] player inventory
 - [X] crafting, both 2x2 and 3x3
-- [X] item entities and item pickup (but no physics yet)
+- [X] item entities and item pickup
 - [X] chat
 - [X] commands (in-game and via an interactive console)
 - [X] configuration via server.properties
 - [X] whitelist (persistent; stored in whitelist.json)
-- [X] extremely basic block/player collision
+- [X] extremely basic block/player collision and entity physics
 
 Note that blocks with multiple states, orientations, or interactive blocks require large amounts of specialized code
 to make them behave properly, which is way beyond the scope of this project.
