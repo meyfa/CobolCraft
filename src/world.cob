@@ -2057,7 +2057,6 @@ TickEntity.
         EXIT PARAGRAPH
     END-IF
 
-
     *> TODO: Handle block collisions properly... This is just a hack for now.
     COMPUTE BLOCK-X ROUNDED MODE IS TOWARD-LESSER = ENTITY-X + ENTITY-VELOCITY-X
     COMPUTE BLOCK-Y ROUNDED MODE IS TOWARD-LESSER = ENTITY-Y + ENTITY-VELOCITY-Y
