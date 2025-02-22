@@ -1,6 +1,6 @@
-*> --- Copybook: reference to a loaded region file ---
+*> --- Copybook: reference to a loaded region or entity data file ---
 *> This is a BASED item, i.e., a view into a data structure referenced by a pointer. DD-REGION-FILES.cpy contains a
-*> table of pointers to these structures.
+*> table of pointers to these structures. The same structure is used for both region and entity files.
 
 *> The region file cache.
 01 REGION-FILE BASED.

@@ -15,8 +15,13 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-FAILURE.
     *> Create directories. Ignore errors, as they are likely to be caused by the directories already existing.
     CALL "CBL_CREATE_DIR" USING SP-LEVEL-NAME
+
     INITIALIZE WORLD-PATH
     STRING FUNCTION TRIM(SP-LEVEL-NAME) "/region" INTO WORLD-PATH
+    CALL "CBL_CREATE_DIR" USING WORLD-PATH
+
+    INITIALIZE WORLD-PATH
+    STRING FUNCTION TRIM(SP-LEVEL-NAME) "/entities" INTO WORLD-PATH
     CALL "CBL_CREATE_DIR" USING WORLD-PATH
 
     *> Save world metadata
@@ -28,7 +33,7 @@ PROCEDURE DIVISION USING LK-FAILURE.
     *> Save dirty chunks
     PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > WORLD-CHUNK-COUNT
         SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
-        IF CHUNK-DIRTY NOT = 0
+        IF CHUNK-DIRTY-BLOCKS > 0 OR CHUNK-DIRTY-ENTITIES > 0
             CALL "World-SaveChunk" USING CHUNK-INDEX LK-FAILURE
             IF LK-FAILURE > 0
                 GOBACK
@@ -87,6 +92,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CLIENTS.
     COPY DD-CLIENT-STATES.
     COPY DD-SERVER-PROPERTIES.
+    01 ENTITY-TYPE-ITEM         BINARY-LONG                 VALUE -1.
     01 PLAYER-INDEX             BINARY-LONG UNSIGNED.
     01 CHUNK-INDEX              BINARY-LONG UNSIGNED.
     01 ENTITY-PTR               POINTER.
@@ -109,6 +115,10 @@ WORKING-STORAGE SECTION.
     01 REPLACEABLE              BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION.
+    IF ENTITY-TYPE-ITEM < 0
+        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE-ITEM
+    END-IF
+
     ADD 1 TO WORLD-AGE
     ADD 1 TO WORLD-TIME
 
@@ -122,6 +132,12 @@ PROCEDURE DIVISION.
     *> Tick chunks
     PERFORM VARYING CHUNK-INDEX FROM 1 BY 1 UNTIL CHUNK-INDEX > WORLD-CHUNK-COUNT
         SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
+
+        *> We cheat a bit and say that any chunk where an entity is ticked must save its entities.
+        *> TODO Can we only set this when an entity has actually been modified?
+        IF CHUNK-ENTITY-COUNT > 0
+            MOVE 1 TO CHUNK-DIRTY-ENTITIES
+        END-IF
 
         *> Tick entities
         SET ENTITY-PTR TO CHUNK-ENTITY-LIST
@@ -138,8 +154,13 @@ PROCEDURE DIVISION.
 TickEntity.
     ADD 1 TO ENTITY-AGE
 
-    *> TODO This should be specific to item entities
+    IF ENTITY-ID = ENTITY-TYPE-ITEM
+        PERFORM TickItemEntity
+    END-IF
+    .
 
+TickItemEntity.
+    *> TODO Move this into somewhere abstract, so that we can tick other entities as well
     IF ENTITY-AGE >  6000
         CALL "World-RemoveEntity" USING ENTITY-LIST-ENTITY
         EXIT PARAGRAPH
