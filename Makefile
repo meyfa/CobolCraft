@@ -24,7 +24,7 @@ SERVER_URL = https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61
 SERVER_JAR_EXTRACTED = data/versions/1.21.4/server-1.21.4.jar
 
 # Test sources and binary
-TEST_SRC = $(wildcard $(ROOT_DIR)/tests/*.cob)
+TEST_SRC = $(wildcard $(ROOT_DIR)/tests/*.cob $(ROOT_DIR)/tests/*/*.cob)
 TEST_MAIN_SRC = $(ROOT_DIR)/test.cob
 TEST_OBJECTS = $(patsubst $(ROOT_DIR)/tests/%.cob, $(OBJECTS_DIR)/tests/%.o, $(TEST_SRC))
 TEST_BIN = test

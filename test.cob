@@ -4,7 +4,7 @@ PROGRAM-ID. TestMain.
 
 PROCEDURE DIVISION.
     DISPLAY "Running tests..."
-    CALL "Test-Util"
+    CALL "Test-CPP"
     CALL "Test-Strings"
     CALL "Test-Decode"
     CALL "Test-Encode"

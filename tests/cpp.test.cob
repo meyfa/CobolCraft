@@ -1,9 +1,9 @@
-*> --- Test: cobolcraft_util.cpp ---
+*> --- Test: C++ functions ---
 IDENTIFICATION DIVISION.
-PROGRAM-ID. Test-Util.
+PROGRAM-ID. Test-CPP.
 
 PROCEDURE DIVISION.
-    DISPLAY "Test: cobolcraft_util.cpp"
+    DISPLAY "Test: C++ functions".
     CALL "Test-LeadingZeros32"
     CALL "Test-ZlibCompress"
     CALL "Test-ZlibDecompress"
@@ -196,4 +196,4 @@ PROCEDURE DIVISION.
 
     END PROGRAM Test-GzipDecompress.
 
-END PROGRAM Test-Util.
+END PROGRAM Test-CPP.
