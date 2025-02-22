@@ -10,7 +10,7 @@ ROOT_DIR = .
 SRC = $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src/*/*.cob $(ROOT_DIR)/src/*/*/*.cob $(ROOT_DIR)/src/*/*/*/*.cob)
 MAIN_SRC = $(ROOT_DIR)/main.cob
 OBJECTS = $(patsubst $(ROOT_DIR)/src/%.cob, $(OBJECTS_DIR)/%.o, $(SRC))
-CPY_DIR = $(ROOT_DIR)/src/copybooks
+CPY_DIR = $(ROOT_DIR)/src/_copybooks
 CPP_SRC = $(wildcard $(ROOT_DIR)/cpp/*.cpp)
 CPP_HEADERS = $(wildcard $(ROOT_DIR)/cpp/*.h)
 CPP_OBJECTS = $(patsubst $(ROOT_DIR)/cpp/%.cpp, $(OBJECTS_DIR)/cpp/%.o, $(CPP_SRC))
@@ -33,7 +33,7 @@ TEST_BIN = test
 GCVERSION := $(shell $(COBC) --version | head -n1 | sed 's/.*\s\([0-9]\+\)\.\([0-9]\).*/\1\2/g' )
 
 # Common compiler options, note: COB_FLAGS can be user-specified
-COBC_OPTS = -free -DGCVERSION=$(GCVERSION) -I $(CPY_DIR) $(COB_FLAGS)
+COBC_OPTS = -free -DGCVERSION=$(GCVERSION) $(patsubst %,-I %,$(wildcard $(CPY_DIR)/*)) $(COB_FLAGS)
 COBC_OPTS += -O2 --debug -Wall -fnotrunc -fstatic-call
 
 ifeq ($(shell test $(GCVERSION) -ge 32; echo $$?),0)
@@ -45,7 +45,7 @@ GLOBALDEPS =
 else
 # if dependency generation is not available: use global copy dependency
 COB_MTFLAGS =
-GLOBALDEPS = $(wildcard $(CPY_DIR)/*.cpy)
+GLOBALDEPS = $(wildcard $(CPY_DIR)/*.cpy $(CPY_DIR)/*/*.cpy)
 endif
 
 .SUFFIXES:
