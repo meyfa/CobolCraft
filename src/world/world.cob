@@ -4,16 +4,20 @@ PROGRAM-ID. World-Save.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-SERVER-PROPERTIES.
     COPY DD-WORLD.
     COPY DD-CHUNK-REF.
     01 CHUNK-INDEX              BINARY-LONG UNSIGNED.
+    01 WORLD-PATH               PIC X(1024).
 LINKAGE SECTION.
     01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-FAILURE.
     *> Create directories. Ignore errors, as they are likely to be caused by the directories already existing.
-    CALL "CBL_CREATE_DIR" USING "save"
-    CALL "CBL_CREATE_DIR" USING "save/region"
+    CALL "CBL_CREATE_DIR" USING SP-LEVEL-NAME
+    INITIALIZE WORLD-PATH
+    STRING FUNCTION TRIM(SP-LEVEL-NAME) "/region" INTO WORLD-PATH
+    CALL "CBL_CREATE_DIR" USING WORLD-PATH
 
     *> Save world metadata
     CALL "World-SaveLevel" USING LK-FAILURE

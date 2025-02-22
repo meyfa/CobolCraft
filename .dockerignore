@@ -22,6 +22,7 @@
 
 # Application files
 /save
+/world
 /server.properties
 /whitelist.json
 

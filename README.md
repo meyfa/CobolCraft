@@ -76,7 +76,7 @@ docker run --rm --interactive --tty \
      --publish 25565:25565 \
      --volume "$(pwd)/server.properties:/app/server.properties" \
      --volume "$(pwd)/whitelist.json:/app/whitelist.json" \
-     --volume "$(pwd)/save:/app/save" \
+     --volume "$(pwd)/world:/app/world" \
     meyfa/cobolcraft
 ```
 
@@ -84,6 +84,7 @@ To configure the server, edit the `server.properties` file.
 This file is generated automatically on first run with default values for all supported options:
 
 * `server-port` (default: 25565)
+* `level-name` (default: "world")
 * `white-list` (default: false)
 * `motd` (default: "CobolCraft")
 * `max-players` (default: 10; maximum: 100)
