@@ -80,6 +80,7 @@ Init.
     DISPLAY "Starting CobolCraft for v" GAME-VERSION-STRING
 
     CALL "Callbacks-Init"
+    CALL "Region-Init"
 
     CALL "IgnoreSIGPIPE"
     CALL "SetConsoleNonBlocking" GIVING ERRNO
