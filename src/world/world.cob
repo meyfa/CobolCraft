@@ -203,6 +203,9 @@ TickEntity.
             END-IF
         END-PERFORM
     END-IF
+
+    *> Ensure the entity is in the correct chunk
+    CALL "World-UpdateEntityChunk" USING ENTITY-LIST-ENTITY ENTITY-CHUNK-X ENTITY-CHUNK-Z
     .
 
 SendPickupItem.
