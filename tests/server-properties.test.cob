@@ -28,6 +28,7 @@ PROCEDURE DIVISION.
         *> initialize the server properties
         INITIALIZE SERVER-PROPERTIES
         MOVE 12345 TO SP-PORT
+        MOVE "sp-test-level" TO SP-LEVEL-NAME
         MOVE 0 TO SP-WHITELIST-ENABLE
         MOVE "test-motd" TO SP-MOTD
         MOVE 42 TO MAX-PLAYERS
@@ -41,6 +42,7 @@ PROCEDURE DIVISION.
         STRING
             "#CobolCraft server properties" NEWLINE
             "server-port=12345" NEWLINE
+            "level-name=sp-test-level" NEWLINE
             "white-list=false" NEWLINE
             "motd=test-motd" NEWLINE
             "max-players=42" NEWLINE
@@ -76,12 +78,14 @@ PROCEDURE DIVISION.
         DISPLAY "  Test: ServerProperties-Deserialize".
     Defaults.
         DISPLAY "    Case: defaults - " WITH NO ADVANCING
+        MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         INITIALIZE BUFFER
         MOVE 0 TO BUFFER-LENGTH
         CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
         IF FAILURE = 0
                 AND SP-PORT = 25565
+                AND SP-LEVEL-NAME = "world"
                 AND SP-WHITELIST-ENABLE = 0
                 AND SP-MOTD = "CobolCraft"
                 AND MAX-PLAYERS = 10
@@ -92,9 +96,11 @@ PROCEDURE DIVISION.
         END-IF.
     FullProperties.
         DISPLAY "    Case: full properties - " WITH NO ADVANCING
+        MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         STRING
             "server-port=1337" NEWLINE
+            "level-name=foobar" NEWLINE
             "white-list=true" NEWLINE
             "motd=foobar 42" NEWLINE
             "max-players=31" NEWLINE
@@ -103,6 +109,7 @@ PROCEDURE DIVISION.
         CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
         IF FAILURE = 0
                 AND SP-PORT = 1337
+                AND SP-LEVEL-NAME = "foobar"
                 AND SP-WHITELIST-ENABLE = 1
                 AND SP-MOTD = "foobar 42"
                 AND MAX-PLAYERS = 31
@@ -111,8 +118,21 @@ PROCEDURE DIVISION.
         ELSE
             DISPLAY "FAIL"
         END-IF.
+    EmptyLevelName.
+        DISPLAY "    Case: empty level-name - " WITH NO ADVANCING
+        MOVE 0 TO FAILURE
+        INITIALIZE SERVER-PROPERTIES
+        MOVE "level-name=" TO BUFFER
+        MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
+        CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
+        IF FAILURE = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
     EmptyMotd.
         DISPLAY "    Case: empty motd - " WITH NO ADVANCING
+        MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         MOVE "motd=" TO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
@@ -124,6 +144,7 @@ PROCEDURE DIVISION.
         END-IF.
     InvalidPort.
         DISPLAY "    Case: invalid port - " WITH NO ADVANCING
+        MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         MOVE "server-port=abc" TO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
@@ -135,6 +156,7 @@ PROCEDURE DIVISION.
         END-IF.
     ZeroMaxPlayers.
         DISPLAY "    Case: zero max players - " WITH NO ADVANCING
+        MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         MOVE "max-players=0" TO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH

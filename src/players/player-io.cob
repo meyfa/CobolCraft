@@ -4,6 +4,7 @@ PROGRAM-ID. Players-PlayerFileName.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-SERVER-PROPERTIES.
     01 UUID-STR                 PIC X(36).
 LINKAGE SECTION.
     01 LK-PLAYER-UUID           PIC X(16).
@@ -12,7 +13,7 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-PLAYER-UUID LK-PLAYER-FILE-NAME.
     CALL "UUID-ToString" USING LK-PLAYER-UUID UUID-STR
     MOVE SPACES TO LK-PLAYER-FILE-NAME
-    STRING "save/playerdata/" UUID-STR ".dat" INTO LK-PLAYER-FILE-NAME
+    STRING FUNCTION TRIM(SP-LEVEL-NAME) "/playerdata/" UUID-STR ".dat" INTO LK-PLAYER-FILE-NAME
     GOBACK.
 
 END PROGRAM Players-PlayerFileName.
@@ -24,6 +25,7 @@ PROGRAM-ID. Players-SavePlayer.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PLAYERS.
+    COPY DD-SERVER-PROPERTIES.
     *> File name and data
     01 PLAYER-FILE-NAME         PIC X(64).
     01 ERRNO                    BINARY-LONG.
@@ -196,8 +198,10 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
     CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
 
     *> Create directories. Ignore errors, as they are likely to be caused by the directories already existing.
-    CALL "CBL_CREATE_DIR" USING "save"
-    CALL "CBL_CREATE_DIR" USING "save/playerdata"
+    CALL "CBL_CREATE_DIR" USING SP-LEVEL-NAME
+    INITIALIZE STR
+    STRING FUNCTION TRIM(SP-LEVEL-NAME) "/playerdata" INTO STR
+    CALL "CBL_CREATE_DIR" USING STR
 
     *> write the data to disk in gzip-compressed form
     COMPUTE NBT-BUFFER-LENGTH = NBT-ENCODER-OFFSET - 1

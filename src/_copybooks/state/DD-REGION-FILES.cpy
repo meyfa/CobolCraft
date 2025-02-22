@@ -23,7 +23,7 @@
         03 REGION-FILE-X                BINARY-LONG.
         03 REGION-FILE-Z                BINARY-LONG.
         *> The file name.
-        03 REGION-FILE-NAME             PIC X(255).
+        03 REGION-FILE-NAME             PIC X(1024).
         *> The open file handle (input/output).
         03 REGION-FILE-HANDLE           PIC X(4) USAGE COMP-X.
         *> Chunk locations within the file, consisting of the offset (3 big-endian bytes) and length (1 byte).

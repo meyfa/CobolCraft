@@ -63,9 +63,9 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-BUFFER LK-BUFFER-LENGTH LK-FAILURE.
     *> Start with default values
     MOVE 25565 TO SP-PORT
+    MOVE "world" TO SP-LEVEL-NAME
     MOVE 0 TO SP-WHITELIST-ENABLE
     MOVE "CobolCraft" TO SP-MOTD
-    *> Default value for the maximum number of players
     MOVE 10 TO MAX-PLAYERS
     MOVE 10 TO MAX-CLIENTS
 
@@ -128,6 +128,13 @@ PROCEDURE DIVISION USING LK-BUFFER LK-BUFFER-LENGTH LK-FAILURE.
                             GOBACK
                         END-IF
 
+                    WHEN "level-name"
+                        MOVE FUNCTION TRIM(ENTRY-VALUE) TO SP-LEVEL-NAME
+                        if FUNCTION STORED-CHAR-LENGTH(SP-LEVEL-NAME) = 0
+                            MOVE 1 TO LK-FAILURE
+                            GOBACK
+                        END-IF
+
                     WHEN "white-list"
                         IF ENTRY-VALUE = "true"
                             MOVE 1 TO SP-WHITELIST-ENABLE
@@ -179,6 +186,10 @@ PROCEDURE DIVISION USING LK-BUFFER LK-BUFFER-LENGTH LK-FAILURE.
     MOVE "server-port" TO ENTRY-KEY
     MOVE SP-PORT TO INT-TO-STR
     MOVE FUNCTION TRIM(INT-TO-STR) TO ENTRY-VALUE
+    PERFORM AppendKeyValue
+
+    MOVE "level-name" TO ENTRY-KEY
+    MOVE SP-LEVEL-NAME TO ENTRY-VALUE
     PERFORM AppendKeyValue
 
     MOVE "white-list" TO ENTRY-KEY

@@ -13,19 +13,22 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
+        COPY DD-SERVER-PROPERTIES.
         01 X-IN         BINARY-LONG.
         01 Z-IN         BINARY-LONG.
         01 RESULT       PIC X(255).
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Region-RegionFileName".
+        DISPLAY "  Test: Region-RegionFileName"
+        MOVE "test-world-name" TO SP-LEVEL-NAME
+        .
     AllZero.
         DISPLAY "    Case: 0 0 - " WITH NO ADVANCING
         MOVE 0 TO X-IN
         MOVE 0 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING X-IN Z-IN RESULT
-        IF RESULT = "save/region/r.0.0.mca"
+        IF RESULT = "test-world-name/region/r.0.0.mca"
             DISPLAY "PASS"
         ELSE
             DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
@@ -36,7 +39,7 @@ PROCEDURE DIVISION.
         MOVE 0 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING X-IN Z-IN RESULT
-        IF RESULT = "save/region/r.-1.0.mca"
+        IF RESULT = "test-world-name/region/r.-1.0.mca"
             DISPLAY "PASS"
         ELSE
             DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
@@ -47,7 +50,7 @@ PROCEDURE DIVISION.
         MOVE -1 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING X-IN Z-IN RESULT
-        IF RESULT = "save/region/r.0.-1.mca"
+        IF RESULT = "test-world-name/region/r.0.-1.mca"
             DISPLAY "PASS"
         ELSE
             DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
@@ -58,7 +61,7 @@ PROCEDURE DIVISION.
         MOVE -5678 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING X-IN Z-IN RESULT
-        IF RESULT = "save/region/r.1234.-5678.mca"
+        IF RESULT = "test-world-name/region/r.1234.-5678.mca"
             DISPLAY "PASS"
         ELSE
             DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
