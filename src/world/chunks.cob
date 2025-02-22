@@ -158,8 +158,9 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z.
         ADD 1 TO BLOCK-INDEX
     END-PERFORM
 
-    *> chunk needs to be saved
-    MOVE 1 TO CHUNK-DIRTY
+    *> chunk needs to be saved (blocks only)
+    MOVE 1 TO CHUNK-DIRTY-BLOCKS
+    MOVE 0 TO CHUNK-DIRTY-ENTITIES
 
     GOBACK.
 
@@ -229,7 +230,7 @@ PROCEDURE DIVISION USING LK-SAVE-REQUIRED.
                 GOBACK
             END-IF
             SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
-            IF CHUNK-DIRTY > 0
+            IF CHUNK-DIRTY-BLOCKS > 0 OR CHUNK-DIRTY-ENTITIES > 0
                 MOVE 1 TO LK-SAVE-REQUIRED
             END-IF
         END-PERFORM
@@ -289,7 +290,7 @@ PROCEDURE DIVISION USING LK-VIEW-DISTANCE LK-FAILURE.
             *> If the chunk is outside the view distance + 2 (for tolerance against thrashing), unload it
             COMPUTE MIN-DISTANCE = MIN-DISTANCE / 16 - LK-VIEW-DISTANCE
             IF MIN-DISTANCE > 2
-                IF CHUNK-DIRTY > 0
+                IF CHUNK-DIRTY-BLOCKS > 0 OR CHUNK-DIRTY-ENTITIES > 0
                     CALL "World-SaveChunk" USING CHUNK-INDEX LK-FAILURE
                     IF LK-FAILURE > 0
                         MOVE 1 TO LK-FAILURE

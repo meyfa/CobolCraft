@@ -119,7 +119,7 @@ PROCEDURE DIVISION USING OPTIONAL LK-CLIENT LK-POSITION LK-BLOCK-ID.
 
     *> Set the block and mark the chunk as dirty
     MOVE LK-BLOCK-ID TO CHUNK-SECTION-BLOCK(SECTION-INDEX, BLOCK-INDEX)
-    MOVE 1 TO CHUNK-DIRTY
+    MOVE 1 TO CHUNK-DIRTY-BLOCKS
 
     *> If the block is changing to a different type (not just state), remove any block entity
     IF PREVIOUS-BLOCK-ID NOT = 0
