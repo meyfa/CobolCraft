@@ -10,20 +10,19 @@
 *> Client data
 01 CLIENTS EXTERNAL.
     02 CLIENT OCCURS 100 TIMES.
-        03 CLIENT-PRESENT       BINARY-CHAR.
+        *> State of the player (see DD-CLIENT-STATES for possible values; -1 = not connected)
+        03 CLIENT-STATE         BINARY-CHAR.
         03 CLIENT-HNDL          PIC X(4).
         *> Any error that occured during a send operation. If non-zero, the client is disconnected on the next tick.
         03 CLIENT-ERRNO-SEND    PIC 9(3).
-        *> State of the player (see DD-CLIENT-STATES for possible values)
-        03 CLIENT-STATE         BINARY-CHAR.
-        03 CONFIG-FINISH        BINARY-CHAR.
         *> The index of the associated player, or 0 if login has not been started
         03 CLIENT-PLAYER        BINARY-LONG.
+        *> Whether we sent the configuration data to the client and are now waiting for an acknowledgement
+        03 CONFIG-FINISH        BINARY-CHAR.
         *> Last keepalive ID sent and received
         03 KEEPALIVE-SENT       BINARY-LONG-LONG.
         03 KEEPALIVE-RECV       BINARY-LONG-LONG.
-        *> Last teleport ID sent and received. Until the client acknowledges the teleport, any movement packets it sends
-        *> are ignored.
+        *> Until the client acknowledges the teleport using the same ID, any movement packets it sends are ignored.
         03 TELEPORT-SENT        BINARY-LONG-LONG.
         03 TELEPORT-RECV        BINARY-LONG-LONG.
         *> Last time the client created a Debug Sample Subscription. The subscription is valid for 10 seconds, and the

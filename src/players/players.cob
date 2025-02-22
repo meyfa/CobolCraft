@@ -193,7 +193,7 @@ PROCEDURE DIVISION.
 
     *> Only tick players in the play state, as ticking may send packets that are not valid in other states.
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-        IF CLIENT-PRESENT(CLIENT-ID) NOT = 0 AND CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
+        IF CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
             MOVE CLIENT-PLAYER(CLIENT-ID) TO PLAYER-ID
             PERFORM TickPlayer
         END-IF
@@ -352,7 +352,7 @@ PROCEDURE DIVISION USING LK-PLAYER LK-AMOUNT LK-DAMAGE-TYPE.
         *> The player is not dead, so the sound won't be played via the entity event packet.
         PERFORM PickDamageSound
         PERFORM VARYING OTHER-CLIENT-ID FROM 1 BY 1 UNTIL OTHER-CLIENT-ID > MAX-CLIENTS
-            IF CLIENT-PRESENT(OTHER-CLIENT-ID) NOT = 0 AND CLIENT-STATE(OTHER-CLIENT-ID) = CLIENT-STATE-PLAY
+            IF CLIENT-STATE(OTHER-CLIENT-ID) = CLIENT-STATE-PLAY
                 CALL "SendPacket-EntitySound" USING OTHER-CLIENT-ID LK-PLAYER SOUND-ID SOUND-VOLUME
             END-IF
         END-PERFORM
@@ -364,7 +364,7 @@ PROCEDURE DIVISION USING LK-PLAYER LK-AMOUNT LK-DAMAGE-TYPE.
     *> For this to have any effect, the player must have 0 health. For the dying player, this is already the case.
     *> For all others, it will be handled by "set entity metadata" in the main loop.
     PERFORM VARYING OTHER-CLIENT-ID FROM 1 BY 1 UNTIL OTHER-CLIENT-ID > MAX-CLIENTS
-        IF CLIENT-PRESENT(OTHER-CLIENT-ID) NOT = 0 AND CLIENT-STATE(OTHER-CLIENT-ID) = CLIENT-STATE-PLAY
+        IF CLIENT-STATE(OTHER-CLIENT-ID) = CLIENT-STATE-PLAY
             CALL "SendPacket-EntityEvent" USING OTHER-CLIENT-ID LK-PLAYER ENTITY-EVENT-DEATH
         END-IF
     END-PERFORM
