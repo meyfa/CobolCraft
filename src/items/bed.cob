@@ -50,7 +50,7 @@ PROCEDURE DIVISION.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
-    PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
+    PROCEDURE DIVISION USING LK-PLAYER LK-SLOT LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
         *> TODO reduce duplication with other callbacks
 
         *> Compute the position of the foot block - use the clicked block position if the block is replaceable.
@@ -107,7 +107,7 @@ PROCEDURE DIVISION.
         CALL "World-SetBlockEntity" USING BLOCK-POSITION-FOOT BLOCK-ENTITY-TYPE
         CALL "World-SetBlockEntity" USING BLOCK-POSITION-HEAD BLOCK-ENTITY-TYPE
 
-        CALL "ItemUtil-ConsumeItem" USING LK-PLAYER
+        CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT
 
         GOBACK.
 

@@ -38,7 +38,7 @@ PROCEDURE DIVISION.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
-    PROCEDURE DIVISION USING LK-PLAYER LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
+    PROCEDURE DIVISION USING LK-PLAYER LK-SLOT LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
         *> TODO reduce duplication with other callbacks
 
         MOVE LK-POSITION TO BLOCK-POSITION
@@ -66,7 +66,7 @@ PROCEDURE DIVISION.
             CALL "Blocks-Get-DefaultStateId" USING LK-ITEM-NAME BLOCK-ID
             CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
 
-            CALL "ItemUtil-ConsumeItem" USING LK-PLAYER
+            CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT
         ELSE
             *> Check for solid block where the torch would attach
             MOVE BLOCK-POSITION TO TARGET-BLOCK-POSITION
@@ -104,7 +104,7 @@ PROCEDURE DIVISION.
             CALL "Blocks-Get-StateId" USING WALL_TORCH-DESCRIPTION BLOCK-ID
             CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
 
-            CALL "ItemUtil-ConsumeItem" USING LK-PLAYER
+            CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT
         END-IF
 
         GOBACK.

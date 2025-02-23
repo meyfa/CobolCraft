@@ -52,6 +52,8 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
             PERFORM DropItemStack
         WHEN ACTION-ENUM = 4
             PERFORM DropItem
+        WHEN ACTION-ENUM = 6
+            PERFORM SwapOffhand
         WHEN OTHER
             *> TODO The following is a workaround to reset the player's inventory until we support all actions fully
             CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
@@ -156,6 +158,14 @@ DropItem.
         SUBTRACT 1 FROM PLAYER-INVENTORY-SLOT-COUNT(PLAYER-ID, SLOT-INDEX + 1)
         CALL "World-DropItem-FromPlayer" USING DROP-SLOT PLAYER-ID
     END-IF
+    .
+
+SwapOffhand.
+    COMPUTE SLOT-INDEX = 36 + PLAYER-HOTBAR(PLAYER-ID)
+    MOVE PLAYER-INVENTORY-SLOT(PLAYER-ID, SLOT-INDEX + 1) TO DROP-SLOT
+    MOVE PLAYER-INVENTORY-SLOT(PLAYER-ID, 46) TO PLAYER-INVENTORY-SLOT(PLAYER-ID, SLOT-INDEX + 1)
+    MOVE DROP-SLOT TO PLAYER-INVENTORY-SLOT(PLAYER-ID, 46)
+    CALL "Inventory-SyncPlayerInventory" USING PLAYER-ID
     .
 
 END PROGRAM RecvPacket-PlayerAction.
