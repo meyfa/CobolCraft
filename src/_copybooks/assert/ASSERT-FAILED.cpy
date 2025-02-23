@@ -1,0 +1,2 @@
+DISPLAY "Assertion failed: " MSG UPON STDERR
+STOP RUN RETURNING 1

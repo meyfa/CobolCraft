@@ -1,0 +1,4 @@
+IF NOT ( COND )
+    DISPLAY "Assertion failed: " MSG UPON STDERR
+    STOP RUN RETURNING 1
+END-IF

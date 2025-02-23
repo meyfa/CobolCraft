@@ -283,25 +283,20 @@ PROCEDURE DIVISION USING LK-CLIENT-STATE LK-PACKET-NAME LK-HANDLER-NAME.
         WHEN CLIENT-STATE-PLAY
             STRING "play/serverbound/" FUNCTION TRIM(LK-PACKET-NAME) INTO PACKET-REFERENCE
         WHEN OTHER
-            DISPLAY "Error: RegisterPacketHandler: Invalid client state " LK-CLIENT-STATE
-            STOP RUN RETURNING 1
+            COPY ASSERT-FAILED REPLACING MSG BY =="Error: RegisterPacketHandler: Invalid client state " LK-CLIENT-STATE==.
     END-EVALUATE
 
     CALL "Packets-GetId" USING PACKET-REFERENCE PACKET-ID
-    IF PACKET-ID < 0
-        DISPLAY "Error: RegisterPacketHandler: Invalid packet reference '" FUNCTION TRIM(PACKET-REFERENCE) "'"
-        STOP RUN RETURNING 1
-    END-IF
-    IF PACKET-ID >= PACKET-HANDLERS-CAPACITY
-        DISPLAY "Error: RegisterPacketHandler: ID of packet '" FUNCTION TRIM(PACKET-REFERENCE) "' exceeds capacity"
-        STOP RUN RETURNING 1
-    END-IF
+
+    COPY ASSERT REPLACING COND BY ==PACKET-ID >= 0==,
+        MSG BY =="RegisterPacketHandler: Invalid packet reference '" FUNCTION TRIM(PACKET-REFERENCE) "'"==.
+    COPY ASSERT REPLACING COND BY ==PACKET-ID < PACKET-HANDLERS-CAPACITY==,
+        MSG BY =="RegisterPacketHandler: ID of packet '" FUNCTION TRIM(PACKET-REFERENCE) "' exceeds capacity"==.
 
     SET HANDLER-PTR TO ENTRY LK-HANDLER-NAME
-    IF HANDLER-PTR = NULL
-        DISPLAY "Error: RegisterPacketHandler: Invalid handler name '" FUNCTION TRIM(LK-HANDLER-NAME) "'"
-        STOP RUN RETURNING 1
-    END-IF
+
+    COPY ASSERT REPLACING COND BY ==HANDLER-PTR NOT = NULL==,
+        MSG BY =="RegisterPacketHandler: Invalid handler name '" FUNCTION TRIM(LK-HANDLER-NAME) "'"==.
 
     MOVE HANDLER-PTR TO PACKET-HANDLER(LK-CLIENT-STATE + 1, PACKET-ID + 1)
     GOBACK.

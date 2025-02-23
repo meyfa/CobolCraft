@@ -18,10 +18,8 @@ PROCEDURE DIVISION.
     SET TICK-PTR TO ENTRY "Callback-Tick"
 
     CALL "Registries-GetRegistryIndex" USING "minecraft:entity_type" REGISTRY-INDEX
-    IF REGISTRY-INDEX <= 0
-        DISPLAY "Failed to find entity type registry"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==REGISTRY-INDEX > 0==,
+        MSG BY =="RegisterEntity-Generic: Missing entity type registry"==.
 
     CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
     PERFORM VARYING REGISTRY-ENTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-ENTRY-INDEX > REGISTRY-LENGTH
