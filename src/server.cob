@@ -307,6 +307,18 @@ RegisterBlocks.
     DISPLAY "done"
     .
 
+RegisterEntities.
+    DISPLAY "Registering entity behavior...  " WITH NO ADVANCING
+
+    *> Register generic handlers for every entity type
+    CALL "RegisterEntity-Generic"
+
+    *> Register entities with special handling
+    CALL "RegisterEntity-Item"
+
+    DISPLAY "done"
+    .
+
 RegisterWindows.
     DISPLAY "Registering window behavior...  " WITH NO ADVANCING
 

@@ -46,8 +46,8 @@ WORKING-STORAGE SECTION.
     01 PALETTE-INDICES.
         02 PALETTE-INDEX OCCURS PALETTE-CAPACITY TIMES BINARY-SHORT UNSIGNED.
     *> entity data
-    01 ENTITY-PTR               USAGE POINTER.
-    01 ENTITY-TYPE-STR          PIC X(256).
+    01 ENTITY-PTR               POINTER.
+    01 SERIALIZE-PTR            PROGRAM-POINTER.
 LINKAGE SECTION.
     01 LK-CHUNK-INDEX           BINARY-LONG UNSIGNED.
     01 LK-FAILURE               BINARY-CHAR UNSIGNED.
@@ -355,105 +355,23 @@ SaveChunkEntities.
     PERFORM UNTIL ENTITY-PTR = NULL
         SET ADDRESS OF ENTITY-LIST TO ENTITY-PTR
 
+        *> start entity
         CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER
-
-        *> Entity UUID
-        MOVE "UUID" TO TAG-NAME
-        MOVE 4 TO NAME-LEN
-        CALL "NbtEncode-UUID" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN ENTITY-UUID
 
         *> Entity type as a string ("id" tag)
         MOVE "id" TO TAG-NAME
         MOVE 2 TO NAME-LEN
-        CALL "Registries-Get-EntryName" USING "minecraft:entity_type" ENTITY-TYPE ENTITY-TYPE-STR
-        MOVE FUNCTION STORED-CHAR-LENGTH(ENTITY-TYPE-STR) TO STR-LEN
-        CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN ENTITY-TYPE-STR STR-LEN
+        CALL "Registries-Get-EntryName" USING "minecraft:entity_type" ENTITY-TYPE STR
+        MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
+        CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
 
-        *> Position
-        MOVE "Pos" TO TAG-NAME
-        MOVE 3 TO NAME-LEN
-        CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-        CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED ENTITY-X
-        CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED ENTITY-Y
-        CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED ENTITY-Z
-        CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
-
-        *> Rotation
-        MOVE "Rotation" TO TAG-NAME
-        MOVE 8 TO NAME-LEN
-        CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-        CALL "NbtEncode-Float" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED ENTITY-YAW
-        CALL "NbtEncode-Float" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED ENTITY-PITCH
-        CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
-
-        *> Velocity
-        MOVE "Motion" TO TAG-NAME
-        MOVE 6 TO NAME-LEN
-        CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-        CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED ENTITY-VELOCITY-X
-        CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED ENTITY-VELOCITY-Y
-        CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED ENTITY-VELOCITY-Z
-        CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
-
-        *> On ground
-        MOVE "OnGround" TO TAG-NAME
-        MOVE 8 TO NAME-LEN
-        CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN ENTITY-ON-GROUND
-
-        *> No gravity
-        MOVE "NoGravity" TO TAG-NAME
-        MOVE 9 TO NAME-LEN
-        CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN ENTITY-NO-GRAVITY
-
-        *> Item entities
-        *> TODO: move this logic out of the chunk save routine
-        IF ENTITY-TYPE-STR = "minecraft:item"
-            *> Age
-            MOVE "Age" TO TAG-NAME
-            MOVE 3 TO NAME-LEN
-            MOVE ENTITY-AGE TO INT16
-            CALL "NbtEncode-Short" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN INT16
-
-            *> Item slot
-            MOVE "Item" TO TAG-NAME
-            MOVE 4 TO NAME-LEN
-            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-
-            *> Item: id
-            MOVE "id" TO TAG-NAME
-            MOVE 2 TO NAME-LEN
-            MOVE ENTITY-ITEM-SLOT-ID TO INT32
-            CALL "Registries-Get-EntryName" USING "minecraft:item" INT32 STR
-            MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
-            CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
-
-            *> Item: count
-            MOVE "Count" TO TAG-NAME
-            MOVE 5 TO NAME-LEN
-            MOVE ENTITY-ITEM-SLOT-COUNT TO INT32
-            CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN INT32
-
-            *> Item: components
-            *> TODO encode the structured components
-            IF ENTITY-ITEM-SLOT-NBT-LENGTH > 0
-                MOVE "tag" TO TAG-NAME
-                MOVE 3 TO NAME-LEN
-                CALL "NbtEncode-ByteBuffer" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN ENTITY-ITEM-SLOT-NBT-DATA ENTITY-ITEM-SLOT-NBT-LENGTH
-            END-IF
-
-            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
-
-            *> Pickup delay
-            MOVE "PickupDelay" TO TAG-NAME
-            MOVE 11 TO NAME-LEN
-            MOVE ENTITY-ITEM-PICKUP-DELAY TO INT16
-            CALL "NbtEncode-Short" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN INT16
-
-            *> TODO health, owner, thrower
+        *> Entity serialization routine
+        CALL "GetCallback-EntitySerialize" USING ENTITY-TYPE SERIALIZE-PTR
+        IF SERIALIZE-PTR NOT = NULL
+            CALL SERIALIZE-PTR USING ENTITY-LIST-ENTITY NBT-ENCODER-STATE NBT-BUFFER
         END-IF
 
-        *> TODO add more properties common to all entities
-
+        *> end entity
         CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
 
         SET ENTITY-PTR TO ENTITY-LIST-NEXT
@@ -499,7 +417,6 @@ WORKING-STORAGE SECTION.
     01 STR                      PIC X(256).
     01 STR-LEN                  BINARY-LONG UNSIGNED.
     01 INT8                     BINARY-CHAR.
-    01 INT16                    BINARY-SHORT.
     01 INT32                    BINARY-LONG.
     01 CHUNK-STATUS             PIC X(64).
     01 CHUNK-STATUS-ID          BINARY-LONG.
@@ -521,7 +438,8 @@ WORKING-STORAGE SECTION.
     COPY DD-CHUNK-REF.
     COPY DD-CHUNK-ENTITY.
     *> entity data
-    01 ENTITY-PTR               USAGE POINTER.
+    01 ENTITY-PTR               POINTER.
+    01 DESERIALIZE-PTR          PROGRAM-POINTER.
 LINKAGE SECTION.
     01 LK-CHUNK-X               BINARY-LONG.
     01 LK-CHUNK-Z               BINARY-LONG.
@@ -736,7 +654,7 @@ LoadChunkEntities.
     *> Load in the same order as they were saved
     PERFORM CHUNK-ENTITY-COUNT TIMES
         IF CHUNK-ENTITY-LIST = NULL
-            *> First entity: allocate, then simply set as list head
+            *> First entity: allocate and set as list head
             ALLOCATE ENTITY-LIST
             INITIALIZE ENTITY-LIST
             SET ENTITY-PTR TO ADDRESS OF ENTITY-LIST
@@ -749,6 +667,29 @@ LoadChunkEntities.
             SET ENTITY-PTR TO ENTITY-LIST-NEXT
         END-IF
 
+        *> start entity
+        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
+
+        *> find the entity type
+        MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
+        MOVE "id" TO EXPECTED-TAG
+        MOVE 2 TO NAME-LEN
+        CALL "NbtDecode-SkipUntilTag" USING NBT-SEEK-STATE NBT-BUFFER EXPECTED-TAG AT-END
+        IF AT-END > 0
+            DISPLAY "ERROR: Entity missing id tag"
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+
+        CALL "NbtDecode-String" USING NBT-SEEK-STATE NBT-BUFFER STR STR-LEN
+        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" STR(1:STR-LEN) ENTITY-TYPE
+        IF ENTITY-TYPE < 0
+            DISPLAY "ERROR: Unknown entity type: " FUNCTION TRIM(STR(1:STR-LEN))
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+
+        *> Initialize default fields
         CALL "World-NextEntityId" USING ENTITY-ID
         MOVE CHUNK-X TO ENTITY-CHUNK-X
         MOVE CHUNK-Z TO ENTITY-CHUNK-Z
@@ -757,77 +698,21 @@ LoadChunkEntities.
         MOVE 2 TO ENTITY-ITEM-SLOT-NBT-LENGTH
         MOVE X"0000" TO ENTITY-ITEM-SLOT-NBT-DATA
 
-        *> start entity
-        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
+        *> obtain its deserialize routine
+        CALL "GetCallback-EntityDeserialize" USING ENTITY-TYPE DESERIALIZE-PTR
+        IF DESERIALIZE-PTR = NULL
+            DISPLAY "No deserialize routine for entity type " ENTITY-TYPE
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
 
+        *> deserialize the entity
         PERFORM UNTIL EXIT
             CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
             IF AT-END > 0
                 EXIT PERFORM
             END-IF
-
-            EVALUATE TAG-NAME(1:NAME-LEN)
-                WHEN "UUID"
-                    CALL "NbtDecode-UUID" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-UUID
-                WHEN "id"
-                    CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
-                    CALL "Registries-Get-EntryId" USING "minecraft:entity_type" STR(1:STR-LEN) ENTITY-TYPE
-                WHEN "Pos"
-                    CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER INT32
-                    CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-X
-                    CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-Y
-                    CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-Z
-                    CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
-                WHEN "Rotation"
-                    CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER INT32
-                    CALL "NbtDecode-Float" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-YAW
-                    CALL "NbtDecode-Float" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-PITCH
-                    CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
-                WHEN "Motion"
-                    CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER INT32
-                    CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-VELOCITY-X
-                    CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-VELOCITY-Y
-                    CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-VELOCITY-Z
-                    CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
-                WHEN "OnGround"
-                    CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-ON-GROUND
-                WHEN "NoGravity"
-                    CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-NO-GRAVITY
-
-                *> For item entities
-                *> TODO: abstract away type-specific parsing code
-                WHEN "Age"
-                    CALL "NbtDecode-Short" USING NBT-DECODER-STATE NBT-BUFFER INT16
-                    MOVE INT16 TO ENTITY-AGE
-                WHEN "Item"
-                    CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
-                    PERFORM UNTIL EXIT
-                        CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
-                        IF AT-END > 0
-                            EXIT PERFORM
-                        END-IF
-                        EVALUATE TAG-NAME(1:NAME-LEN)
-                            WHEN "id"
-                                CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
-                                CALL "Registries-Get-EntryId" USING "minecraft:item" STR(1:STR-LEN) ENTITY-ITEM-SLOT-ID
-                            WHEN "Count"
-                                CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER INT32
-                                MOVE INT32 TO ENTITY-ITEM-SLOT-COUNT
-                            *> TODO: decode the structured components
-                            WHEN "tag"
-                                CALL "NbtDecode-ByteBuffer" USING NBT-DECODER-STATE NBT-BUFFER ENTITY-ITEM-SLOT-NBT-DATA ENTITY-ITEM-SLOT-NBT-LENGTH
-                            WHEN OTHER
-                                CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
-                        END-EVALUATE
-                    END-PERFORM
-                    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
-                WHEN "PickupDelay"
-                    CALL "NbtDecode-Short" USING NBT-DECODER-STATE NBT-BUFFER INT16
-                    MOVE INT16 TO ENTITY-ITEM-PICKUP-DELAY
-
-                WHEN OTHER
-                    CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
-            END-EVALUATE
+            CALL DESERIALIZE-PTR USING ENTITY-LIST-ENTITY NBT-DECODER-STATE NBT-BUFFER TAG-NAME(1:NAME-LEN)
         END-PERFORM
 
         *> end entity

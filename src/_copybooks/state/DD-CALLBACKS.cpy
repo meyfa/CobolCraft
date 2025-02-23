@@ -19,6 +19,16 @@
         *> Called to determine the item form of a block, such as for the "pick block" action (middle-click).
         03 CB-PTR-BLOCK-ITEM USAGE PROGRAM-POINTER.
 
+*> One set of callbacks per entity type.
+01 ENTITY-CALLBACKS EXTERNAL.
+    02 CALLBACK OCCURS 200 TIMES.
+        *> Called when an entity is updated during the game tick.
+        03 CB-PTR-TICK USAGE PROGRAM-POINTER.
+        *> Called to save entity data into an NBT compound tag for storage.
+        03 CB-PTR-SERIALIZE USAGE PROGRAM-POINTER.
+        *> Called to load entity data from an NBT compound tag.
+        03 CB-PTR-DESERIALIZE USAGE PROGRAM-POINTER.
+
 *> One set of callbacks per window type (inventories, enchanting tables, etc.).
 *> The player inventory does not have a window type, and hence must be stored separately.
 01 WINDOW-CALLBACKS EXTERNAL.
