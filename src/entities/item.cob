@@ -28,58 +28,44 @@ PROCEDURE DIVISION.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        01 TAG                  PIC X(16).
-        01 LEN                  BINARY-LONG UNSIGNED.
         01 STR                  PIC X(256).
-        01 STR-LEN              BINARY-LONG UNSIGNED.
+        01 LEN                  BINARY-LONG UNSIGNED.
         01 INT16                BINARY-SHORT.
         01 INT32                BINARY-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ENTITY-SERIALIZE.
 
-    PROCEDURE DIVISION USING LK-ENTITY LK-NBT-ENCODER-STATE LK-BUFFER.
-        CALL "EntityBase-Serialize" USING LK-ENTITY LK-NBT-ENCODER-STATE LK-BUFFER
+    PROCEDURE DIVISION USING LK-ENTITY LK-NBTENC LK-BUFFER.
+        CALL "EntityBase-Serialize" USING LK-ENTITY LK-NBTENC LK-BUFFER
 
         *> Age
-        MOVE "Age" TO TAG
-        MOVE 3 TO LEN
         MOVE LK-ENTITY-AGE TO INT16
-        CALL "NbtEncode-Short" USING LK-NBT-ENCODER-STATE LK-BUFFER TAG LEN INT16
+        CALL "NbtEncode-Short" USING LK-NBTENC LK-BUFFER "Age" INT16
 
         *> Item slot
-        MOVE "Item" TO TAG
-        MOVE 4 TO LEN
-        CALL "NbtEncode-Compound" USING LK-NBT-ENCODER-STATE LK-BUFFER TAG LEN
+        CALL "NbtEncode-Compound" USING LK-NBTENC LK-BUFFER "Item"
 
         *> Item: id
-        MOVE "id" TO TAG
-        MOVE 2 TO LEN
         MOVE ENTITY-ITEM-SLOT-ID TO INT32
         CALL "Registries-Get-EntryName" USING "minecraft:item" INT32 STR
-        MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
-        CALL "NbtEncode-String" USING LK-NBT-ENCODER-STATE LK-BUFFER TAG LEN STR STR-LEN
+        MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
+        CALL "NbtEncode-String" USING LK-NBTENC LK-BUFFER "id" STR LEN
 
         *> Item: count
-        MOVE "Count" TO TAG
-        MOVE 5 TO LEN
         MOVE ENTITY-ITEM-SLOT-COUNT TO INT32
-        CALL "NbtEncode-Int" USING LK-NBT-ENCODER-STATE LK-BUFFER TAG LEN INT32
+        CALL "NbtEncode-Int" USING LK-NBTENC LK-BUFFER "Count" INT32
 
         *> Item: components
         *> TODO encode the structured components
         IF ENTITY-ITEM-SLOT-NBT-LENGTH > 0
-            MOVE "tag" TO TAG
-            MOVE 3 TO LEN
-            CALL "NbtEncode-ByteBuffer" USING LK-NBT-ENCODER-STATE LK-BUFFER TAG LEN ENTITY-ITEM-SLOT-NBT-DATA ENTITY-ITEM-SLOT-NBT-LENGTH
+            CALL "NbtEncode-ByteBuffer" USING LK-NBTENC LK-BUFFER "tag" ENTITY-ITEM-SLOT-NBT-DATA ENTITY-ITEM-SLOT-NBT-LENGTH
         END-IF
 
-        CALL "NbtEncode-EndCompound" USING LK-NBT-ENCODER-STATE LK-BUFFER
+        CALL "NbtEncode-EndCompound" USING LK-NBTENC LK-BUFFER
 
         *> Pickup delay
-        MOVE "PickupDelay" TO TAG
-        MOVE 11 TO LEN
         MOVE LK-ENTITY-ITEM-PICKUP-DELAY TO INT16
-        CALL "NbtEncode-Short" USING LK-NBT-ENCODER-STATE LK-BUFFER TAG LEN INT16
+        CALL "NbtEncode-Short" USING LK-NBTENC LK-BUFFER "PickupDelay" INT16
 
         *> TODO health, owner, thrower
 
@@ -102,43 +88,43 @@ PROCEDURE DIVISION.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ENTITY-DESERIALIZE.
 
-    PROCEDURE DIVISION USING LK-ENTITY LK-NBT-DECODER-STATE LK-BUFFER LK-TAG.
+    PROCEDURE DIVISION USING LK-ENTITY LK-NBTDEC LK-BUFFER LK-TAG.
         EVALUATE LK-TAG
             WHEN "Age"
-                CALL "NbtDecode-Short" USING LK-NBT-DECODER-STATE LK-BUFFER INT16
+                CALL "NbtDecode-Short" USING LK-NBTDEC LK-BUFFER INT16
                 MOVE INT16 TO LK-ENTITY-AGE
             WHEN "Item"
                 PERFORM DeserializeItem
             WHEN "PickupDelay"
-                CALL "NbtDecode-Short" USING LK-NBT-DECODER-STATE LK-BUFFER INT16
+                CALL "NbtDecode-Short" USING LK-NBTDEC LK-BUFFER INT16
                 MOVE INT16 TO LK-ENTITY-ITEM-PICKUP-DELAY
             WHEN OTHER
-                CALL "EntityBase-Deserialize" USING LK-ENTITY LK-NBT-DECODER-STATE LK-BUFFER LK-TAG
+                CALL "EntityBase-Deserialize" USING LK-ENTITY LK-NBTDEC LK-BUFFER LK-TAG
         END-EVALUATE
         GOBACK.
 
     DeserializeItem.
-        CALL "NbtDecode-Compound" USING LK-NBT-DECODER-STATE LK-BUFFER
+        CALL "NbtDecode-Compound" USING LK-NBTDEC LK-BUFFER
         PERFORM UNTIL EXIT
-            CALL "NbtDecode-Peek" USING LK-NBT-DECODER-STATE LK-BUFFER AT-END TAG LEN
+            CALL "NbtDecode-Peek" USING LK-NBTDEC LK-BUFFER AT-END TAG
             IF AT-END > 0
                 EXIT PERFORM
             END-IF
-            EVALUATE TAG(1:LEN)
+            EVALUATE TAG
                 WHEN "id"
-                    CALL "NbtDecode-String" USING LK-NBT-DECODER-STATE LK-BUFFER STR LEN
+                    CALL "NbtDecode-String" USING LK-NBTDEC LK-BUFFER STR LEN
                     CALL "Registries-Get-EntryId" USING "minecraft:item" STR(1:LEN) ENTITY-ITEM-SLOT-ID
                 WHEN "Count"
-                    CALL "NbtDecode-Int" USING LK-NBT-DECODER-STATE LK-BUFFER INT32
+                    CALL "NbtDecode-Int" USING LK-NBTDEC LK-BUFFER INT32
                     MOVE INT32 TO ENTITY-ITEM-SLOT-COUNT
                 *> TODO: decode the structured components
                 WHEN "tag"
-                    CALL "NbtDecode-ByteBuffer" USING LK-NBT-DECODER-STATE LK-BUFFER ENTITY-ITEM-SLOT-NBT-DATA ENTITY-ITEM-SLOT-NBT-LENGTH
+                    CALL "NbtDecode-ByteBuffer" USING LK-NBTDEC LK-BUFFER ENTITY-ITEM-SLOT-NBT-DATA ENTITY-ITEM-SLOT-NBT-LENGTH
                 WHEN OTHER
-                    CALL "NbtDecode-Skip" USING LK-NBT-DECODER-STATE LK-BUFFER
+                    CALL "NbtDecode-Skip" USING LK-NBTDEC LK-BUFFER
             END-EVALUATE
         END-PERFORM
-        CALL "NbtDecode-EndCompound" USING LK-NBT-DECODER-STATE LK-BUFFER
+        CALL "NbtDecode-EndCompound" USING LK-NBTDEC LK-BUFFER
         .
 
     END PROGRAM Callback-Deserialize.

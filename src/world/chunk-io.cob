@@ -6,15 +6,14 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGION-FILES.
     01 FILE-TYPE                BINARY-CHAR UNSIGNED.
-    01 NBT-BUFFER               PIC X(1048576).
-    01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
+    01 BUFFER                   PIC X(1048576).
+    01 BUFFER-LENGTH            BINARY-LONG UNSIGNED.
     COPY DD-NBT-ENCODER.
     01 CHUNK-SECTION-MIN-Y      BINARY-LONG                 VALUE -4.
     *> Temporary variables
-    01 TAG-NAME                 PIC X(256).
-    01 NAME-LEN                 BINARY-LONG UNSIGNED.
+    01 TAG                      PIC X(256).
     01 STR                      PIC X(256).
-    01 STR-LEN                  BINARY-LONG UNSIGNED.
+    01 LEN                      BINARY-LONG UNSIGNED.
     01 INT8                     BINARY-CHAR.
     01 INT16                    BINARY-SHORT.
     01 INT32                    BINARY-LONG.
@@ -57,12 +56,12 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
     MOVE 0 TO LK-FAILURE
 
     IF CHUNK-DIRTY-BLOCKS > 0
-        INITIALIZE NBT-ENCODER-STATE
+        INITIALIZE NBTENC
         PERFORM SaveChunkRegion
     END-IF
 
     IF LK-FAILURE = 0 AND CHUNK-DIRTY-ENTITIES > 0
-        INITIALIZE NBT-ENCODER-STATE
+        INITIALIZE NBTENC
         PERFORM SaveChunkEntities
     END-IF
 
@@ -70,45 +69,31 @@ PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
 
 SaveChunkRegion.
     *> start root tag
-    MOVE 1 TO NBT-ENCODER-OFFSET
-    CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+    MOVE 1 TO NBTENC-OFFSET
+    CALL "NbtEncode-RootCompound" USING NBTENC BUFFER
 
-    *> chunk position
-    MOVE 4 TO NAME-LEN
-    MOVE "xPos" TO TAG-NAME
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN CHUNK-X
-    MOVE "zPos" TO TAG-NAME
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN CHUNK-Z
-    MOVE "yPos" TO TAG-NAME
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN CHUNK-SECTION-MIN-Y
+    CALL "NbtEncode-Int" USING NBTENC BUFFER "xPos" CHUNK-X
+    CALL "NbtEncode-Int" USING NBTENC BUFFER "zPos" CHUNK-Z
+    CALL "NbtEncode-Int" USING NBTENC BUFFER "yPos" CHUNK-SECTION-MIN-Y
 
     *> start chunk sections
-    MOVE "sections" TO TAG-NAME
-    MOVE 8 TO NAME-LEN
-    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+    CALL "NbtEncode-List" USING NBTENC BUFFER "sections"
 
     PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > CHUNK-SECTION-COUNT
         *> only write sections that are not entirely air
         *> Note: The official format stores all sections, but it seems unnecessary, so we don't.
         IF CHUNK-SECTION-NON-AIR(SECTION-INDEX) > 0
             *> start section
-            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED
+            CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
 
-            *> section position
-            MOVE "Y" TO TAG-NAME
-            MOVE 1 TO NAME-LEN
             COMPUTE INT8 = SECTION-INDEX - 1 + CHUNK-SECTION-MIN-Y
-            CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN INT8
+            CALL "NbtEncode-Byte" USING NBTENC BUFFER "Y" INT8
 
             *> block states - palette and data
-            MOVE "block_states" TO TAG-NAME
-            MOVE 12 TO NAME-LEN
-            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+            CALL "NbtEncode-Compound" USING NBTENC BUFFER "block_states"
 
             *> palette
-            MOVE "palette" TO TAG-NAME
-            MOVE 7 TO NAME-LEN
-            CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+            CALL "NbtEncode-List" USING NBTENC BUFFER "palette"
 
             MOVE 0 TO PALETTE-LENGTH
             INITIALIZE PALETTE-INDICES
@@ -121,40 +106,28 @@ SaveChunkRegion.
                     MOVE PALETTE-LENGTH TO PALETTE-INDEX(CURRENT-BLOCK-ID + 1)
                     CALL "Blocks-Get-StateDescription" USING CURRENT-BLOCK-ID PALETTE-BLOCK-DESCRIPTION
 
-                    *> start palette entry
-                    CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED
+                    CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
 
-                    *> name
-                    MOVE "Name" TO TAG-NAME
-                    MOVE 4 TO NAME-LEN
-                    MOVE FUNCTION STORED-CHAR-LENGTH(PALETTE-BLOCK-NAME) TO STR-LEN
-                    CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PALETTE-BLOCK-NAME STR-LEN
+                    MOVE FUNCTION STORED-CHAR-LENGTH(PALETTE-BLOCK-NAME) TO LEN
+                    CALL "NbtEncode-String" USING NBTENC BUFFER "Name" PALETTE-BLOCK-NAME LEN
 
                     IF PALETTE-BLOCK-PROPERTY-COUNT > 0
-                        *> start properties
-                        MOVE "Properties" TO TAG-NAME
-                        MOVE 10 TO NAME-LEN
-                        CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-
+                        CALL "NbtEncode-Compound" USING NBTENC BUFFER "Properties"
                         PERFORM VARYING PROPERTY-INDEX FROM 1 BY 1 UNTIL PROPERTY-INDEX > PALETTE-BLOCK-PROPERTY-COUNT
-                            MOVE PALETTE-BLOCK-PROPERTY-NAME(PROPERTY-INDEX) TO TAG-NAME
-                            MOVE FUNCTION STORED-CHAR-LENGTH(TAG-NAME) TO NAME-LEN
+                            MOVE PALETTE-BLOCK-PROPERTY-NAME(PROPERTY-INDEX) TO TAG
                             MOVE PALETTE-BLOCK-PROPERTY-VALUE(PROPERTY-INDEX) TO STR
-                            MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
-                            CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
+                            MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
+                            CALL "NbtEncode-String" USING NBTENC BUFFER TAG(1:FUNCTION STORED-CHAR-LENGTH(TAG)) STR LEN
                         END-PERFORM
-
-                        *> end properties
-                        CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+                        CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
                     END-IF
 
-                    *> end palette entry
-                    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+                    CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
                 END-IF
             END-PERFORM
 
             *> end palette
-            CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+            CALL "NbtEncode-EndList" USING NBTENC BUFFER
 
             *> Note: We only need to encode data if the palette length is greater than 1
             IF PALETTE-LENGTH > 1
@@ -170,10 +143,7 @@ SaveChunkRegion.
                 DIVIDE 4096 BY ENTRIES-PER-LONG GIVING LONG-ARRAY-LENGTH ROUNDED MODE IS TOWARD-GREATER
 
                 *> data (packed long array)
-                MOVE "data" TO TAG-NAME
-                MOVE 4 TO NAME-LEN
-                CALL "NbtEncode-LongArray" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN LONG-ARRAY-LENGTH
-
+                CALL "NbtEncode-LongArray" USING NBTENC BUFFER "data" LONG-ARRAY-LENGTH
                 MOVE 1 TO BLOCK-INDEX
                 PERFORM LONG-ARRAY-LENGTH TIMES
                     MOVE 0 TO LONG-ARRAY-ENTRY
@@ -184,22 +154,18 @@ SaveChunkRegion.
                         MULTIPLY LONG-ARRAY-MULTIPLIER BY PALETTE-BITS-POW GIVING LONG-ARRAY-MULTIPLIER
                         ADD 1 TO BLOCK-INDEX
                     END-PERFORM
-                    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED LONG-ARRAY-ENTRY-SIGNED
+                    CALL "NbtEncode-Long" USING NBTENC BUFFER OMITTED LONG-ARRAY-ENTRY-SIGNED
                 END-PERFORM
             END-IF
 
             *> end block states
-            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+            CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
 
             *> biomes - palette and data
-            MOVE "biomes" TO TAG-NAME
-            MOVE 6 TO NAME-LEN
-            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+            CALL "NbtEncode-Compound" USING NBTENC BUFFER "biomes"
 
             *> palette
-            MOVE "palette" TO TAG-NAME
-            MOVE 7 TO NAME-LEN
-            CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+            CALL "NbtEncode-List" USING NBTENC BUFFER "palette"
 
             MOVE 0 TO PALETTE-LENGTH
             INITIALIZE PALETTE-INDICES
@@ -211,13 +177,13 @@ SaveChunkRegion.
                     ADD 1 TO PALETTE-LENGTH
                     MOVE PALETTE-LENGTH TO PALETTE-INDEX(CURRENT-BIOME-ID + 1)
                     CALL "Registries-Get-EntryName" USING "minecraft:worldgen/biome" CURRENT-BIOME-ID STR
-                    MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
-                    CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED STR STR-LEN
+                    MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
+                    CALL "NbtEncode-String" USING NBTENC BUFFER OMITTED STR LEN
                 END-IF
             END-PERFORM
 
             *> end palette
-            CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+            CALL "NbtEncode-EndList" USING NBTENC BUFFER
 
             *> Note: We only need to encode data if the palette length is greater than 1
             IF PALETTE-LENGTH > 1
@@ -232,10 +198,7 @@ SaveChunkRegion.
                 DIVIDE 64 BY ENTRIES-PER-LONG GIVING LONG-ARRAY-LENGTH ROUNDED MODE IS TOWARD-GREATER
 
                 *> data (packed long array)
-                MOVE "data" TO TAG-NAME
-                MOVE 4 TO NAME-LEN
-                CALL "NbtEncode-LongArray" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN LONG-ARRAY-LENGTH
-
+                CALL "NbtEncode-LongArray" USING NBTENC BUFFER "data" LONG-ARRAY-LENGTH
                 MOVE 1 TO BIOME-INDEX
                 PERFORM LONG-ARRAY-LENGTH TIMES
                     MOVE 0 TO LONG-ARRAY-ENTRY
@@ -246,25 +209,23 @@ SaveChunkRegion.
                         MULTIPLY LONG-ARRAY-MULTIPLIER BY PALETTE-BITS-POW GIVING LONG-ARRAY-MULTIPLIER
                         ADD 1 TO BIOME-INDEX
                     END-PERFORM
-                    CALL "NbtEncode-Long" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED LONG-ARRAY-ENTRY-SIGNED
+                    CALL "NbtEncode-Long" USING NBTENC BUFFER OMITTED LONG-ARRAY-ENTRY-SIGNED
                 END-PERFORM
             END-IF
 
             *> end biomes
-            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+            CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
 
             *> end section
-            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+            CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
         END-IF
     END-PERFORM
 
     *> end chunk sections
-    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-EndList" USING NBTENC BUFFER
 
     *> start block entities
-    MOVE "block_entities" TO TAG-NAME
-    MOVE 14 TO NAME-LEN
-    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+    CALL "NbtEncode-List" USING NBTENC BUFFER "block_entities"
 
     IF CHUNK-BLOCK-ENTITY-COUNT > 0
         MOVE 1 TO BLOCK-INDEX
@@ -272,15 +233,12 @@ SaveChunkRegion.
         PERFORM 98304 TIMES
             IF CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) >= 0
                 *> start block entity
-                CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER
+                CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
 
-                *> id (registry: "minecraft:block_entity_type")
-                MOVE "id" TO TAG-NAME
-                MOVE 2 TO NAME-LEN
                 MOVE CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) TO INT32
                 CALL "Registries-Get-EntryName" USING "minecraft:block_entity_type" INT32 STR
-                MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
-                CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
+                MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
+                CALL "NbtEncode-String" USING NBTENC BUFFER "id" STR LEN
 
                 *> x, y, z
                 SUBTRACT 1 FROM BLOCK-INDEX GIVING INT32
@@ -290,19 +248,15 @@ SaveChunkRegion.
                 *> x and z are in the world coordinate system
                 COMPUTE BLOCK-ENTITY-X = BLOCK-ENTITY-X + CHUNK-X * 16
                 COMPUTE BLOCK-ENTITY-Z = BLOCK-ENTITY-Z + CHUNK-Z * 16
-                *> store the coordinates
-                MOVE 1 TO NAME-LEN
-                MOVE "x" TO TAG-NAME
-                CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN BLOCK-ENTITY-X
-                MOVE "y" TO TAG-NAME
-                CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN BLOCK-ENTITY-Y
-                MOVE "z" TO TAG-NAME
-                CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN BLOCK-ENTITY-Z
+
+                CALL "NbtEncode-Int" USING NBTENC BUFFER "x" BLOCK-ENTITY-X
+                CALL "NbtEncode-Int" USING NBTENC BUFFER "y" BLOCK-ENTITY-Y
+                CALL "NbtEncode-Int" USING NBTENC BUFFER "z" BLOCK-ENTITY-Z
 
                 *> TODO: write the block entity-specific data
 
                 *> end block entity
-                CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+                CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
 
                 *> stop the loop once all block entities have been written
                 ADD 1 TO BLOCK-ENTITY-COUNT
@@ -315,15 +269,15 @@ SaveChunkRegion.
     END-IF
 
     *> end block entities
-    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-EndList" USING NBTENC BUFFER
 
     *> end root tag
-    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
 
     *> Save the chunk
-    COMPUTE NBT-BUFFER-LENGTH = NBT-ENCODER-OFFSET - 1
+    COMPUTE BUFFER-LENGTH = NBTENC-OFFSET - 1
     MOVE FILE-TYPE-REGION TO FILE-TYPE
-    CALL "Region-WriteChunkData" USING FILE-TYPE CHUNK-X CHUNK-Z NBT-BUFFER NBT-BUFFER-LENGTH LK-FAILURE
+    CALL "Region-WriteChunkData" USING FILE-TYPE CHUNK-X CHUNK-Z BUFFER BUFFER-LENGTH LK-FAILURE
     IF LK-FAILURE NOT = 0
         GOBACK
     END-IF
@@ -335,58 +289,48 @@ SaveChunkEntities.
     *> Save the chunk entities to the entity data file
 
     *> start root tag
-    MOVE 1 TO NBT-ENCODER-OFFSET
-    CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+    MOVE 1 TO NBTENC-OFFSET
+    CALL "NbtEncode-RootCompound" USING NBTENC BUFFER
 
-    *> Position
-    MOVE "Position" TO TAG-NAME
-    MOVE 8 TO NAME-LEN
+    *> chunk position
     MOVE 2 TO INT32
-    CALL "NbtEncode-IntArray" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN INT32
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED CHUNK-X
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED CHUNK-Z
+    CALL "NbtEncode-IntArray" USING NBTENC BUFFER "Position" INT32
+    CALL "NbtEncode-Int" USING NBTENC BUFFER OMITTED CHUNK-X
+    CALL "NbtEncode-Int" USING NBTENC BUFFER OMITTED CHUNK-Z
 
-    *> Entities
-    MOVE "Entities" TO TAG-NAME
-    MOVE 8 TO NAME-LEN
-    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+    *> start entities
+    CALL "NbtEncode-List" USING NBTENC BUFFER "Entities"
 
     SET ENTITY-PTR TO CHUNK-ENTITY-LIST
     PERFORM UNTIL ENTITY-PTR = NULL
         SET ADDRESS OF ENTITY-LIST TO ENTITY-PTR
 
-        *> start entity
-        CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER
+        CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
 
-        *> Entity type as a string ("id" tag)
-        MOVE "id" TO TAG-NAME
-        MOVE 2 TO NAME-LEN
         CALL "Registries-Get-EntryName" USING "minecraft:entity_type" ENTITY-TYPE STR
-        MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
-        CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
+        MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
+        CALL "NbtEncode-String" USING NBTENC BUFFER "id" STR LEN
 
-        *> Entity serialization routine
         CALL "GetCallback-EntitySerialize" USING ENTITY-TYPE SERIALIZE-PTR
         IF SERIALIZE-PTR NOT = NULL
-            CALL SERIALIZE-PTR USING ENTITY-LIST-ENTITY NBT-ENCODER-STATE NBT-BUFFER
+            CALL SERIALIZE-PTR USING ENTITY-LIST-ENTITY NBTENC BUFFER
         END-IF
 
-        *> end entity
-        CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+        CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
 
         SET ENTITY-PTR TO ENTITY-LIST-NEXT
     END-PERFORM
 
     *> end entities
-    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-EndList" USING NBTENC BUFFER
 
     *> end root tag
-    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
 
     *> Save the entity data
-    COMPUTE NBT-BUFFER-LENGTH = NBT-ENCODER-OFFSET - 1
+    COMPUTE BUFFER-LENGTH = NBTENC-OFFSET - 1
     MOVE FILE-TYPE-ENTITY TO FILE-TYPE
-    CALL "Region-WriteChunkData" USING FILE-TYPE CHUNK-X CHUNK-Z NBT-BUFFER NBT-BUFFER-LENGTH LK-FAILURE
+    CALL "Region-WriteChunkData" USING FILE-TYPE CHUNK-X CHUNK-Z BUFFER BUFFER-LENGTH LK-FAILURE
     IF LK-FAILURE NOT = 0
         GOBACK
     END-IF
@@ -404,18 +348,16 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGION-FILES.
     01 FILE-TYPE                BINARY-CHAR UNSIGNED.
-    01 NBT-BUFFER               PIC X(1048576).
-    01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
+    01 BUFFER                   PIC X(1048576).
+    01 BUFFER-LENGTH            BINARY-LONG UNSIGNED.
     COPY DD-NBT-DECODER.
     *> Temporary variables
     01 SEEK-FOUND               BINARY-LONG UNSIGNED.
-    COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-SEEK==.
-    01 EXPECTED-TAG             PIC X(256).
+    COPY DD-NBT-DECODER REPLACING LEADING ==NBTDEC== BY ==SEEK-NBTDEC==.
     01 AT-END                   BINARY-CHAR UNSIGNED.
-    01 TAG-NAME                 PIC X(256).
-    01 NAME-LEN                 BINARY-LONG UNSIGNED.
+    01 TAG                      PIC X(256).
     01 STR                      PIC X(256).
-    01 STR-LEN                  BINARY-LONG UNSIGNED.
+    01 LEN                      BINARY-LONG UNSIGNED.
     01 INT8                     BINARY-CHAR.
     01 INT32                    BINARY-LONG.
     01 CHUNK-STATUS             PIC X(64).
@@ -448,13 +390,13 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
     MOVE 0 TO LK-FAILURE
 
-    INITIALIZE NBT-DECODER-STATE
+    INITIALIZE NBTDEC
     PERFORM LoadChunkRegion
     IF LK-FAILURE NOT = 0
         GOBACK
     END-IF
 
-    INITIALIZE NBT-DECODER-STATE
+    INITIALIZE NBTDEC
     PERFORM LoadChunkEntities
     IF LK-FAILURE NOT = 0
         GOBACK
@@ -469,42 +411,42 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-FAILURE.
 LoadChunkRegion.
     MOVE FILE-TYPE-REGION TO FILE-TYPE
 
-    CALL "Region-ReadChunkData" USING FILE-TYPE LK-CHUNK-X LK-CHUNK-Z NBT-BUFFER NBT-BUFFER-LENGTH LK-FAILURE
-    IF LK-FAILURE NOT = 0 OR NBT-BUFFER-LENGTH = 0
+    CALL "Region-ReadChunkData" USING FILE-TYPE LK-CHUNK-X LK-CHUNK-Z BUFFER BUFFER-LENGTH LK-FAILURE
+    IF LK-FAILURE NOT = 0 OR BUFFER-LENGTH = 0
         MOVE 1 TO LK-FAILURE
         GOBACK
     END-IF
 
     *> start root tag
-    MOVE 1 TO NBT-DECODER-OFFSET
-    CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER
+    MOVE 1 TO NBTDEC-OFFSET
+    CALL "NbtDecode-RootCompound" USING NBTDEC BUFFER
 
     MOVE SPACES TO CHUNK-STATUS
 
     *> Do a first pass to get the chunk X, Z, and Y values, as well as the chunk generation status.
     *> The way we write NBT, they should come before any larger pieces of data, but this is not strictly guaranteed.
-    MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
+    MOVE NBTDEC TO SEEK-NBTDEC
     MOVE 0 TO SEEK-FOUND
     PERFORM UNTIL EXIT
-        CALL "NbtDecode-Peek" USING NBT-SEEK-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
+        CALL "NbtDecode-Peek" USING SEEK-NBTDEC BUFFER AT-END TAG
         IF AT-END > 0
             EXIT PERFORM
         END-IF
-        EVALUATE TAG-NAME(1:NAME-LEN)
+        EVALUATE TAG
             WHEN "xPos"
-                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER X-POS
+                CALL "NbtDecode-Int" USING SEEK-NBTDEC BUFFER X-POS
                 ADD 1 TO SEEK-FOUND
             WHEN "zPos"
-                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER Z-POS
+                CALL "NbtDecode-Int" USING SEEK-NBTDEC BUFFER Z-POS
                 ADD 1 TO SEEK-FOUND
             WHEN "yPos"
-                CALL "NbtDecode-Int" USING NBT-SEEK-STATE NBT-BUFFER CHUNK-SECTION-MIN-Y
+                CALL "NbtDecode-Int" USING SEEK-NBTDEC BUFFER CHUNK-SECTION-MIN-Y
                 ADD 1 TO SEEK-FOUND
             WHEN "Status"
-                CALL "NbtDecode-String" USING NBT-SEEK-STATE NBT-BUFFER STR STR-LEN
-                MOVE STR(1:STR-LEN) TO CHUNK-STATUS
+                CALL "NbtDecode-String" USING SEEK-NBTDEC BUFFER STR LEN
+                MOVE STR(1:LEN) TO CHUNK-STATUS
             WHEN OTHER
-                CALL "NbtDecode-Skip" USING NBT-SEEK-STATE NBT-BUFFER
+                CALL "NbtDecode-Skip" USING SEEK-NBTDEC BUFFER
         END-EVALUATE
         IF SEEK-FOUND = 3
             EXIT PERFORM
@@ -541,115 +483,107 @@ LoadChunkRegion.
     SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
 
     *> Skip ahead until we find the sections tag.
-    MOVE "sections" TO EXPECTED-TAG
-    CALL "NbtDecode-SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER EXPECTED-TAG AT-END
+    CALL "NbtDecode-SkipUntilTag" USING NBTDEC BUFFER "sections" AT-END
     IF AT-END > 0
         MOVE 1 TO LK-FAILURE
         GOBACK
     END-IF
 
     *> start sections
-    CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER LOADED-SECTION-COUNT
+    CALL "NbtDecode-List" USING NBTDEC BUFFER LOADED-SECTION-COUNT
 
     PERFORM LOADED-SECTION-COUNT TIMES
-        *> start section
-        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
+        CALL "NbtDecode-Compound" USING NBTDEC BUFFER
 
-        *> section Y value
-        MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
-        CALL "DecodeSectionY" USING NBT-SEEK-STATE NBT-BUFFER INT8 LK-FAILURE
+        MOVE NBTDEC TO SEEK-NBTDEC
+        CALL "DecodeSectionY" USING SEEK-NBTDEC BUFFER INT8 LK-FAILURE
         IF LK-FAILURE > 0
             GOBACK
         END-IF
         COMPUTE SECTION-INDEX = INT8 + 1 - CHUNK-SECTION-MIN-Y
 
-        *> section block states
-        MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
-        CALL "DecodeSectionBlockStates" USING NBT-SEEK-STATE NBT-BUFFER CHUNK-SECTION-BLOCKS(SECTION-INDEX)
+        MOVE NBTDEC TO SEEK-NBTDEC
+        CALL "DecodeSectionBlockStates" USING SEEK-NBTDEC BUFFER CHUNK-SECTION-BLOCKS(SECTION-INDEX)
                 CHUNK-SECTION-NON-AIR(SECTION-INDEX) LK-FAILURE
         IF LK-FAILURE > 0
             GOBACK
         END-IF
 
-        *> section biomes
-        CALL "DecodeSectionBiomes" USING NBT-DECODER-STATE NBT-BUFFER CHUNK-SECTION-BIOMES(SECTION-INDEX) LK-FAILURE
+        CALL "DecodeSectionBiomes" USING NBTDEC BUFFER CHUNK-SECTION-BIOMES(SECTION-INDEX) LK-FAILURE
         IF LK-FAILURE > 0
             GOBACK
         END-IF
 
-        *> end section
-        CALL "NbtDecode-SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
-        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+        CALL "NbtDecode-SkipRemainingTags" USING NBTDEC BUFFER
+        CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
     END-PERFORM
 
     *> end sections
-    CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
+    CALL "NbtDecode-EndList" USING NBTDEC BUFFER
 
     *> Skip to the block entities
     *> TODO: make this position-independent
-    MOVE "block_entities" TO EXPECTED-TAG
-    CALL "NbtDecode-SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER EXPECTED-TAG AT-END
+    CALL "NbtDecode-SkipUntilTag" USING NBTDEC BUFFER "block_entities" AT-END
     IF AT-END = 0
-        CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER BLOCK-ENTITY-COUNT
+        CALL "NbtDecode-List" USING NBTDEC BUFFER BLOCK-ENTITY-COUNT
         MOVE BLOCK-ENTITY-COUNT TO CHUNK-BLOCK-ENTITY-COUNT
         PERFORM BLOCK-ENTITY-COUNT TIMES
-            CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
+            CALL "NbtDecode-Compound" USING NBTDEC BUFFER
             PERFORM UNTIL EXIT
-                CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
+                CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
                 IF AT-END > 0
                     EXIT PERFORM
                 END-IF
-                EVALUATE TAG-NAME(1:NAME-LEN)
+                EVALUATE TAG
                     WHEN "id"
-                        CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
-                        CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" STR(1:STR-LEN) BLOCK-ENTITY-ID
+                        CALL "NbtDecode-String" USING NBTDEC BUFFER STR LEN
+                        CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" STR(1:LEN) BLOCK-ENTITY-ID
                     WHEN "x"
-                        CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER BLOCK-ENTITY-X
+                        CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-X
                     WHEN "y"
-                        CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER BLOCK-ENTITY-Y
+                        CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-Y
                     WHEN "z"
-                        CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER BLOCK-ENTITY-Z
+                        CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-Z
                     WHEN OTHER
-                        CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
+                        CALL "NbtDecode-Skip" USING NBTDEC BUFFER
                 END-EVALUATE
             END-PERFORM
             *> convert to chunk-relative coordinates
             COMPUTE INT32 = FUNCTION MOD(BLOCK-ENTITY-X, 16) + 16 * (FUNCTION MOD(BLOCK-ENTITY-Z, 16) + 16 * (BLOCK-ENTITY-Y + 64)) + 1
             MOVE BLOCK-ENTITY-ID TO CHUNK-BLOCK-ENTITY-ID(INT32)
-            CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+            CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
         END-PERFORM
-        CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
+        CALL "NbtDecode-EndList" USING NBTDEC BUFFER
     END-IF
 
     *> end root tag
-    CALL "NbtDecode-SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
-    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+    CALL "NbtDecode-SkipRemainingTags" USING NBTDEC BUFFER
+    CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
     .
 
 LoadChunkEntities.
     *> Load the chunk entities from the entity data file
     MOVE FILE-TYPE-ENTITY TO FILE-TYPE
 
-    CALL "Region-ReadChunkData" USING FILE-TYPE LK-CHUNK-X LK-CHUNK-Z NBT-BUFFER NBT-BUFFER-LENGTH LK-FAILURE
-    IF LK-FAILURE NOT = 0 OR NBT-BUFFER-LENGTH = 0
+    CALL "Region-ReadChunkData" USING FILE-TYPE LK-CHUNK-X LK-CHUNK-Z BUFFER BUFFER-LENGTH LK-FAILURE
+    IF LK-FAILURE NOT = 0 OR BUFFER-LENGTH = 0
         *> It is not an error if the entity data file does not exist
         MOVE 0 TO LK-FAILURE
         GOBACK
     END-IF
 
     *> start root tag
-    MOVE 1 TO NBT-DECODER-OFFSET
-    CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER
+    MOVE 1 TO NBTDEC-OFFSET
+    CALL "NbtDecode-RootCompound" USING NBTDEC BUFFER
 
     *> Skip ahead until we find the entities tag.
-    MOVE "Entities" TO EXPECTED-TAG
-    CALL "NbtDecode-SkipUntilTag" USING NBT-DECODER-STATE NBT-BUFFER EXPECTED-TAG AT-END
+    CALL "NbtDecode-SkipUntilTag" USING NBTDEC BUFFER "Entities" AT-END
     IF AT-END NOT = 0
         GOBACK
     END-IF
 
     *> start entities
-    CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER CHUNK-ENTITY-COUNT
+    CALL "NbtDecode-List" USING NBTDEC BUFFER CHUNK-ENTITY-COUNT
 
     *> Load in the same order as they were saved
     PERFORM CHUNK-ENTITY-COUNT TIMES
@@ -668,23 +602,21 @@ LoadChunkEntities.
         END-IF
 
         *> start entity
-        CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
+        CALL "NbtDecode-Compound" USING NBTDEC BUFFER
 
         *> find the entity type
-        MOVE NBT-DECODER-STATE TO NBT-SEEK-STATE
-        MOVE "id" TO EXPECTED-TAG
-        MOVE 2 TO NAME-LEN
-        CALL "NbtDecode-SkipUntilTag" USING NBT-SEEK-STATE NBT-BUFFER EXPECTED-TAG AT-END
+        MOVE NBTDEC TO SEEK-NBTDEC
+        CALL "NbtDecode-SkipUntilTag" USING SEEK-NBTDEC BUFFER "id" AT-END
         IF AT-END > 0
             DISPLAY "ERROR: Entity missing id tag"
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
 
-        CALL "NbtDecode-String" USING NBT-SEEK-STATE NBT-BUFFER STR STR-LEN
-        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" STR(1:STR-LEN) ENTITY-TYPE
+        CALL "NbtDecode-String" USING SEEK-NBTDEC BUFFER STR LEN
+        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" STR(1:LEN) ENTITY-TYPE
         IF ENTITY-TYPE < 0
-            DISPLAY "ERROR: Unknown entity type: " FUNCTION TRIM(STR(1:STR-LEN))
+            DISPLAY "ERROR: Unknown entity type: " FUNCTION TRIM(STR(1:LEN))
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
@@ -708,23 +640,23 @@ LoadChunkEntities.
 
         *> deserialize the entity
         PERFORM UNTIL EXIT
-            CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
+            CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
             IF AT-END > 0
                 EXIT PERFORM
             END-IF
-            CALL DESERIALIZE-PTR USING ENTITY-LIST-ENTITY NBT-DECODER-STATE NBT-BUFFER TAG-NAME(1:NAME-LEN)
+            CALL DESERIALIZE-PTR USING ENTITY-LIST-ENTITY NBTDEC BUFFER TAG
         END-PERFORM
 
         *> end entity
-        CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+        CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
     END-PERFORM
 
     *> end entities
-    CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
+    CALL "NbtDecode-EndList" USING NBTDEC BUFFER
 
     *> end root tag
-    CALL "NbtDecode-SkipRemainingTags" USING NBT-DECODER-STATE NBT-BUFFER
-    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+    CALL "NbtDecode-SkipRemainingTags" USING NBTDEC BUFFER
+    CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
     .
 
     *> --- DecodeSectionY ---
@@ -732,21 +664,18 @@ LoadChunkEntities.
     PROGRAM-ID. DecodeSectionY.
 
     DATA DIVISION.
-    WORKING-STORAGE SECTION.
-        01 TAG-NAME             PIC X(1)                    VALUE "Y".
-        01 NAME-LEN             BINARY-LONG UNSIGNED.
     LINKAGE SECTION.
-        COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+        COPY DD-NBT-DECODER REPLACING LEADING ==NBTDEC== BY ==LK-NBTDEC==.
         01 LK-BUFFER            PIC X ANY LENGTH.
         01 LK-Y                 BINARY-CHAR.
         01 LK-FAILURE           BINARY-CHAR UNSIGNED.
 
-    PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-Y LK-FAILURE.
-        CALL "NbtDecode-SkipUntilTag" USING LK-STATE LK-BUFFER TAG-NAME LK-FAILURE
+    PROCEDURE DIVISION USING LK-NBTDEC LK-BUFFER LK-Y LK-FAILURE.
+        CALL "NbtDecode-SkipUntilTag" USING LK-NBTDEC LK-BUFFER "Y" LK-FAILURE
         IF LK-FAILURE > 0
             GOBACK
         END-IF
-        CALL "NbtDecode-Byte" USING LK-STATE LK-BUFFER LK-Y
+        CALL "NbtDecode-Byte" USING LK-NBTDEC LK-BUFFER LK-Y
         GOBACK.
 
     END PROGRAM DecodeSectionY.
@@ -757,12 +686,11 @@ LoadChunkEntities.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-BEGIN==.
+        COPY DD-NBT-DECODER REPLACING LEADING ==NBTDEC== BY ==BEGIN-NBTDEC==.
         01 AT-END                   BINARY-CHAR UNSIGNED.
-        01 TAG-NAME                 PIC X(256).
-        01 NAME-LEN                 BINARY-LONG UNSIGNED.
+        01 TAG                      PIC X(256).
         01 STR                      PIC X(256).
-        01 STR-LEN                  BINARY-LONG UNSIGNED.
+        01 LEN                      BINARY-LONG UNSIGNED.
         01 INT32                    BINARY-LONG.
         01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
         01 CURRENT-BLOCK-ID         BINARY-LONG UNSIGNED.
@@ -778,79 +706,77 @@ LoadChunkEntities.
         *> A map of palette indices to block state IDs
         01 BLOCK-STATE-IDS          BINARY-LONG UNSIGNED OCCURS 4096 TIMES.
     LINKAGE SECTION.
-        COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
+        COPY DD-NBT-DECODER REPLACING LEADING ==NBTDEC== BY ==LK-NBTDEC==.
         01 LK-BUFFER                PIC X ANY LENGTH.
         01 LK-BLOCKS.
             02 LK-BLOCK-ID          BINARY-LONG UNSIGNED OCCURS 4096 TIMES.
         01 LK-NON-AIR               BINARY-LONG UNSIGNED.
         01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
-    PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-BLOCKS LK-NON-AIR LK-FAILURE.
+    PROCEDURE DIVISION USING LK-NBTDEC LK-BUFFER LK-BLOCKS LK-NON-AIR LK-FAILURE.
         MOVE 0 TO LK-FAILURE
 
-        MOVE "block_states" TO TAG-NAME
-        CALL "NbtDecode-SkipUntilTag" USING LK-STATE LK-BUFFER TAG-NAME AT-END
+        CALL "NbtDecode-SkipUntilTag" USING LK-NBTDEC LK-BUFFER "block_states" AT-END
         IF AT-END > 0
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
 
         *> start block states
-        CALL "NbtDecode-Compound" USING LK-STATE LK-BUFFER
-        MOVE LK-STATE TO NBT-BEGIN-STATE
+        CALL "NbtDecode-Compound" USING LK-NBTDEC LK-BUFFER
+        MOVE LK-NBTDEC TO BEGIN-NBTDEC
 
         *> Skip to the palette
-        MOVE "palette" TO TAG-NAME
-        CALL "NbtDecode-SkipUntilTag" USING LK-STATE LK-BUFFER TAG-NAME AT-END
+        CALL "NbtDecode-SkipUntilTag" USING LK-NBTDEC LK-BUFFER "palette" AT-END
         IF AT-END > 0
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
 
         *> start palette
-        CALL "NbtDecode-List" USING LK-STATE LK-BUFFER PALETTE-LENGTH
+        CALL "NbtDecode-List" USING LK-NBTDEC LK-BUFFER PALETTE-LENGTH
 
         PERFORM VARYING PALETTE-INDEX FROM 1 BY 1 UNTIL PALETTE-INDEX > PALETTE-LENGTH
             *> start palette entry
-            CALL "NbtDecode-Compound" USING LK-STATE LK-BUFFER
+            CALL "NbtDecode-Compound" USING LK-NBTDEC LK-BUFFER
             MOVE 0 TO PALETTE-BLOCK-PROPERTY-COUNT
 
             PERFORM UNTIL EXIT
-                CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER AT-END TAG-NAME NAME-LEN
+                CALL "NbtDecode-Peek" USING LK-NBTDEC LK-BUFFER AT-END TAG
                 IF AT-END > 0
                     EXIT PERFORM
                 END-IF
-                EVALUATE TAG-NAME(1:NAME-LEN)
+                EVALUATE TAG
                     WHEN "Name"
-                        CALL "NbtDecode-String" USING LK-STATE LK-BUFFER STR STR-LEN
-                        MOVE STR(1:STR-LEN) TO PALETTE-BLOCK-NAME
+                        CALL "NbtDecode-String" USING LK-NBTDEC LK-BUFFER STR LEN
+                        MOVE STR(1:LEN) TO PALETTE-BLOCK-NAME
 
                     WHEN "Properties"
-                        CALL "NbtDecode-Compound" USING LK-STATE LK-BUFFER
+                        CALL "NbtDecode-Compound" USING LK-NBTDEC LK-BUFFER
                         PERFORM UNTIL EXIT
-                            CALL "NbtDecode-Peek" USING LK-STATE LK-BUFFER AT-END TAG-NAME NAME-LEN
+                            CALL "NbtDecode-Peek" USING LK-NBTDEC LK-BUFFER AT-END TAG
                             IF AT-END > 0
                                 EXIT PERFORM
                             END-IF
                             ADD 1 TO PALETTE-BLOCK-PROPERTY-COUNT
-                            CALL "NbtDecode-String" USING LK-STATE LK-BUFFER STR STR-LEN
-                            MOVE TAG-NAME(1:NAME-LEN) TO PALETTE-BLOCK-PROPERTY-NAME(PALETTE-BLOCK-PROPERTY-COUNT)
-                            MOVE STR(1:STR-LEN) TO PALETTE-BLOCK-PROPERTY-VALUE(PALETTE-BLOCK-PROPERTY-COUNT)
+                            CALL "NbtDecode-String" USING LK-NBTDEC LK-BUFFER STR LEN
+                            MOVE TAG TO PALETTE-BLOCK-PROPERTY-NAME(PALETTE-BLOCK-PROPERTY-COUNT)
+                            MOVE STR(1:LEN) TO PALETTE-BLOCK-PROPERTY-VALUE(PALETTE-BLOCK-PROPERTY-COUNT)
                         END-PERFORM
-                        CALL "NbtDecode-EndCompound" USING LK-STATE LK-BUFFER
+                        CALL "NbtDecode-EndCompound" USING LK-NBTDEC LK-BUFFER
 
                     WHEN OTHER
-                        CALL "NbtDecode-Skip" USING LK-STATE LK-BUFFER
+                        CALL "NbtDecode-Skip" USING LK-NBTDEC LK-BUFFER
                 END-EVALUATE
             END-PERFORM
 
             *> end palette entry
-            CALL "NbtDecode-EndCompound" USING LK-STATE LK-BUFFER
+            CALL "NbtDecode-EndCompound" USING LK-NBTDEC LK-BUFFER
             CALL "Blocks-Get-StateId" USING PALETTE-BLOCK-DESCRIPTION BLOCK-STATE-IDS(PALETTE-INDEX)
         END-PERFORM
 
         *> end palette
-        CALL "NbtDecode-EndList" USING LK-STATE LK-BUFFER
+        CALL "NbtDecode-EndList" USING LK-NBTDEC LK-BUFFER
 
         *> If the palette has length 1, we don't care about the data. In fact, it might not be there.
         IF PALETTE-LENGTH = 1
@@ -863,18 +789,17 @@ LoadChunkEntities.
         ELSE
             *> Reset the state to the beginning of the block states compound, since "data" may come before "palette".
             *> We don't write NBT this way, but Minecraft does.
-            MOVE NBT-BEGIN-STATE TO LK-STATE
+            MOVE BEGIN-NBTDEC TO LK-NBTDEC
 
             *> Skip to the data
-            MOVE "data" TO TAG-NAME
-            CALL "NbtDecode-SkipUntilTag" USING LK-STATE LK-BUFFER TAG-NAME AT-END
+            CALL "NbtDecode-SkipUntilTag" USING LK-NBTDEC LK-BUFFER "data" AT-END
             IF AT-END > 0
                 MOVE 1 TO LK-FAILURE
                 GOBACK
             END-IF
 
             *> read packed long array
-            CALL "NbtDecode-List" USING LK-STATE LK-BUFFER LONG-ARRAY-LENGTH
+            CALL "NbtDecode-List" USING LK-NBTDEC LK-BUFFER LONG-ARRAY-LENGTH
 
             *> number of bits per block = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
             COMPUTE INT32 = PALETTE-LENGTH - 1
@@ -889,7 +814,7 @@ LoadChunkEntities.
 
             MOVE 1 TO BLOCK-INDEX
             PERFORM LONG-ARRAY-LENGTH TIMES
-                CALL "NbtDecode-Long" USING LK-STATE LK-BUFFER LONG-ARRAY-ENTRY-SIGNED
+                CALL "NbtDecode-Long" USING LK-NBTDEC LK-BUFFER LONG-ARRAY-ENTRY-SIGNED
                 PERFORM FUNCTION MIN(ENTRIES-PER-LONG, 4096 - BLOCK-INDEX + 1) TIMES
                     >>IF GCVERSION >= 32
                         COMPUTE PALETTE-INDEX = LONG-ARRAY-ENTRY B-AND PALETTE-BITS-POW
@@ -907,12 +832,12 @@ LoadChunkEntities.
             END-PERFORM
 
             *> end data
-            CALL "NbtDecode-EndList" USING LK-STATE LK-BUFFER
+            CALL "NbtDecode-EndList" USING LK-NBTDEC LK-BUFFER
         END-IF
 
         *> end block states
-        CALL "NbtDecode-SkipRemainingTags" USING LK-STATE LK-BUFFER
-        CALL "NbtDecode-EndCompound" USING LK-STATE LK-BUFFER
+        CALL "NbtDecode-SkipRemainingTags" USING LK-NBTDEC LK-BUFFER
+        CALL "NbtDecode-EndCompound" USING LK-NBTDEC LK-BUFFER
 
         GOBACK.
 
@@ -924,11 +849,11 @@ LoadChunkEntities.
 
     DATA DIVISION.
     WORKING-STORAGE SECTION.
-        COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==NBT-BEGIN==.
+        COPY DD-NBT-DECODER REPLACING LEADING ==NBTDEC== BY ==BEGIN-NBTDEC==.
         01 AT-END                   BINARY-CHAR UNSIGNED.
-        01 TAG-NAME                 PIC X(256).
+        01 TAG                      PIC X(256).
         01 STR                      PIC X(256).
-        01 STR-LEN                  BINARY-LONG UNSIGNED.
+        01 LEN                      BINARY-LONG UNSIGNED.
         01 INT32                    BINARY-LONG.
         01 PALETTE-LENGTH           BINARY-LONG UNSIGNED.
         01 PALETTE-INDEX            BINARY-SHORT UNSIGNED.
@@ -942,17 +867,16 @@ LoadChunkEntities.
         01 CURRENT-BIOME-ID         BINARY-LONG UNSIGNED.
         01 BIOME-INDEX              BINARY-LONG UNSIGNED.
     LINKAGE SECTION.
-        COPY DD-NBT-DECODER REPLACING LEADING ==NBT-DECODER== BY ==LK==.
-        01 LK-BUFFER            PIC X ANY LENGTH.
+        COPY DD-NBT-DECODER REPLACING LEADING ==NBTDEC== BY ==LK-NBTDEC==.
+        01 LK-BUFFER                PIC X ANY LENGTH.
         01 LK-BIOMES.
             02 LK-BIOME-ID          BINARY-LONG UNSIGNED OCCURS 64 TIMES.
-        01 LK-FAILURE           BINARY-CHAR UNSIGNED.
+        01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
-    PROCEDURE DIVISION USING LK-STATE LK-BUFFER LK-BIOMES LK-FAILURE.
+    PROCEDURE DIVISION USING LK-NBTDEC LK-BUFFER LK-BIOMES LK-FAILURE.
         MOVE 0 TO LK-FAILURE
 
-        MOVE "biomes" TO TAG-NAME
-        CALL "NbtDecode-SkipUntilTag" USING LK-STATE LK-BUFFER TAG-NAME AT-END
+        CALL "NbtDecode-SkipUntilTag" USING LK-NBTDEC LK-BUFFER "biomes" AT-END
 
         *> Biomes are optional since previous versions of CobolCraft did not write them.
         IF AT-END > 0
@@ -960,42 +884,40 @@ LoadChunkEntities.
         END-IF
 
         *> start biomes
-        CALL "NbtDecode-Compound" USING LK-STATE LK-BUFFER
-        MOVE LK-STATE TO NBT-BEGIN-STATE
+        CALL "NbtDecode-Compound" USING LK-NBTDEC LK-BUFFER
+        MOVE LK-NBTDEC TO BEGIN-NBTDEC
 
         *> Skip to the palette
-        MOVE "palette" TO TAG-NAME
-        CALL "NbtDecode-SkipUntilTag" USING LK-STATE LK-BUFFER TAG-NAME AT-END
+        CALL "NbtDecode-SkipUntilTag" USING LK-NBTDEC LK-BUFFER "palette" AT-END
         IF AT-END > 0
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
 
         *> palette
-        CALL "NbtDecode-List" USING LK-STATE LK-BUFFER PALETTE-LENGTH
+        CALL "NbtDecode-List" USING LK-NBTDEC LK-BUFFER PALETTE-LENGTH
         PERFORM VARYING PALETTE-INDEX FROM 1 BY 1 UNTIL PALETTE-INDEX > PALETTE-LENGTH
-            CALL "NbtDecode-String" USING LK-STATE LK-BUFFER STR STR-LEN
-            CALL "Registries-Get-EntryId" USING "minecraft:worldgen/biome" STR(1:STR-LEN) PALETTE-BIOME-IDS(PALETTE-INDEX)
+            CALL "NbtDecode-String" USING LK-NBTDEC LK-BUFFER STR LEN
+            CALL "Registries-Get-EntryId" USING "minecraft:worldgen/biome" STR(1:LEN) PALETTE-BIOME-IDS(PALETTE-INDEX)
         END-PERFORM
-        CALL "NbtDecode-EndList" USING LK-STATE LK-BUFFER
+        CALL "NbtDecode-EndList" USING LK-NBTDEC LK-BUFFER
 
         *> If the palette has length 1, we don't care about the data. In fact, it might not be there.
         IF PALETTE-LENGTH = 1
             INITIALIZE LK-BIOMES REPLACING NUMERIC BY PALETTE-BIOME-IDS(1)
         ELSE
             *> Reset the state to the beginning of the biomes compound, since "data" may come before "palette".
-            MOVE NBT-BEGIN-STATE TO LK-STATE
+            MOVE BEGIN-NBTDEC TO LK-NBTDEC
 
             *> Skip to the data
-            MOVE "data" TO TAG-NAME
-            CALL "NbtDecode-SkipUntilTag" USING LK-STATE LK-BUFFER TAG-NAME AT-END
+            CALL "NbtDecode-SkipUntilTag" USING LK-NBTDEC LK-BUFFER "data" AT-END
             IF AT-END > 0
                 MOVE 1 TO LK-FAILURE
                 GOBACK
             END-IF
 
             *> read packed long array
-            CALL "NbtDecode-List" USING LK-STATE LK-BUFFER LONG-ARRAY-LENGTH
+            CALL "NbtDecode-List" USING LK-NBTDEC LK-BUFFER LONG-ARRAY-LENGTH
 
             *> number of bits per block = ceil(log2(palette length - 1)) = bits needed to store (palette length - 1)
             COMPUTE INT32 = PALETTE-LENGTH - 1
@@ -1009,7 +931,7 @@ LoadChunkEntities.
 
             MOVE 1 TO BIOME-INDEX
             PERFORM LONG-ARRAY-LENGTH TIMES
-                CALL "NbtDecode-Long" USING LK-STATE LK-BUFFER LONG-ARRAY-ENTRY-SIGNED
+                CALL "NbtDecode-Long" USING LK-NBTDEC LK-BUFFER LONG-ARRAY-ENTRY-SIGNED
                 PERFORM FUNCTION MIN(ENTRIES-PER-LONG, 64 - BIOME-INDEX + 1) TIMES
                     >>IF GCVERSION >= 32
                         COMPUTE PALETTE-INDEX = LONG-ARRAY-ENTRY B-AND PALETTE-BITS-POW
@@ -1023,12 +945,12 @@ LoadChunkEntities.
             END-PERFORM
 
             *> end data
-            CALL "NbtDecode-EndList" USING LK-STATE LK-BUFFER
+            CALL "NbtDecode-EndList" USING LK-NBTDEC LK-BUFFER
         END-IF
 
         *> end biomes
-        CALL "NbtDecode-SkipRemainingTags" USING LK-STATE LK-BUFFER
-        CALL "NbtDecode-EndCompound" USING LK-STATE LK-BUFFER
+        CALL "NbtDecode-SkipRemainingTags" USING LK-NBTDEC LK-BUFFER
+        CALL "NbtDecode-EndCompound" USING LK-NBTDEC LK-BUFFER
 
         GOBACK.
 

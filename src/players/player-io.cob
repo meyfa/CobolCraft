@@ -29,15 +29,13 @@ WORKING-STORAGE SECTION.
     *> File name and data
     01 PLAYER-FILE-NAME         PIC X(64).
     01 ERRNO                    BINARY-LONG.
-    01 NBT-BUFFER               PIC X(64000).
-    01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
+    01 BUFFER                   PIC X(64000).
+    01 BUFFER-LENGTH            BINARY-LONG UNSIGNED.
     01 COMPRESSED-BUFFER        PIC X(64000).
     01 COMPRESSED-LENGTH        BINARY-LONG UNSIGNED.
     *> temporary data
-    01 TAG-NAME                 PIC X(256).
-    01 NAME-LEN                 BINARY-LONG UNSIGNED.
     01 STR                      PIC X(256).
-    01 STR-LEN                  BINARY-LONG UNSIGNED.
+    01 LEN                      BINARY-LONG UNSIGNED.
     01 INT8                     BINARY-CHAR.
     01 INT32                    BINARY-LONG.
     01 INVENTORY-INDEX          BINARY-LONG UNSIGNED.
@@ -51,93 +49,42 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
     MOVE 0 TO LK-FAILURE
 
     *> root tag
-    MOVE 1 TO NBT-ENCODER-OFFSET
-    CALL "NbtEncode-RootCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+    MOVE 1 TO NBTENC-OFFSET
+    CALL "NbtEncode-RootCompound" USING NBTENC BUFFER
 
-    *> UUID (4 integers, MSB to LSB)
-    MOVE "UUID" TO TAG-NAME
-    MOVE 4 TO NAME-LEN
-    CALL "NbtEncode-UUID" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-UUID(LK-PLAYER-ID)
+    CALL "NbtEncode-UUID" USING NBTENC BUFFER "UUID" PLAYER-UUID(LK-PLAYER-ID)
+    CALL "NbtEncode-Byte" USING NBTENC BUFFER "playerGameType" PLAYER-GAMEMODE(LK-PLAYER-ID)
 
-    *> game mode ("playerGameType")
-    MOVE "playerGameType" TO TAG-NAME
-    MOVE 14 TO NAME-LEN
-    CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-GAMEMODE(LK-PLAYER-ID)
+    CALL "NbtEncode-List" USING NBTENC BUFFER "Pos"
+    CALL "NbtEncode-Double" USING NBTENC BUFFER OMITTED PLAYER-X(LK-PLAYER-ID)
+    CALL "NbtEncode-Double" USING NBTENC BUFFER OMITTED PLAYER-Y(LK-PLAYER-ID)
+    CALL "NbtEncode-Double" USING NBTENC BUFFER OMITTED PLAYER-Z(LK-PLAYER-ID)
+    CALL "NbtEncode-EndList" USING NBTENC BUFFER
 
-    *> position ("Pos")
-    MOVE "Pos" TO TAG-NAME
-    MOVE 3 TO NAME-LEN
-    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-    CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED PLAYER-X(LK-PLAYER-ID)
-    CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED PLAYER-Y(LK-PLAYER-ID)
-    CALL "NbtEncode-Double" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED PLAYER-Z(LK-PLAYER-ID)
-    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-List" USING NBTENC BUFFER "Rotation"
+    CALL "NbtEncode-Float" USING NBTENC BUFFER OMITTED PLAYER-YAW(LK-PLAYER-ID)
+    CALL "NbtEncode-Float" USING NBTENC BUFFER OMITTED PLAYER-PITCH(LK-PLAYER-ID)
+    CALL "NbtEncode-EndList" USING NBTENC BUFFER
 
-    *> rotation ("Rotation")
-    MOVE "Rotation" TO TAG-NAME
-    MOVE 8 TO NAME-LEN
-    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-    CALL "NbtEncode-Float" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED PLAYER-YAW(LK-PLAYER-ID)
-    CALL "NbtEncode-Float" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED PLAYER-PITCH(LK-PLAYER-ID)
-    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-Byte" USING NBTENC BUFFER "OnGround" PLAYER-ON-GROUND(LK-PLAYER-ID)
+    CALL "NbtEncode-Float" USING NBTENC BUFFER "FallDistance" PLAYER-FALL-DISTANCE(LK-PLAYER-ID)
 
-    *> on ground ("OnGround")
-    MOVE "OnGround" TO TAG-NAME
-    MOVE 8 TO NAME-LEN
-    CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-ON-GROUND(LK-PLAYER-ID)
+    CALL "NbtEncode-Float" USING NBTENC BUFFER "Health" PLAYER-HEALTH(LK-PLAYER-ID)
+    CALL "NbtEncode-Int" USING NBTENC BUFFER "foodLevel" PLAYER-FOOD-LEVEL(LK-PLAYER-ID)
+    CALL "NbtEncode-Float" USING NBTENC BUFFER "foodSaturationLevel" PLAYER-SATURATION(LK-PLAYER-ID)
 
-    *> fall distance ("FallDistance")
-    MOVE "FallDistance" TO TAG-NAME
-    MOVE 12 TO NAME-LEN
-    CALL "NbtEncode-Float" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-FALL-DISTANCE(LK-PLAYER-ID)
+    CALL "NbtEncode-Int" USING NBTENC BUFFER "XpLevel" PLAYER-XP-LEVEL(LK-PLAYER-ID)
+    CALL "NbtEncode-Float" USING NBTENC BUFFER "XpP" PLAYER-XP-PROGRESS(LK-PLAYER-ID)
+    CALL "NbtEncode-Int" USING NBTENC BUFFER "XpTotal" PLAYER-XP-TOTAL(LK-PLAYER-ID)
 
-    *> health ("Health")
-    MOVE "Health" TO TAG-NAME
-    MOVE 6 TO NAME-LEN
-    CALL "NbtEncode-Float" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-HEALTH(LK-PLAYER-ID)
-
-    *> food level ("foodLevel")
-    MOVE "foodLevel" TO TAG-NAME
-    MOVE 9 TO NAME-LEN
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-FOOD-LEVEL(LK-PLAYER-ID)
-
-    *> food saturation ("foodSaturationLevel")
-    MOVE "foodSaturationLevel" TO TAG-NAME
-    MOVE 19 TO NAME-LEN
-    CALL "NbtEncode-Float" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-SATURATION(LK-PLAYER-ID)
-
-    *> experience level ("XpLevel")
-    MOVE "XpLevel" TO TAG-NAME
-    MOVE 7 TO NAME-LEN
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-XP-LEVEL(LK-PLAYER-ID)
-
-    *> experience progress towards next level ("XpP")
-    MOVE "XpP" TO TAG-NAME
-    MOVE 3 TO NAME-LEN
-    CALL "NbtEncode-Float" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-XP-PROGRESS(LK-PLAYER-ID)
-
-    *> total experience ("XpTotal")
-    MOVE "XpTotal" TO TAG-NAME
-    MOVE 7 TO NAME-LEN
-    CALL "NbtEncode-Int" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-XP-TOTAL(LK-PLAYER-ID)
-
-    *> selected hotbar slot ("SelectedItemSlot")
-    MOVE "SelectedItemSlot" TO TAG-NAME
-    MOVE 16 TO NAME-LEN
-    CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-HOTBAR(LK-PLAYER-ID)
-
-    *> inventory ("Inventory")
-    MOVE "Inventory" TO TAG-NAME
-    MOVE 9 TO NAME-LEN
-    CALL "NbtEncode-List" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
+    CALL "NbtEncode-Byte" USING NBTENC BUFFER "SelectedItemSlot" PLAYER-HOTBAR(LK-PLAYER-ID)
+    CALL "NbtEncode-List" USING NBTENC BUFFER "Inventory"
 
     *> Skip the first slot, as it is the crafting output
     PERFORM VARYING INVENTORY-INDEX FROM 2 BY 1 UNTIL INVENTORY-INDEX > 46
         IF PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER-ID, INVENTORY-INDEX) > 0
-            CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER OMITTED OMITTED
+            CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
 
-            MOVE "Slot" TO TAG-NAME
-            MOVE 4 TO NAME-LEN
             COMPUTE INT8 = INVENTORY-INDEX - 1
             EVALUATE INT8
                 WHEN 36 THRU 44
@@ -155,47 +102,32 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
                 WHEN 1 THRU 4
                     ADD 79 TO INT8
             END-EVALUATE
-            CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN INT8
+            CALL "NbtEncode-Byte" USING NBTENC BUFFER "Slot" INT8
 
-            MOVE "id" TO TAG-NAME
-            MOVE 2 TO NAME-LEN
             *> item ID needs to be converted to a string for future-proofing
             CALL "Registries-Get-EntryName" USING "minecraft:item" PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, INVENTORY-INDEX) STR
-            MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
-            CALL "NbtEncode-String" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN STR STR-LEN
+            MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
+            CALL "NbtEncode-String" USING NBTENC BUFFER "id" STR LEN
 
-            MOVE "count" TO TAG-NAME
-            MOVE 5 TO NAME-LEN
-            CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER-ID, INVENTORY-INDEX)
+            CALL "NbtEncode-Byte" USING NBTENC BUFFER "count" PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER-ID, INVENTORY-INDEX)
 
             *> TODO encode the structured components
             MOVE PLAYER-INVENTORY-SLOT-NBT-LENGTH(LK-PLAYER-ID, INVENTORY-INDEX) TO INT32
             IF INT32 > 0
-                MOVE "tag" TO TAG-NAME
-                MOVE 3 TO NAME-LEN
-                CALL "NbtEncode-ByteBuffer" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-INVENTORY-SLOT-NBT-DATA(LK-PLAYER-ID, INVENTORY-INDEX) INT32
+                CALL "NbtEncode-ByteBuffer" USING NBTENC BUFFER "tag" PLAYER-INVENTORY-SLOT-NBT-DATA(LK-PLAYER-ID, INVENTORY-INDEX) INT32
             END-IF
 
-            CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+            CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
         END-IF
     END-PERFORM
-    CALL "NbtEncode-EndList" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-EndList" USING NBTENC BUFFER
 
-    *> abilities
-    MOVE "abilities" TO TAG-NAME
-    MOVE 9 TO NAME-LEN
-    CALL "NbtEncode-Compound" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN
-
-    *> flying
-    MOVE "flying" TO TAG-NAME
-    MOVE 6 TO NAME-LEN
-    CALL "NbtEncode-Byte" USING NBT-ENCODER-STATE NBT-BUFFER TAG-NAME NAME-LEN PLAYER-FLYING(LK-PLAYER-ID)
-
-    *> end abilities
-    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-Compound" USING NBTENC BUFFER "abilities"
+    CALL "NbtEncode-Byte" USING NBTENC BUFFER "flying" PLAYER-FLYING(LK-PLAYER-ID)
+    CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
 
     *> end root tag
-    CALL "NbtEncode-EndCompound" USING NBT-ENCODER-STATE NBT-BUFFER
+    CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
 
     *> Create directories. Ignore errors, as they are likely to be caused by the directories already existing.
     CALL "CBL_CREATE_DIR" USING SP-LEVEL-NAME
@@ -204,9 +136,9 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
     CALL "CBL_CREATE_DIR" USING STR
 
     *> write the data to disk in gzip-compressed form
-    COMPUTE NBT-BUFFER-LENGTH = NBT-ENCODER-OFFSET - 1
+    COMPUTE BUFFER-LENGTH = NBTENC-OFFSET - 1
     MOVE LENGTH OF COMPRESSED-BUFFER TO COMPRESSED-LENGTH
-    CALL "GzipCompress" USING NBT-BUFFER NBT-BUFFER-LENGTH COMPRESSED-BUFFER COMPRESSED-LENGTH GIVING ERRNO
+    CALL "GzipCompress" USING BUFFER BUFFER-LENGTH COMPRESSED-BUFFER COMPRESSED-LENGTH GIVING ERRNO
     IF ERRNO NOT = 0
         MOVE 1 TO LK-FAILURE
         GOBACK
@@ -230,16 +162,15 @@ WORKING-STORAGE SECTION.
     01 ERRNO                    BINARY-LONG.
     01 COMPRESSED-BUFFER        PIC X(64000).
     01 COMPRESSED-LENGTH        BINARY-LONG UNSIGNED.
-    01 NBT-BUFFER               PIC X(64000).
-    01 NBT-BUFFER-LENGTH        BINARY-LONG UNSIGNED.
+    01 BUFFER                   PIC X(64000).
+    01 BUFFER-LENGTH            BINARY-LONG UNSIGNED.
     *> temporary data
-    01 TAG-NAME                 PIC X(256).
-    01 NAME-LEN                 BINARY-LONG UNSIGNED.
+    01 TAG                      PIC X(256).
     01 AT-END                   BINARY-CHAR UNSIGNED.
     01 INT8                     BINARY-CHAR.
     01 INT32                    BINARY-LONG.
     01 STR                      PIC X(256).
-    01 STR-LEN                  BINARY-LONG UNSIGNED.
+    01 LEN                      BINARY-LONG UNSIGNED.
     01 INVENTORY-INDEX          BINARY-LONG UNSIGNED.
     01 INVENTORY-SLOT.
         COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==INVENTORY==.
@@ -255,18 +186,18 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
 
     *> Read the NBT file
     CALL "Players-PlayerFileName" USING LK-PLAYER-UUID PLAYER-FILE-NAME
-    CALL "Files-ReadAll" USING PLAYER-FILE-NAME NBT-BUFFER NBT-BUFFER-LENGTH LK-FAILURE
-    IF LK-FAILURE NOT = 0 OR NBT-BUFFER-LENGTH = 0
+    CALL "Files-ReadAll" USING PLAYER-FILE-NAME BUFFER BUFFER-LENGTH LK-FAILURE
+    IF LK-FAILURE NOT = 0 OR BUFFER-LENGTH = 0
         MOVE 1 TO LK-FAILURE
         GOBACK
     END-IF
 
     *> Check for the gzip magic number, and decompress if present
-    IF NBT-BUFFER(1:2) = X"1F8B"
-        MOVE NBT-BUFFER(1:NBT-BUFFER-LENGTH) TO COMPRESSED-BUFFER(1:NBT-BUFFER-LENGTH)
-        MOVE NBT-BUFFER-LENGTH TO COMPRESSED-LENGTH
-        MOVE LENGTH OF NBT-BUFFER TO NBT-BUFFER-LENGTH
-        CALL "GzipDecompress" USING COMPRESSED-BUFFER COMPRESSED-LENGTH NBT-BUFFER NBT-BUFFER-LENGTH GIVING ERRNO
+    IF BUFFER(1:2) = X"1F8B"
+        MOVE BUFFER(1:BUFFER-LENGTH) TO COMPRESSED-BUFFER(1:BUFFER-LENGTH)
+        MOVE BUFFER-LENGTH TO COMPRESSED-LENGTH
+        MOVE LENGTH OF BUFFER TO BUFFER-LENGTH
+        CALL "GzipDecompress" USING COMPRESSED-BUFFER COMPRESSED-LENGTH BUFFER BUFFER-LENGTH GIVING ERRNO
         IF ERRNO NOT = 0
             MOVE 1 TO LK-FAILURE
             GOBACK
@@ -274,68 +205,68 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
     END-IF
 
     *> root tag
-    MOVE 1 TO NBT-DECODER-OFFSET
-    CALL "NbtDecode-RootCompound" USING NBT-DECODER-STATE NBT-BUFFER
+    MOVE 1 TO NBTDEC-OFFSET
+    CALL "NbtDecode-RootCompound" USING NBTDEC BUFFER
 
     PERFORM UNTIL EXIT
-        CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
+        CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
         IF AT-END = 1
             EXIT PERFORM
         END-IF
-        EVALUATE TAG-NAME(1:NAME-LEN)
+        EVALUATE TAG
             *> UUID (4 integers, MSB to LSB)
             WHEN "UUID"
                 *> ignored, as we already have the UUID
-                CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
+                CALL "NbtDecode-Skip" USING NBTDEC BUFFER
 
             WHEN "playerGameType"
-                CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-GAMEMODE(LK-PLAYER-ID)
+                CALL "NbtDecode-Byte" USING NBTDEC BUFFER PLAYER-GAMEMODE(LK-PLAYER-ID)
 
             WHEN "Pos"
-                CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER INT32
-                CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-X(LK-PLAYER-ID)
-                CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-Y(LK-PLAYER-ID)
-                CALL "NbtDecode-Double" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-Z(LK-PLAYER-ID)
-                CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
+                CALL "NbtDecode-List" USING NBTDEC BUFFER INT32
+                CALL "NbtDecode-Double" USING NBTDEC BUFFER PLAYER-X(LK-PLAYER-ID)
+                CALL "NbtDecode-Double" USING NBTDEC BUFFER PLAYER-Y(LK-PLAYER-ID)
+                CALL "NbtDecode-Double" USING NBTDEC BUFFER PLAYER-Z(LK-PLAYER-ID)
+                CALL "NbtDecode-EndList" USING NBTDEC BUFFER
 
             WHEN "Rotation"
-                CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER INT32
-                CALL "NbtDecode-Float" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-YAW(LK-PLAYER-ID)
-                CALL "NbtDecode-Float" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-PITCH(LK-PLAYER-ID)
-                CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
+                CALL "NbtDecode-List" USING NBTDEC BUFFER INT32
+                CALL "NbtDecode-Float" USING NBTDEC BUFFER PLAYER-YAW(LK-PLAYER-ID)
+                CALL "NbtDecode-Float" USING NBTDEC BUFFER PLAYER-PITCH(LK-PLAYER-ID)
+                CALL "NbtDecode-EndList" USING NBTDEC BUFFER
 
             WHEN "OnGround"
-                CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-ON-GROUND(LK-PLAYER-ID)
+                CALL "NbtDecode-Byte" USING NBTDEC BUFFER PLAYER-ON-GROUND(LK-PLAYER-ID)
 
             WHEN "FallDistance"
-                CALL "NbtDecode-Float" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-FALL-DISTANCE(LK-PLAYER-ID)
+                CALL "NbtDecode-Float" USING NBTDEC BUFFER PLAYER-FALL-DISTANCE(LK-PLAYER-ID)
 
             WHEN "Health"
-                CALL "NbtDecode-Float" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-HEALTH(LK-PLAYER-ID)
+                CALL "NbtDecode-Float" USING NBTDEC BUFFER PLAYER-HEALTH(LK-PLAYER-ID)
 
             WHEN "foodLevel"
-                CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-FOOD-LEVEL(LK-PLAYER-ID)
+                CALL "NbtDecode-Int" USING NBTDEC BUFFER PLAYER-FOOD-LEVEL(LK-PLAYER-ID)
 
             WHEN "foodSaturationLevel"
-                CALL "NbtDecode-Float" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-SATURATION(LK-PLAYER-ID)
+                CALL "NbtDecode-Float" USING NBTDEC BUFFER PLAYER-SATURATION(LK-PLAYER-ID)
 
             WHEN "XpLevel"
-                CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-XP-LEVEL(LK-PLAYER-ID)
+                CALL "NbtDecode-Int" USING NBTDEC BUFFER PLAYER-XP-LEVEL(LK-PLAYER-ID)
 
             WHEN "XpP"
-                CALL "NbtDecode-Float" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-XP-PROGRESS(LK-PLAYER-ID)
+                CALL "NbtDecode-Float" USING NBTDEC BUFFER PLAYER-XP-PROGRESS(LK-PLAYER-ID)
 
             WHEN "XpTotal"
-                CALL "NbtDecode-Int" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-XP-TOTAL(LK-PLAYER-ID)
+                CALL "NbtDecode-Int" USING NBTDEC BUFFER PLAYER-XP-TOTAL(LK-PLAYER-ID)
 
             WHEN "SelectedItemSlot"
-                CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-HOTBAR(LK-PLAYER-ID)
+                CALL "NbtDecode-Byte" USING NBTDEC BUFFER PLAYER-HOTBAR(LK-PLAYER-ID)
 
             WHEN "Inventory"
-                CALL "NbtDecode-List" USING NBT-DECODER-STATE NBT-BUFFER INT32
+                CALL "NbtDecode-List" USING NBTDEC BUFFER INT32
                 PERFORM INT32 TIMES
                     *> Start of slot compound
-                    CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
+                    CALL "NbtDecode-Compound" USING NBTDEC BUFFER
                     MOVE 0 TO INVENTORY-INDEX
                     INITIALIZE INVENTORY-SLOT
                     *> default structured components (0x00 = nothing to add, 0x00 = nothing to remove)
@@ -344,13 +275,13 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
 
                     *> Slot properties
                     PERFORM UNTIL EXIT
-                        CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
+                        CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
                         IF AT-END = 1
                             EXIT PERFORM
                         END-IF
-                        EVALUATE TAG-NAME(1:NAME-LEN)
+                        EVALUATE TAG
                             WHEN "Slot"
-                                CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER INT8
+                                CALL "NbtDecode-Byte" USING NBTDEC BUFFER INT8
                                 EVALUATE INT8
                                     WHEN 0 THRU 8
                                         ADD 36 TO INT8
@@ -371,23 +302,23 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
 
                             WHEN "id"
                                 *> Item ID needs to be converted from a string to a number
-                                CALL "NbtDecode-String" USING NBT-DECODER-STATE NBT-BUFFER STR STR-LEN
+                                CALL "NbtDecode-String" USING NBTDEC BUFFER STR LEN
                                 CALL "Registries-Get-EntryId" USING "minecraft:item" STR INVENTORY-SLOT-ID
 
                             WHEN "count"
-                                CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-SLOT-COUNT
+                                CALL "NbtDecode-Byte" USING NBTDEC BUFFER INVENTORY-SLOT-COUNT
 
                             *> TODO use "components" instead, and decode it as a compound
                             WHEN "tag"
-                                CALL "NbtDecode-ByteBuffer" USING NBT-DECODER-STATE NBT-BUFFER INVENTORY-SLOT-NBT-DATA INVENTORY-SLOT-NBT-LENGTH
+                                CALL "NbtDecode-ByteBuffer" USING NBTDEC BUFFER INVENTORY-SLOT-NBT-DATA INVENTORY-SLOT-NBT-LENGTH
 
                             WHEN OTHER
-                                CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
+                                CALL "NbtDecode-Skip" USING NBTDEC BUFFER
                         END-EVALUATE
                     END-PERFORM
 
                     *> End of slot compound
-                    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+                    CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
 
                     *> If the slot had complete data, set it in the player's inventory
                     IF INVENTORY-INDEX > 0 AND INVENTORY-SLOT-ID > 0 AND INVENTORY-SLOT-COUNT > 0
@@ -397,33 +328,33 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                         MOVE INVENTORY-SLOT-NBT-LENGTH TO PLAYER-INVENTORY-SLOT-NBT-LENGTH(LK-PLAYER-ID, INVENTORY-INDEX)
                     END-IF
                 END-PERFORM
-                CALL "NbtDecode-EndList" USING NBT-DECODER-STATE NBT-BUFFER
+                CALL "NbtDecode-EndList" USING NBTDEC BUFFER
 
             WHEN "abilities"
                 *> Start of abilities compound
-                CALL "NbtDecode-Compound" USING NBT-DECODER-STATE NBT-BUFFER
+                CALL "NbtDecode-Compound" USING NBTDEC BUFFER
                 PERFORM UNTIL EXIT
-                    CALL "NbtDecode-Peek" USING NBT-DECODER-STATE NBT-BUFFER AT-END TAG-NAME NAME-LEN
+                    CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
                     IF AT-END = 1
                         EXIT PERFORM
                     END-IF
-                    EVALUATE TAG-NAME(1:NAME-LEN)
+                    EVALUATE TAG
                         WHEN "flying"
-                            CALL "NbtDecode-Byte" USING NBT-DECODER-STATE NBT-BUFFER PLAYER-FLYING(LK-PLAYER-ID)
+                            CALL "NbtDecode-Byte" USING NBTDEC BUFFER PLAYER-FLYING(LK-PLAYER-ID)
                         WHEN OTHER
-                            CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
+                            CALL "NbtDecode-Skip" USING NBTDEC BUFFER
                     END-EVALUATE
                 END-PERFORM
                 *> End of abilities compound
-                CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+                CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
 
             WHEN OTHER
-                CALL "NbtDecode-Skip" USING NBT-DECODER-STATE NBT-BUFFER
+                CALL "NbtDecode-Skip" USING NBTDEC BUFFER
         END-EVALUATE
     END-PERFORM
 
     *> end root tag
-    CALL "NbtDecode-EndCompound" USING NBT-DECODER-STATE NBT-BUFFER
+    CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
 
     GOBACK.
 
