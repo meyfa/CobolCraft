@@ -18,7 +18,6 @@
     31 ENTITY-VELOCITY-Z    FLOAT-LONG.
 30 ENTITY-ON-GROUND         BINARY-CHAR UNSIGNED.
 
-30 ENTITY-AGE               BINARY-LONG.
 30 ENTITY-NO-GRAVITY        BINARY-CHAR UNSIGNED.
 
 *> The chunk the entity is in (chunk coordinates, i.e. position/16).
@@ -31,4 +30,5 @@
 *> for item entities: item stack
 30 ENTITY-ITEM-SLOT.
     COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==ENTITY-ITEM==.
+30 ENTITY-AGE               BINARY-LONG.
 30 ENTITY-ITEM-PICKUP-DELAY BINARY-LONG.

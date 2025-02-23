@@ -89,10 +89,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CHUNK-REF.
     COPY DD-CHUNK-ENTITY.
     COPY DD-PLAYERS.
-    COPY DD-CLIENTS.
-    COPY DD-CLIENT-STATES.
     COPY DD-SERVER-PROPERTIES.
-    01 ENTITY-TYPE-ITEM         BINARY-LONG                 VALUE -1.
     01 PLAYER-INDEX             BINARY-LONG UNSIGNED.
     01 CHUNK-INDEX              BINARY-LONG UNSIGNED.
     01 ENTITY-PTR               POINTER.
@@ -100,25 +97,10 @@ WORKING-STORAGE SECTION.
     01 PLAYER-AABBS.
         02 PLAYER-AABB OCCURS PLAYER-CAPACITY TIMES.
             COPY DD-AABB REPLACING LEADING ==PREFIX== BY ==PLAYER==.
-    01 ENTITY-AABB.
-        COPY DD-AABB REPLACING LEADING ==PREFIX== BY ==ENTITY==.
-    01 COLLISION                BINARY-CHAR UNSIGNED.
-    01 PREVIOUS-ITEM-COUNT      BINARY-LONG UNSIGNED.
-    01 COLLECTED-ITEM-COUNT     BINARY-LONG UNSIGNED.
-    01 CLIENT-ID                BINARY-LONG UNSIGNED.
-    01 BLOCK-POSITION.
-        02 BLOCK-X              BINARY-LONG.
-        02 BLOCK-Y              BINARY-LONG.
-        02 BLOCK-Z              BINARY-LONG.
-    01 BLOCK-ID                 BINARY-LONG.
-    01 REPLACEABLE-PTR          PROGRAM-POINTER.
-    01 REPLACEABLE              BINARY-CHAR UNSIGNED.
+    01 ENTITY-TICK-PTR          PROGRAM-POINTER.
+    01 REMOVE-ENTITY            BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION.
-    IF ENTITY-TYPE-ITEM < 0
-        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE-ITEM
-    END-IF
-
     ADD 1 TO WORLD-AGE
     ADD 1 TO WORLD-TIME
 
@@ -152,110 +134,19 @@ PROCEDURE DIVISION.
     GOBACK.
 
 TickEntity.
-    ADD 1 TO ENTITY-AGE
-
-    IF ENTITY-ID = ENTITY-TYPE-ITEM
-        PERFORM TickItemEntity
+    CALL "GetCallback-EntityTick" USING ENTITY-TYPE ENTITY-TICK-PTR
+    IF ENTITY-TICK-PTR = NULL
+        EXIT PARAGRAPH
     END-IF
-    .
 
-TickItemEntity.
-    *> TODO Move this into somewhere abstract, so that we can tick other entities as well
-    IF ENTITY-AGE >  6000
+    CALL ENTITY-TICK-PTR USING ENTITY-LIST-ENTITY PLAYER-AABBS REMOVE-ENTITY
+    IF REMOVE-ENTITY > 0
         CALL "World-RemoveEntity" USING ENTITY-LIST-ENTITY
         EXIT PARAGRAPH
     END-IF
 
-    *> TODO: Handle block collisions properly... This is just a hack for now.
-    COMPUTE BLOCK-X ROUNDED MODE IS TOWARD-LESSER = ENTITY-X + ENTITY-VELOCITY-X
-    COMPUTE BLOCK-Y ROUNDED MODE IS TOWARD-LESSER = ENTITY-Y + ENTITY-VELOCITY-Y
-    COMPUTE BLOCK-Z ROUNDED MODE IS TOWARD-LESSER = ENTITY-Z + ENTITY-VELOCITY-Z
-    PERFORM CheckBlockCollision
-    IF COLLISION = 0
-        COMPUTE ENTITY-X = ENTITY-X + ENTITY-VELOCITY-X
-        COMPUTE ENTITY-Y = ENTITY-Y + ENTITY-VELOCITY-Y
-        COMPUTE ENTITY-Z = ENTITY-Z + ENTITY-VELOCITY-Z
-
-        COMPUTE ENTITY-VELOCITY-X = ENTITY-VELOCITY-X * 0.98
-        COMPUTE ENTITY-VELOCITY-Y = ENTITY-VELOCITY-Y * 0.98 - 0.04
-        COMPUTE ENTITY-VELOCITY-Z = ENTITY-VELOCITY-Z * 0.98
-
-        PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-            IF CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-                CALL "SendPacket-EntityPositionSync" USING CLIENT-ID ENTITY-ID ENTITY-POSITION ENTITY-ROTATION ENTITY-VELOCITY ENTITY-ON-GROUND
-            END-IF
-        END-PERFORM
-    ELSE
-        MOVE 0 TO ENTITY-VELOCITY-X ENTITY-VELOCITY-Y ENTITY-VELOCITY-Z
-    END-IF
-
-    COMPUTE ENTITY-ITEM-PICKUP-DELAY = FUNCTION MAX(ENTITY-ITEM-PICKUP-DELAY - 1, 0)
-
-    IF ENTITY-ITEM-PICKUP-DELAY <= 0
-        *> Compute the entity AABB, expanded by 1 block horizontally and 0.5 blocks vertically, since the player's pickup
-        *> bounding box is larger than their regular hitbox, but we don't want to recompute each player's AABB for every
-        *> item entity.
-        COMPUTE ENTITY-AABB-MIN-X = ENTITY-X - 0.125 - 1
-        COMPUTE ENTITY-AABB-MAX-X = ENTITY-X + 0.125 + 1
-        COMPUTE ENTITY-AABB-MIN-Y = ENTITY-Y         - 0.5
-        COMPUTE ENTITY-AABB-MAX-Y = ENTITY-Y + 0.25  + 0.5
-        COMPUTE ENTITY-AABB-MIN-Z = ENTITY-Z - 0.125 - 1
-        COMPUTE ENTITY-AABB-MAX-Z = ENTITY-Z + 0.125 + 1
-
-        *> Check for player collisions
-        PERFORM VARYING PLAYER-INDEX FROM 1 BY 1 UNTIL PLAYER-INDEX > MAX-PLAYERS
-            IF PLAYER-CLIENT(PLAYER-INDEX) > 0
-                CALL "CheckCollisionAABB" USING ENTITY-AABB PLAYER-AABB(PLAYER-INDEX) COLLISION
-                IF COLLISION NOT = 0
-                    MOVE ENTITY-ITEM-SLOT-COUNT TO PREVIOUS-ITEM-COUNT
-                    CALL "Inventory-StoreItem" USING PLAYER-INVENTORY(PLAYER-INDEX) ENTITY-ITEM-SLOT
-                    IF ENTITY-ITEM-SLOT-COUNT < PREVIOUS-ITEM-COUNT
-                        COMPUTE COLLECTED-ITEM-COUNT = ENTITY-ITEM-SLOT-COUNT - PREVIOUS-ITEM-COUNT
-                        PERFORM SendPickupItem
-                        *> TODO sync just the slot that changed
-                        CALL "Inventory-SyncPlayerInventory" USING PLAYER-INDEX
-                    END-IF
-                    IF ENTITY-ITEM-SLOT-COUNT < 1
-                        PERFORM SendPickupItem
-                        CALL "World-RemoveEntity" USING ENTITY-LIST-ENTITY
-                        EXIT PARAGRAPH
-                    END-IF
-                END-IF
-            END-IF
-        END-PERFORM
-    END-IF
-
     *> Ensure the entity is in the correct chunk
     CALL "World-UpdateEntityChunk" USING ENTITY-LIST-ENTITY ENTITY-CHUNK-X ENTITY-CHUNK-Z
-    .
-
-SendPickupItem.
-    PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
-        IF CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-            CALL "SendPacket-TakeItemEntity" USING CLIENT-ID ENTITY-ID PLAYER-INDEX COLLECTED-ITEM-COUNT
-        END-IF
-    END-PERFORM
-    .
-
-CheckBlockCollision.
-    CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
-    IF BLOCK-ID <= 0
-        MOVE 0 TO COLLISION
-        EXIT PARAGRAPH
-    END-IF
-
-    CALL "GetCallback-BlockReplaceable" USING BLOCK-ID REPLACEABLE-PTR
-    IF REPLACEABLE-PTR = NULL
-        MOVE 0 TO COLLISION
-        EXIT PARAGRAPH
-    END-IF
-
-    CALL REPLACEABLE-PTR USING BLOCK-POSITION REPLACEABLE
-    IF REPLACEABLE = 0
-        MOVE 1 TO COLLISION
-    ELSE
-        MOVE 0 TO COLLISION
-    END-IF
     .
 
 END PROGRAM World-Tick.
