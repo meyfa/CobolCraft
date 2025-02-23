@@ -1,6 +1,7 @@
 *> --- Copybook: callback parameters for item use ---
 
-01 LK-PLAYER                BINARY-LONG.
+01 LK-PLAYER                BINARY-LONG UNSIGNED.
+01 LK-SLOT                  BINARY-LONG UNSIGNED.
 01 LK-ITEM-NAME             PIC X ANY LENGTH.
 01 LK-POSITION.
     02 LK-POSITION-X        BINARY-LONG.
