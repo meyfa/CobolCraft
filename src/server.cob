@@ -83,27 +83,22 @@ Init.
     CALL "Region-Init"
 
     CALL "IgnoreSIGPIPE"
+
     CALL "SetConsoleNonBlocking" GIVING ERRNO
-    IF ERRNO NOT = 0
-        DISPLAY "Could not set console to non-blocking mode."
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==ERRNO = 0==,
+        MSG BY =="Could not set console to non-blocking mode"==.
     .
 
 LoadRegistries.
     DISPLAY "Loading registries...           " WITH NO ADVANCING
 
     CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-REGISTRIES)
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to read: " FUNCTION TRIM(FILE-REGISTRIES)==.
 
     CALL "Registries-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to parse registries"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-REGISTRIES)==.
 
     CALL "Registries-GetCount" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
@@ -130,16 +125,12 @@ LoadItems.
     DISPLAY "Loading items...                " WITH NO ADVANCING
 
     CALL "Files-ReadAll" USING FILE-ITEMS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-ITEMS)
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to read: " FUNCTION TRIM(FILE-ITEMS)==.
 
     CALL "Items-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to parse: " FUNCTION TRIM(FILE-ITEMS)
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-ITEMS)==.
 
     CALL "Items-GetCount" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
@@ -150,16 +141,12 @@ LoadBlocks.
     DISPLAY "Loading blocks...               " WITH NO ADVANCING
 
     CALL "Files-ReadAll" USING FILE-BLOCKS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-BLOCKS)
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to read: " FUNCTION TRIM(FILE-BLOCKS)==.
 
     CALL "Blocks-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to parse: " FUNCTION TRIM(FILE-BLOCKS)
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-BLOCKS)==.
 
     CALL "Blocks-GetCount" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
@@ -169,10 +156,8 @@ LoadBlocks.
 LoadDatapack.
     DISPLAY "Loading datapack..."
     CALL "Datapack-Load" USING FILE-DATAPACK-ROOT VANILLA-DATAPACK-NAME DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to load datapack"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to load datapack"==.
 
     *> Sanity check: There shouldn't be any empty registries now.
     CALL "Registries-GetCount" USING REGISTRY-COUNT
@@ -180,8 +165,7 @@ LoadDatapack.
         CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
         IF REGISTRY-LENGTH <= 0
             CALL "Registries-Iterate-Name" USING REGISTRY-INDEX REGISTRY-NAME
-            DISPLAY "Error: Empty registry '" FUNCTION TRIM(REGISTRY-NAME) "'!"
-            STOP RUN RETURNING 1
+            COPY ASSERT-FAILED REPLACING MSG BY =="Empty registry: " FUNCTION TRIM(REGISTRY-NAME)==.
         END-IF
     END-PERFORM
     .
@@ -190,16 +174,12 @@ LoadPackets.
     DISPLAY "Loading packets...              " WITH NO ADVANCING
 
     CALL "Files-ReadAll" USING FILE-PACKETS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to read: " FUNCTION TRIM(FILE-PACKETS)
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to read: " FUNCTION TRIM(FILE-PACKETS)==.
 
     CALL "Packets-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to parse packets"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-PACKETS)==.
 
     CALL "Packets-GetCount" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
@@ -257,10 +237,9 @@ RegisterItems.
 
     *> Register a generic block item for each item that has an identically-named block
     CALL "Registries-GetRegistryIndex" USING "minecraft:item" REGISTRY-INDEX
-    IF REGISTRY-INDEX <= 0
-        DISPLAY "Failed to find item registry"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==REGISTRY-INDEX > 0==,
+        MSG BY =="Failed to find registry: minecraft:item"==.
+
     CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
     PERFORM VARYING REGISTRY-ENTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-ENTRY-INDEX > REGISTRY-LENGTH
         CALL "Registries-Iterate-EntryName" USING REGISTRY-INDEX REGISTRY-ENTRY-INDEX REGISTRY-ENTRY-NAME
@@ -348,17 +327,13 @@ RegisterCommands.
 LoadProperties.
     DISPLAY "Loading server properties...    " WITH NO ADVANCING
     CALL "ServerProperties-Read" USING DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to read server.properties"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to read server.properties"==.
 
     *> Always write out server.properties to ensure that any missing properties are added
     CALL "ServerProperties-Write" USING DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to write server.properties"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to write server.properties"==.
 
     DISPLAY "done"
     .
@@ -367,10 +342,8 @@ LoadWhitelist.
     DISPLAY "Loading whitelist...            " WITH NO ADVANCING
 
     CALL "Whitelist-Read" USING DATA-FAILURE
-    IF DATA-FAILURE NOT = 0
-        DISPLAY "Failed to read whitelist"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
+        MSG BY =="Failed to read whitelist"==.
 
     DISPLAY "done"
     .
@@ -379,10 +352,8 @@ GenerateWorld.
     DISPLAY "Loading world...                " WITH NO ADVANCING
 
     CALL "World-Load" USING TEMP-INT8
-    IF TEMP-INT8 NOT = 0
-        DISPLAY "Failed to load world"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==TEMP-INT8 = 0==,
+        MSG BY =="Failed to load world"==.
 
     *> prepare player data
     CALL "Players-Init"
@@ -705,10 +676,8 @@ ReceivePacket.
     .
 
 HandleServerError.
-    IF ERRNO NOT = 0
-        DISPLAY "Server socket error: " ERRNO
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==ERRNO = 0==,
+        MSG BY =="Server socket error: " ERRNO==.
     .
 
 HandleClientError.
@@ -917,12 +886,12 @@ WORKING-STORAGE SECTION.
 PROCEDURE DIVISION.
     *> save chunks
     CALL "World-Save" USING SAVE-FAILURE
-    IF SAVE-FAILURE NOT = 0
-        DISPLAY "Failed to save world"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==SAVE-FAILURE = 0==,
+        MSG BY =="Failed to save world"==.
+
     *> save player data
     CALL "Players-Save"
+
     GOBACK.
 
 END PROGRAM Server-Save.

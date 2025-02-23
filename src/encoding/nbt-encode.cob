@@ -392,10 +392,8 @@ LINKAGE SECTION.
     01 LK-BUFFER        PIC X ANY LENGTH.
 
 PROCEDURE DIVISION USING LK-NBTENC LK-BUFFER.
-    IF LK-NBTENC-LEVEL < 1 OR LK-NBTENC-STACK-TYPE(LK-NBTENC-LEVEL) NOT = X"09"
-        DISPLAY "ERROR: Missing list start tag."
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==LK-NBTENC-LEVEL >= 1 AND LK-NBTENC-STACK-TYPE(LK-NBTENC-LEVEL) = X"09"==,
+        MSG BY =="NbtEncode-EndList: Missing list start tag"==.
 
     *> Fix up the list type and value count.
     MOVE LK-NBTENC-STACK-LIST-TYPE(LK-NBTENC-LEVEL) TO LK-BUFFER(LK-NBTENC-STACK-INDEX(LK-NBTENC-LEVEL):1)
@@ -451,10 +449,8 @@ LINKAGE SECTION.
     01 LK-BUFFER        PIC X ANY LENGTH.
 
 PROCEDURE DIVISION USING LK-NBTENC LK-BUFFER.
-    IF LK-NBTENC-LEVEL > 0
-        DISPLAY "ERROR: Root compound must be at level 0."
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==LK-NBTENC-LEVEL = 0==,
+        MSG BY =="NbtEncode-RootCompound: Must be at level 0"==.
 
     *> The root compound is a special case of the named compound.
     *> It wraps all save data on disk. However, it isn't used on the network.
@@ -481,10 +477,8 @@ LINKAGE SECTION.
     01 LK-BUFFER        PIC X ANY LENGTH.
 
 PROCEDURE DIVISION USING LK-NBTENC LK-BUFFER.
-    IF LK-NBTENC-LEVEL < 1 OR LK-NBTENC-STACK-TYPE(LK-NBTENC-LEVEL) NOT = X"0A"
-        DISPLAY "ERROR: Missing compound start tag."
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==LK-NBTENC-LEVEL >= 1 AND LK-NBTENC-STACK-TYPE(LK-NBTENC-LEVEL) = X"0A"==,
+        MSG BY =="NbtEncode-EndCompound: Missing compound start tag"==.
 
     *> Write the end tag.
     MOVE X"00" TO LK-BUFFER(LK-NBTENC-OFFSET:1)

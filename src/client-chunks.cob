@@ -104,11 +104,11 @@ PROCEDURE DIVISION.
             CALL "SendChunks" USING CLIENT-ID
         END-IF
     END-PERFORM
+
     CALL "World-UnloadChunks" USING VIEW-DISTANCE UNLOAD-FAILURE
-    IF UNLOAD-FAILURE NOT = 0
-        DISPLAY "Failure unloading chunks"
-        STOP RUN RETURNING 1
-    END-IF
+    COPY ASSERT REPLACING COND BY ==UNLOAD-FAILURE = 0==,
+        MSG BY =="ProcessClientChunks: World-UnloadChunks failed"==.
+
     GOBACK.
 
 END PROGRAM ProcessClientChunks.
