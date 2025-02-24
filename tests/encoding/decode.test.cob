@@ -16,6 +16,7 @@ PROCEDURE DIVISION.
     CALL "Test-Decode-Float"
     CALL "Test-Decode-String"
     CALL "Test-Decode-Position"
+    CALL "Test-Decode-InventorySlot"
     GOBACK.
 
     *> --- Test: Decode-Byte ---
@@ -749,5 +750,45 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Decode-Position.
+
+    *> --- Test: Test-Decode-InventorySlot ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Decode-InventorySlot.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 BUFFER       PIC X(256).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+        01 RESULT-SLOT.
+            COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==RESULT==.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Decode-InventorySlot".
+    Empty.
+        DISPLAY "    Case: empty - " WITH NO ADVANCING
+        MOVE X"00" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        INITIALIZE RESULT-SLOT
+        CALL "Decode-InventorySlot" USING BUFFER BUFFERPOS RESULT-SLOT
+        IF BUFFERPOS = 2 AND RESULT-SLOT-COUNT = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Simple.
+        DISPLAY "    Case: simple - " WITH NO ADVANCING
+        MOVE X"2ADDC7010000" TO BUFFER
+        MOVE 1 TO BUFFERPOS
+        INITIALIZE RESULT-SLOT
+        CALL "Decode-InventorySlot" USING BUFFER BUFFERPOS RESULT-SLOT
+        IF BUFFERPOS = 7 AND RESULT-SLOT-COUNT = 42 AND RESULT-SLOT-ID = 25565 AND RESULT-SLOT-NBT-LENGTH = 2 AND RESULT-SLOT-NBT-DATA(1:2) = X"0000"
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Decode-InventorySlot.
 
 END PROGRAM Test-Decode.

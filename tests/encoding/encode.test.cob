@@ -15,6 +15,7 @@ PROCEDURE DIVISION.
     CALL "Test-Encode-String"
     CALL "Test-Encode-Angle"
     CALL "Test-Encode-Position"
+    CALL "Test-Encode-InventorySlot"
     GOBACK.
 
     *> --- Test: Encode-Byte ---
@@ -792,5 +793,51 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-Encode-Position.
+
+    *> --- Test: Test-Encode-InventorySlot ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-Encode-InventorySlot.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 IN-SLOT.
+            COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==IN==.
+        01 BUFFER       PIC X(256).
+        01 BUFFERPOS    BINARY-LONG UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: Encode-InventorySlot".
+    Empty.
+        DISPLAY "    Case: empty - " WITH NO ADVANCING
+        MOVE 0 TO IN-SLOT-COUNT
+        MOVE 1234 TO IN-SLOT-ID
+        MOVE 42 TO IN-SLOT-NBT-LENGTH
+        MOVE "Hello, World!" TO IN-SLOT-NBT-DATA
+        INITIALIZE BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Encode-InventorySlot" USING IN-SLOT BUFFER BUFFERPOS
+        IF BUFFER = X"00" AND BUFFERPOS = 2
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Simple.
+        DISPLAY "    Case: simple - " WITH NO ADVANCING
+        MOVE 42 TO IN-SLOT-COUNT
+        MOVE 25565 TO IN-SLOT-ID
+        MOVE 2 TO IN-SLOT-NBT-LENGTH
+        MOVE X"0000" TO IN-SLOT-NBT-DATA
+        INITIALIZE BUFFER
+        MOVE 1 TO BUFFERPOS
+        CALL "Encode-InventorySlot" USING IN-SLOT BUFFER BUFFERPOS
+        IF BUFFER = X"2ADDC7010000" AND BUFFERPOS = 7
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-Encode-InventorySlot.
 
 END PROGRAM Test-Encode.

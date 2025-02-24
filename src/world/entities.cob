@@ -113,7 +113,7 @@ SendMetadata.
         *> index(byte), type(VarInt), value(VarInt)
 
         IF LK-ENTITY-NO-GRAVITY NOT = 0
-            *> index 5: has no gravity; type: boolean; value: true
+            *> index 5: has no gravity; type: 8 = boolean; value: true
             MOVE X"05" TO BUFFER(BUFFERPOS:1)
             ADD 1 TO BUFFERPOS
             MOVE 8 TO TEMP-INT32
@@ -122,23 +122,14 @@ SendMetadata.
             ADD 1 TO BUFFERPOS
         END-IF
 
-        *> index 8: item type; type: slot; value: (item stack)
+        *> index: 8 = item type; type: 7 = slot; value: (item stack)
         MOVE X"08" TO BUFFER(BUFFERPOS:1)
         ADD 1 TO BUFFERPOS
         MOVE 7 TO TEMP-INT32
         CALL "Encode-VarInt" USING TEMP-INT32 BUFFER BUFFERPOS
-        *> count
-        MOVE ENTITY-ITEM-SLOT-COUNT TO TEMP-INT32
-        CALL "Encode-VarInt" USING TEMP-INT32 BUFFER BUFFERPOS
-        IF ENTITY-ITEM-SLOT-COUNT > 0
-            *> item ID
-            CALL "Encode-VarInt" USING ENTITY-ITEM-SLOT-ID BUFFER BUFFERPOS
-            *> data components
-            MOVE ENTITY-ITEM-SLOT-NBT-DATA(1:ENTITY-ITEM-SLOT-NBT-LENGTH) TO BUFFER(BUFFERPOS:ENTITY-ITEM-SLOT-NBT-LENGTH)
-            ADD ENTITY-ITEM-SLOT-NBT-LENGTH TO BUFFERPOS
-        END-IF
+        CALL "Encode-InventorySlot" USING LK-ENTITY-ITEM-SLOT BUFFER BUFFERPOS
 
-        *> terminator is 0xFF
+        *> terminator
         MOVE X"FF" TO BUFFER(BUFFERPOS:1)
         ADD 1 TO BUFFERPOS
 
