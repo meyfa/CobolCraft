@@ -238,6 +238,12 @@ PROCEDURE DIVISION.
         .
 
     CheckBlockCollision.
+        CALL "World-CheckBounds" USING BLOCK-POSITION COLLISION
+        IF COLLISION NOT = 0
+            MOVE 0 TO COLLISION
+            EXIT PARAGRAPH
+        END-IF
+
         CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
         IF BLOCK-ID <= 0
             MOVE 0 TO COLLISION
