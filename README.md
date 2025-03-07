@@ -129,6 +129,10 @@ This section provides a high-level overview of CobolCraft from a software design
 
 The program entrypoint is `main.cob`, with further sources located in the `src/` directory, notably `src/server.cob`.
 
+In true COBOL fashion, there is also a code generator (itself written in COBOL) that generates additional source code
+from JSON data like Minecraft's default datapack.
+This can be found in the `codegen/` directory.
+
 The `cpp/` directory contains C++ sources that are used to interface with the operating system in ways that are not
 feasible in COBOL, such as low-level TCP socket management, precise timing, or process signal handling.
 
@@ -144,9 +148,12 @@ The official Minecraft (Java Edition) server and client applications contain lar
 * protocol IDs for packets
 * tags (e.g., which blocks are mineable with a pickaxe)
 
-Fortunately, the freely available server .jar offers a command-line interface for extracting this data as JSON.
-The CobolCraft `Makefile` has a target that downloads the .jar and extracts the JSON data from it.
-The JSON files are evaluated at runtime using a custom-built generic JSON parser.
+The CobolCraft `Makefile` has a target to download the .jar and extract this data as JSON, which is used in two ways:
+
+* at compile-time to automatically generate COBOL code, such as for loot tables of all the block types
+* at runtime to load the data into memory.
+
+A custom-built generic JSON parser (written in COBOL and fully unit-tested) is used for both tasks.
 
 ### Tests
 
