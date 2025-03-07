@@ -99,15 +99,17 @@ docker run --rm -it -p 0.0.0.0:25565:25565 meyfa/cobolcraft
 
 ## Why?
 
-Well, there are quite a lot of rumors and stigma surrounding COBOL.
-This intrigued me to find out more about this language, which is best done with some sort of project, in my opinion.
-You heard right - I had no prior COBOL experience going into this.
+While I had zero prior COBOL experience, I had heard a lot of rumors and noticed a stigma surrounding COBOL.
+This intrigued me to find out more about this language - and the best way to learn a language is to write something
+with it.
 
-Writing a Minecraft server was perhaps not the best idea for a first COBOL project, since COBOL is intended for
-business applications, not low-level data manipulation (bits and bytes) which the Minecraft protocol needs lots of.
-However, quitting before having a working prototype was not on the table! A lot of this functionality had to be
-implemented completely from scratch, but with some clever programming, data encoding and decoding is not just fully
-working, but also quite performant.
+In retrospect, due to the sheer complexity and scale of Minecraft's code, choosing to write a Minecraft server
+in COBOL was both the best and worst idea I could have had.
+For one, it is necessary to invent a lot of things from scratch that are quite easy in other languages.
+This includes parsing and encoding JSON and all kinds of binary data, implementing real-time multiplayer networking,
+and translating large amounts of an inherently object-oriented system (Minecraft) to a procedural language.
+However, adapting to such a steep learning curve forces me to research and understand the language and its concepts
+in-depth, which is very rewarding.
 
 If you too have never written COBOL before but are interested in CobolCraft, I recommend reading the GnuCOBOL
 Programmer's Guide:
@@ -115,7 +117,9 @@ https://gnucobol.sourceforge.io/HTML/gnucobpg.html
 
 To learn more about the Minecraft protocol, you can refer to the wiki.vg documentation:
 https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Protocol
-In some cases, it may be helpful to look at real server traffic to better understand the flow of information.
+
+In some cases, it may also be helpful to look at real server traffic (e.g., using Wireguard) to better understand the
+flow of information.
 
 ## Program Overview
 
@@ -123,12 +127,14 @@ This section provides a high-level overview of CobolCraft from a software design
 
 ### Source Components
 
-The program entrypoint is `main.cob`.
-The remaining COBOL sources are located in the `src/` directory, including `src/server.cob`, which contains the bulk
-of CobolCraft.
+The program entrypoint is `main.cob`, with further sources located in the `src/` directory, notably `src/server.cob`.
 
-Only functionality that is not feasible in COBOL is implemented in C++, such as low-level TCP socket management,
-precise timing, or process signal handling, and is located in the `cpp/` directory.
+In true COBOL fashion, there is also a code generator (itself written in COBOL) that generates additional source code
+from JSON data like Minecraft's default datapack.
+This can be found in the `codegen/` directory.
+
+The `cpp/` directory contains C++ sources that are used to interface with the operating system in ways that are not
+feasible in COBOL, such as low-level TCP socket management, precise timing, or process signal handling.
 
 All sources (COBOL and C++) are compiled into a single `cobolcraft` binary.
 
@@ -142,9 +148,20 @@ The official Minecraft (Java Edition) server and client applications contain lar
 * protocol IDs for packets
 * tags (e.g., which blocks are mineable with a pickaxe)
 
-Fortunately, the freely available server .jar offers a command-line interface for extracting this data as JSON.
-The CobolCraft `Makefile` has a target that downloads the .jar and extracts the JSON data from it.
-The JSON files are evaluated at runtime using a custom-built generic JSON parser.
+The CobolCraft `Makefile` has a target to download the .jar and extract this data as JSON, which is used in two ways:
+
+* at compile-time to automatically generate COBOL code, such as for loot tables of all the block types
+* at runtime to load the data into memory.
+
+A custom-built generic JSON parser (written in COBOL and fully unit-tested) is used for both tasks.
+
+### Tests
+
+Unit tests are available in the `tests/` directory.
+The main goal here should be to test encoding and decoding of JSON and binary data and other things that are hard to
+debug, while testing the game logic itself is not so critical.
+
+Also see Updating.md for a guide regarding updating the server to a new Minecraft version and the steps to test it.
 
 ## Legal Notices
 

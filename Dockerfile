@@ -2,7 +2,7 @@ FROM docker.io/library/ubuntu:oracular AS base
 
 WORKDIR /app
 
-# --- BUILD STAGE ---
+
 FROM base AS build
 
 # Install build dependencies
@@ -16,12 +16,14 @@ COPY Makefile .
 RUN make data
 
 # Copy source files and build
-COPY main.cob .
-COPY src ./src
 COPY cpp ./cpp
+COPY codegen ./codegen
+COPY codegen.cob .
+COPY src ./src
+COPY main.cob .
 RUN make -j $(nproc) GCVERSION=32
 
-# --- DEPLOY STAGE ---
+
 FROM base AS deploy
 
 # Install runtime dependencies
