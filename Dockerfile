@@ -19,7 +19,6 @@ RUN make data
 COPY cpp ./cpp
 COPY codegen ./codegen
 COPY src ./src
-COPY main.cob .
 RUN make -j $(nproc) GCVERSION=32
 
 
