@@ -17,19 +17,21 @@ CPP_OBJECTS = $(patsubst $(ROOT_DIR)/cpp/%.cpp, $(OBJECTS_DIR)/cpp/%.o, $(CPP_SR
 SERVER_JAR_URL = https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar
 SERVER_JAR_EXTRACTED = $(DATA_DIR)/versions/1.21.4/server-1.21.4.jar
 
-# Code generator: sources, objects, and binary
-CODEGEN_SRC = $(wildcard $(ROOT_DIR)/codegen/*.cob $(ROOT_DIR)/codegen/*/*.cob $(ROOT_DIR)/codegen/*/*/*.cob)
-CODEGEN_MAIN_SRC = $(ROOT_DIR)/codegen.cob
+# Code generator: templates, sources (without templates), objects, and binary
+CODEGEN_TPL_DIR = $(ROOT_DIR)/codegen/templates
+CODEGEN_TPL = $(wildcard $(CODEGEN_TPL_DIR)/*.tpl.cob $(CODEGEN_TPL_DIR)/*/*.tpl.cob $(CODEGEN_TPL_DIR)/*/*/*.tpl.cob)
+CODEGEN_MAIN_SRC = $(ROOT_DIR)/codegen/codegen.cob
+CODEGEN_SRC = $(filter-out $(CODEGEN_TPL), $(wildcard $(ROOT_DIR)/codegen/*.cob $(ROOT_DIR)/codegen/*/*.cob $(ROOT_DIR)/codegen/*/*/*.cob))
 CODEGEN_OBJECTS = $(patsubst $(ROOT_DIR)/codegen/%.cob, $(OBJECTS_DIR)/codegen/%.o, $(CODEGEN_SRC))
 CODEGEN_BIN = $(OBJECTS_DIR)/codegen_bin
-# by convention, each codegen source file (codgen/%.cob) should generate a single output (generated/%.cob)
-CODEGEN_OUT_SRC = $(patsubst $(ROOT_DIR)/codegen/%.cob, $(CODEGEN_OUT_DIR)/%.cob, $(wildcard $(ROOT_DIR)/codegen/*.cob))
+# by convention, each source file codegen/generators/%.cob should generate a single output (generated/%.cob)
+CODEGEN_OUT_SRC = $(patsubst $(ROOT_DIR)/codegen/generators/%.cob, $(CODEGEN_OUT_DIR)/%.cob, $(wildcard $(ROOT_DIR)/codegen/generators/*.cob))
 CODEGEN_OUT_OBJECTS = $(patsubst %.cob, %.o, $(CODEGEN_OUT_SRC))
 
 # Application: copybooks, sources, objects, and binary
 CPY_DIR = $(ROOT_DIR)/src/_copybooks
-SRC = $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src/*/*.cob $(ROOT_DIR)/src/*/*/*.cob $(ROOT_DIR)/src/*/*/*/*.cob)
 MAIN_SRC = $(ROOT_DIR)/main.cob
+SRC = $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src/*/*.cob $(ROOT_DIR)/src/*/*/*.cob $(ROOT_DIR)/src/*/*/*/*.cob)
 OBJECTS = $(patsubst $(ROOT_DIR)/src/%.cob, $(OBJECTS_DIR)/%.o, $(SRC))
 BIN = cobolcraft
 
@@ -113,9 +115,9 @@ $(CODEGEN_BIN): $(CODEGEN_MAIN_SRC) $(CODEGEN_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
 	@mkdir -p $(@D)
 	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(CODEGEN_MAIN_SRC) $(CODEGEN_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
 
-$(CODEGEN_OUT_SRC): $(SERVER_JAR_EXTRACTED) $(CODEGEN_BIN)
+$(CODEGEN_OUT_SRC): $(SERVER_JAR_EXTRACTED) $(CODEGEN_BIN) $(CODEGEN_TPL)
 	@mkdir -p $(@D)
-	./$(CODEGEN_BIN) $(DATA_DIR) $(CODEGEN_OUT_DIR)
+	./$(CODEGEN_BIN) $(DATA_DIR) $(CODEGEN_OUT_DIR) $(CODEGEN_TPL_DIR)
 
 $(CODEGEN_OUT_OBJECTS): $(CODEGEN_OUT_SRC)
 	@mkdir -p $(@D)

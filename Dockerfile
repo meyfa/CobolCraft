@@ -18,7 +18,6 @@ RUN make data
 # Copy source files and build
 COPY cpp ./cpp
 COPY codegen ./codegen
-COPY codegen.cob .
 COPY src ./src
 COPY main.cob .
 RUN make -j $(nproc) GCVERSION=32
