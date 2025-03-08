@@ -28,6 +28,8 @@
         03 PLAYER-ON-GROUND             BINARY-CHAR UNSIGNED.
         03 PLAYER-AGAINST-WALL          BINARY-CHAR UNSIGNED.
         03 PLAYER-FALL-DISTANCE         FLOAT-SHORT.
+        *> Number of ticks since the last damage was taken
+        03 PLAYER-HURT-TIME             BINARY-LONG UNSIGNED.
         03 PLAYER-HEALTH                FLOAT-SHORT.
         03 PLAYER-FOOD-LEVEL            BINARY-LONG UNSIGNED.
         03 PLAYER-SATURATION            FLOAT-SHORT.
