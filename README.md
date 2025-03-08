@@ -127,7 +127,8 @@ This section provides a high-level overview of CobolCraft from a software design
 
 ### Source Components
 
-The program entrypoint is `main.cob`, with further sources located in the `src/` directory, notably `src/server.cob`.
+COBOL source code is primarily located in the `src/` directory, with `src/main.cob` being the entrypoint.
+`src/server.cob` contains the server startup code and the game logic.
 
 In true COBOL fashion, there is also a code generator (itself written in COBOL) that generates additional source code
 from JSON data like Minecraft's default datapack.

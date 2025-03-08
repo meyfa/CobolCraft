@@ -30,14 +30,14 @@ CODEGEN_OUT_OBJECTS = $(patsubst %.cob, %.o, $(CODEGEN_OUT_SRC))
 
 # Application: copybooks, sources, objects, and binary
 CPY_DIR = $(ROOT_DIR)/src/_copybooks
-MAIN_SRC = $(ROOT_DIR)/main.cob
-SRC = $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src/*/*.cob $(ROOT_DIR)/src/*/*/*.cob $(ROOT_DIR)/src/*/*/*/*.cob)
+MAIN_SRC = $(ROOT_DIR)/src/main.cob
+SRC = $(filter-out $(MAIN_SRC), $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src/*/*.cob $(ROOT_DIR)/src/*/*/*.cob $(ROOT_DIR)/src/*/*/*/*.cob))
 OBJECTS = $(patsubst $(ROOT_DIR)/src/%.cob, $(OBJECTS_DIR)/%.o, $(SRC))
 BIN = cobolcraft
 
 # Unit tests: sources, objects, and binary
-TEST_SRC = $(wildcard $(ROOT_DIR)/tests/*.cob $(ROOT_DIR)/tests/*/*.cob)
-TEST_MAIN_SRC = $(ROOT_DIR)/test.cob
+TEST_MAIN_SRC = $(ROOT_DIR)/tests/test.cob
+TEST_SRC = $(filter-out $(TEST_MAIN_SRC), $(wildcard $(ROOT_DIR)/tests/*.cob $(ROOT_DIR)/tests/*/*.cob))
 TEST_OBJECTS = $(patsubst $(ROOT_DIR)/tests/%.cob, $(OBJECTS_DIR)/tests/%.o, $(TEST_SRC))
 TEST_BIN = $(OBJECTS_DIR)/test_bin
 
