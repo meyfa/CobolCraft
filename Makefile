@@ -24,9 +24,13 @@ CODEGEN_MAIN_SRC = $(ROOT_DIR)/codegen/codegen.cob
 CODEGEN_SRC = $(filter-out $(CODEGEN_TPL), $(wildcard $(ROOT_DIR)/codegen/*.cob $(ROOT_DIR)/codegen/*/*.cob $(ROOT_DIR)/codegen/*/*/*.cob))
 CODEGEN_OBJECTS = $(patsubst $(ROOT_DIR)/codegen/%.cob, $(OBJECTS_DIR)/codegen/%.o, $(CODEGEN_SRC))
 CODEGEN_BIN = $(OBJECTS_DIR)/codegen_bin
-# by convention, each source file codegen/generators/%.cob should generate a single output (generated/%.cob)
+
+# By convention, each source file codegen/generators/%.cob should generate a single output (generated/%.cob)
 CODEGEN_OUT_SRC = $(patsubst $(ROOT_DIR)/codegen/generators/%.cob, $(CODEGEN_OUT_DIR)/%.cob, $(wildcard $(ROOT_DIR)/codegen/generators/*.cob))
 CODEGEN_OUT_OBJECTS = $(patsubst %.cob, %.o, $(CODEGEN_OUT_SRC))
+
+# To avoid redoing codegen when any source file changes, list the codegen binary's dependencies explicitly
+CODEGEN_BIN_DEPS = $(CPP_OBJECTS) $(OBJECTS_DIR)/files.o $(OBJECTS_DIR)/encoding/strings.o $(OBJECTS_DIR)/encoding/json-parse.o
 
 # Application: copybooks, sources, objects, and binary
 CPY_DIR = $(ROOT_DIR)/src/_copybooks
@@ -107,13 +111,13 @@ $(OBJECTS): $(OBJECTS_DIR)/%.o: $(ROOT_DIR)/src/%.cob $(GLOBALDEPS)
 	@mkdir -p $(@D)
 	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
 
-$(CODEGEN_OBJECTS): $(OBJECTS_DIR)/codegen/%.o: $(ROOT_DIR)/codegen/%.cob $(GLOBALDEPS)
+$(CODEGEN_OBJECTS): $(OBJECTS_DIR)/codegen/%.o: $(ROOT_DIR)/codegen/%.cob
 	@mkdir -p $(@D)
 	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
 
-$(CODEGEN_BIN): $(CODEGEN_MAIN_SRC) $(CODEGEN_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
+$(CODEGEN_BIN): $(CODEGEN_MAIN_SRC) $(CODEGEN_OBJECTS) $(CODEGEN_BIN_DEPS)
 	@mkdir -p $(@D)
-	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(CODEGEN_MAIN_SRC) $(CODEGEN_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $^
 
 $(CODEGEN_OUT_SRC): $(SERVER_JAR_EXTRACTED) $(CODEGEN_BIN) $(CODEGEN_TPL)
 	@mkdir -p $(@D)
@@ -124,7 +128,8 @@ $(CODEGEN_OUT_OBJECTS): $(CODEGEN_OUT_SRC)
 	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
 
 $(BIN): $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
-	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
+	@mkdir -p $(@D)
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $^
 
 $(TEST_OBJECTS): $(OBJECTS_DIR)/tests/%.o: $(ROOT_DIR)/tests/%.cob $(GLOBALDEPS)
 	@mkdir -p $(@D)
@@ -132,4 +137,4 @@ $(TEST_OBJECTS): $(OBJECTS_DIR)/tests/%.o: $(ROOT_DIR)/tests/%.cob $(GLOBALDEPS)
 
 $(TEST_BIN): $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
 	@mkdir -p $(@D)
-	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $^
