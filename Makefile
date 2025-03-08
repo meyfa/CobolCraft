@@ -3,31 +3,43 @@ COBC = cobc
 CC = g++
 
 # Directories
-OBJECTS_DIR = out
 ROOT_DIR = .
+OBJECTS_DIR = out
+DATA_DIR = data
+CODEGEN_OUT_DIR = $(OBJECTS_DIR)/generated
 
-# Sources, copybooks, and binary
-SRC = $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src/*/*.cob $(ROOT_DIR)/src/*/*/*.cob $(ROOT_DIR)/src/*/*/*/*.cob)
-MAIN_SRC = $(ROOT_DIR)/main.cob
-OBJECTS = $(patsubst $(ROOT_DIR)/src/%.cob, $(OBJECTS_DIR)/%.o, $(SRC))
-CPY_DIR = $(ROOT_DIR)/src/_copybooks
+# C++ library: sources, headers, compiled objects
 CPP_SRC = $(wildcard $(ROOT_DIR)/cpp/*.cpp)
 CPP_HEADERS = $(wildcard $(ROOT_DIR)/cpp/*.h)
 CPP_OBJECTS = $(patsubst $(ROOT_DIR)/cpp/%.cpp, $(OBJECTS_DIR)/cpp/%.o, $(CPP_SRC))
 
+# Data extraction from Mojang's server.jar
+SERVER_JAR_URL = https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar
+SERVER_JAR_EXTRACTED = $(DATA_DIR)/versions/1.21.4/server-1.21.4.jar
+
+# Code generator: templates, sources (without templates), objects, and binary
+CODEGEN_TPL_DIR = $(ROOT_DIR)/codegen/templates
+CODEGEN_TPL = $(wildcard $(CODEGEN_TPL_DIR)/*.tpl.cob $(CODEGEN_TPL_DIR)/*/*.tpl.cob $(CODEGEN_TPL_DIR)/*/*/*.tpl.cob)
+CODEGEN_MAIN_SRC = $(ROOT_DIR)/codegen/codegen.cob
+CODEGEN_SRC = $(filter-out $(CODEGEN_TPL), $(wildcard $(ROOT_DIR)/codegen/*.cob $(ROOT_DIR)/codegen/*/*.cob $(ROOT_DIR)/codegen/*/*/*.cob))
+CODEGEN_OBJECTS = $(patsubst $(ROOT_DIR)/codegen/%.cob, $(OBJECTS_DIR)/codegen/%.o, $(CODEGEN_SRC))
+CODEGEN_BIN = $(OBJECTS_DIR)/codegen_bin
+# by convention, each source file codegen/generators/%.cob should generate a single output (generated/%.cob)
+CODEGEN_OUT_SRC = $(patsubst $(ROOT_DIR)/codegen/generators/%.cob, $(CODEGEN_OUT_DIR)/%.cob, $(wildcard $(ROOT_DIR)/codegen/generators/*.cob))
+CODEGEN_OUT_OBJECTS = $(patsubst %.cob, %.o, $(CODEGEN_OUT_SRC))
+
+# Application: copybooks, sources, objects, and binary
+CPY_DIR = $(ROOT_DIR)/src/_copybooks
+MAIN_SRC = $(ROOT_DIR)/main.cob
+SRC = $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src/*/*.cob $(ROOT_DIR)/src/*/*/*.cob $(ROOT_DIR)/src/*/*/*/*.cob)
+OBJECTS = $(patsubst $(ROOT_DIR)/src/%.cob, $(OBJECTS_DIR)/%.o, $(SRC))
 BIN = cobolcraft
 
-all: $(BIN) data
-
-# Data extraction from Mojang's server.jar
-SERVER_URL = https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar
-SERVER_JAR_EXTRACTED = data/versions/1.21.4/server-1.21.4.jar
-
-# Test sources and binary
+# Unit tests: sources, objects, and binary
 TEST_SRC = $(wildcard $(ROOT_DIR)/tests/*.cob $(ROOT_DIR)/tests/*/*.cob)
 TEST_MAIN_SRC = $(ROOT_DIR)/test.cob
 TEST_OBJECTS = $(patsubst $(ROOT_DIR)/tests/%.cob, $(OBJECTS_DIR)/tests/%.o, $(TEST_SRC))
-TEST_BIN = test
+TEST_BIN = $(OBJECTS_DIR)/test_bin
 
 # GnuCOBOL >=3.2 added functions that drastically improve performance. Query the installed version (may have one sub-digit)
 GCVERSION := $(shell $(COBC) --version | head -n1 | sed 's/.*\s\([0-9]\+\)\.\([0-9]\).*/\1\2/g' )
@@ -49,42 +61,75 @@ GLOBALDEPS = $(wildcard $(CPY_DIR)/*.cpy $(CPY_DIR)/*/*.cpy)
 endif
 
 .SUFFIXES:
-.PHONY: all clean cobclean data run test
+.PHONY: all clean cobclean data codegen run test
 
+# Default target
+all: $(BIN) data
+
+# Run the application
+run: all
+	./$(BIN)
+
+# Run unit tests
+test: $(TEST_BIN)
+	./$(TEST_BIN)
+
+# Clean compiled objects and binaries
 cobclean:
-	rm -rf $(OBJECTS_DIR)
 	rm -f $(BIN)
 	rm -f $(TEST_BIN)
+	rm -f $(CODEGEN_BIN)
+	rm -rf $(CODEGEN_OUT_DIR)
+	rm -rf $(OBJECTS_DIR)
+	rm -f *.d
 
+# Clean everything
 clean: cobclean
 	rm -f $(JSON_DATA)
 	rm -rf data
 
-run: all
-	./$(BIN)
-
+# Run the data extraction
 data: $(SERVER_JAR_EXTRACTED)
 
-$(SERVER_JAR_EXTRACTED):
-	mkdir -p data
-	curl -o data/server.jar $(SERVER_URL)
-	cd data && java -DbundlerMainClass="net.minecraft.data.Main" -jar server.jar --reports --server
-
-$(OBJECTS): $(OBJECTS_DIR)/%.o: $(ROOT_DIR)/src/%.cob $(GLOBALDEPS)
-	@mkdir -p $(@D)
-	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
+# Run the code generator
+codegen: $(CODEGEN_OUT_SRC)
 
 $(CPP_OBJECTS): $(CPP_SRC) $(CPP_HEADERS)
 	@mkdir -p $(@D)
 	$(CC) -c -Wall -O2 -fPIC -o $@ $<
 
-$(BIN): $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS)
-	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS)
+$(SERVER_JAR_EXTRACTED):
+	@mkdir -p $(DATA_DIR)
+	curl -o data/server.jar $(SERVER_JAR_URL)
+	cd $(DATA_DIR) && java -DbundlerMainClass="net.minecraft.data.Main" -jar server.jar --reports --server
+
+$(OBJECTS): $(OBJECTS_DIR)/%.o: $(ROOT_DIR)/src/%.cob $(GLOBALDEPS)
+	@mkdir -p $(@D)
+	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
+
+$(CODEGEN_OBJECTS): $(OBJECTS_DIR)/codegen/%.o: $(ROOT_DIR)/codegen/%.cob $(GLOBALDEPS)
+	@mkdir -p $(@D)
+	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
+
+$(CODEGEN_BIN): $(CODEGEN_MAIN_SRC) $(CODEGEN_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
+	@mkdir -p $(@D)
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(CODEGEN_MAIN_SRC) $(CODEGEN_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
+
+$(CODEGEN_OUT_SRC): $(SERVER_JAR_EXTRACTED) $(CODEGEN_BIN) $(CODEGEN_TPL)
+	@mkdir -p $(@D)
+	./$(CODEGEN_BIN) $(DATA_DIR) $(CODEGEN_OUT_DIR) $(CODEGEN_TPL_DIR)
+
+$(CODEGEN_OUT_OBJECTS): $(CODEGEN_OUT_SRC)
+	@mkdir -p $(@D)
+	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
+
+$(BIN): $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
 
 $(TEST_OBJECTS): $(OBJECTS_DIR)/tests/%.o: $(ROOT_DIR)/tests/%.cob $(GLOBALDEPS)
 	@mkdir -p $(@D)
 	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
 
-test: $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
-	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS)
-	./$(TEST_BIN)
+$(TEST_BIN): $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
+	@mkdir -p $(@D)
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)

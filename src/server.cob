@@ -45,6 +45,7 @@ WORKING-STORAGE SECTION.
     01 BYTE-COUNT                   BINARY-LONG UNSIGNED.
     01 BYTE-COUNT-EXPECTED          BINARY-LONG UNSIGNED.
     *> Temporary variables
+    01 TEMP-STR                     PIC X(255).
     01 TEMP-INT8                    BINARY-CHAR.
     01 TEMP-INT16                   BINARY-SHORT.
     01 TEMP-INT32                   BINARY-LONG.
@@ -168,6 +169,15 @@ LoadDatapack.
             COPY ASSERT-FAILED REPLACING MSG BY =="Empty registry: " FUNCTION TRIM(REGISTRY-NAME)==.
         END-IF
     END-PERFORM
+    .
+
+LoadGenerated.
+    DISPLAY "Loading generated data..."
+
+    *> Since this is generated code, we can't link statically.
+    *> TODO Try to link statically in the future.
+    MOVE "GC-BlocksLootTable" TO TEMP-STR
+    CALL TEMP-STR
     .
 
 LoadPackets.

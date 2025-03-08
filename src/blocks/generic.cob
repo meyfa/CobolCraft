@@ -46,31 +46,42 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-PLAYERS.
         01 AIR-BLOCK-STATE          BINARY-LONG             VALUE 0.
-        01 BLOCK-ID                 BINARY-LONG.
+        01 BLOCKSTATE-ID            BINARY-LONG.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
+        01 BLOCK-REGISTRY-ID        BINARY-LONG.
+        01 DROP-REFERENCE           PIC X(256).
         01 DROPPED-ITEM-SLOT.
             COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==DROPPED-ITEM==.
+        01 LOOT-PTR                 PROGRAM-POINTER.
     LINKAGE SECTION.
         COPY DD-CALLBACK-BLOCK-DESTROY.
 
     PROCEDURE DIVISION USING LK-PLAYER LK-POSITION LK-FACE.
-        CALL "World-GetBlock" USING LK-POSITION BLOCK-ID
-        IF BLOCK-ID = AIR-BLOCK-STATE
+        CALL "World-GetBlock" USING LK-POSITION BLOCKSTATE-ID
+        IF BLOCKSTATE-ID = AIR-BLOCK-STATE
             GOBACK
         END-IF
 
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) LK-POSITION AIR-BLOCK-STATE
 
         IF PLAYER-GAMEMODE(LK-PLAYER) = 0 OR 2
-            CALL "Blocks-Get-StateDescription" USING BLOCK-ID CLICKED-DESCRIPTION
-            CALL "Registries-Get-EntryId" USING "minecraft:item" CLICKED-NAME DROPPED-ITEM-SLOT-ID
-            IF DROPPED-ITEM-SLOT-ID >= 0
-                MOVE 1 TO DROPPED-ITEM-SLOT-COUNT
-                *> TODO data components
-                MOVE 2 TO DROPPED-ITEM-SLOT-NBT-LENGTH
-                MOVE X"0000" TO DROPPED-ITEM-SLOT-NBT-DATA(1:2)
+            CALL "Blocks-Get-StateDescription" USING BLOCKSTATE-ID CLICKED-DESCRIPTION
 
-                CALL "World-DropItem-FromBlock" USING DROPPED-ITEM-SLOT LK-POSITION
+            *> get loot table callback
+            CALL "Registries-Get-EntryId" USING "minecraft:block" CLICKED-NAME BLOCK-REGISTRY-ID
+            CALL "GetCallback-BlockLoot" USING BLOCK-REGISTRY-ID LOOT-PTR
+
+            IF LOOT-PTR NOT = NULL
+                CALL LOOT-PTR USING DROP-REFERENCE
+                CALL "Registries-Get-EntryId" USING "minecraft:item" DROP-REFERENCE DROPPED-ITEM-SLOT-ID
+                IF DROPPED-ITEM-SLOT-ID > 0
+                    MOVE 1 TO DROPPED-ITEM-SLOT-COUNT
+                    *> TODO data components
+                    MOVE 2 TO DROPPED-ITEM-SLOT-NBT-LENGTH
+                    MOVE X"0000" TO DROPPED-ITEM-SLOT-NBT-DATA(1:2)
+
+                    CALL "World-DropItem-FromBlock" USING DROPPED-ITEM-SLOT LK-POSITION
+                END-IF
             END-IF
         END-IF
 
