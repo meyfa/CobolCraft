@@ -24,7 +24,7 @@ The following features are already working:
 - [X] configuration via server.properties
 - [X] whitelist (persistent; stored in whitelist.json)
 - [X] extremely basic block/player collision and entity physics
-- [X] fall damage, death, and respawning
+- [X] fall damage and void damage, dying, and respawning
 
 Note that blocks with multiple states, orientations, or interactive blocks require large amounts of specialized code
 to make them behave properly, which is way beyond the scope of this project.

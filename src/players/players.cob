@@ -116,26 +116,32 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-PLAYER-UUID LK-PLAYER-NAME LK-PLAYER-ID
             MOVE 20 TO PLAYER-HEALTH(LK-PLAYER-ID)
             MOVE 20 TO PLAYER-FOOD-LEVEL(LK-PLAYER-ID)
             MOVE 5 TO PLAYER-SATURATION(LK-PLAYER-ID)
+            MOVE 0 TO PLAYER-HURT-TIME(LK-PLAYER-ID)
             MOVE 0 TO PLAYER-INVENTORY-STATE(LK-PLAYER-ID)
             MOVE 0 TO PLAYER-WINDOW-ID(LK-PLAYER-ID)
             MOVE -1 TO PLAYER-WINDOW-TYPE(LK-PLAYER-ID)
             MOVE 0 TO PLAYER-WINDOW-STATE(LK-PLAYER-ID)
             MOVE -1 TO PLAYER-BLOCK-BREAKING-STAGE(LK-PLAYER-ID)
+
             *> Attempt to load existing player data
             CALL "Players-LoadPlayer" USING LK-PLAYER-ID LK-PLAYER-UUID IO-FAILURE
             IF IO-FAILURE NOT = 0
                 *> For now, ignore any errors and use the defaults
                 MOVE 0 TO IO-FAILURE
             END-IF
+
             *> Connect the player
             MOVE LK-CLIENT-ID TO PLAYER-CLIENT(LK-PLAYER-ID)
             MOVE LK-PLAYER-UUID TO PLAYER-UUID(LK-PLAYER-ID)
             MOVE LK-PLAYER-NAME TO PLAYER-NAME(LK-PLAYER-ID)
+
             GOBACK
         END-IF
     END-PERFORM
+
     *> no free player slots
     MOVE 0 TO LK-PLAYER-ID
+
     GOBACK.
 
 END PROGRAM Players-Connect.
@@ -186,10 +192,16 @@ WORKING-STORAGE SECTION.
     01 TIMER                    BINARY-LONG-LONG UNSIGNED   VALUE 0.
     01 CLIENT-ID                BINARY-LONG UNSIGNED.
     01 PLAYER-ID                BINARY-LONG UNSIGNED.
+    01 VOID-DAMAGE-AMOUNT       FLOAT-SHORT                 VALUE 4.0.
+    01 VOID-DAMAGE-TYPE         BINARY-LONG                 VALUE -1.
 
 PROCEDURE DIVISION.
     *> TODO Replace this timer with per-player logic
     ADD 1 TO TIMER
+
+    IF VOID-DAMAGE-TYPE < 0
+        CALL "Registries-Get-EntryId" USING "minecraft:damage_type" "minecraft:out_of_world" VOID-DAMAGE-TYPE
+    END-IF
 
     *> Only tick players in the play state, as ticking may send packets that are not valid in other states.
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
@@ -207,6 +219,15 @@ TickPlayer.
     *> If the player is dead, do not update their health.
     IF PLAYER-HEALTH(PLAYER-ID) <= 0
         EXIT PARAGRAPH
+    END-IF
+
+    IF PLAYER-HURT-TIME(PLAYER-ID) > 0
+        SUBTRACT 1 FROM PLAYER-HURT-TIME(PLAYER-ID)
+    END-IF
+
+    *> Void damage
+    IF PLAYER-Y(PLAYER-ID) < -128
+        CALL "Players-Damage" USING PLAYER-ID VOID-DAMAGE-AMOUNT VOID-DAMAGE-TYPE
     END-IF
 
     *> TODO Implement a proper health system. For now, we simply heal 1/2 heart per second on a global timer.
@@ -333,17 +354,17 @@ PROCEDURE DIVISION USING LK-PLAYER LK-AMOUNT LK-DAMAGE-TYPE.
         MOVE 1 TO DATA-INIT
     END-IF
 
-    *> Creative mode players are immune to all damage except the "/kill" command and void damage.
-    IF PLAYER-GAMEMODE(LK-PLAYER) = 1 AND NOT (LK-DAMAGE-TYPE = TYPE-GENERIC_KILL OR TYPE-OUT_OF_WORLD)
-        GOBACK
-    END-IF
-
-    *> Ignore already dead players.
-    IF PLAYER-HEALTH(LK-PLAYER) <= 0
+    IF (PLAYER-HEALTH(LK-PLAYER) <= 0)
+        *> Creative mode players are immune to all damage except the "/kill" command and void damage.
+        OR (PLAYER-GAMEMODE(LK-PLAYER) = 1 AND NOT (LK-DAMAGE-TYPE = TYPE-GENERIC_KILL OR TYPE-OUT_OF_WORLD))
+        *> Recently damaged players are immune (except for the "/kill" command).
+        OR (PLAYER-HURT-TIME(LK-PLAYER) > 0 AND LK-DAMAGE-TYPE NOT = TYPE-GENERIC_KILL)
+    THEN
         GOBACK
     END-IF
 
     COMPUTE PLAYER-HEALTH(LK-PLAYER) = FUNCTION MAX(0, PLAYER-HEALTH(LK-PLAYER) - LK-AMOUNT)
+    MOVE 10 TO PLAYER-HURT-TIME(LK-PLAYER)
 
     CALL "SendPacket-SetHealth" USING PLAYER-CLIENT(LK-PLAYER) PLAYER-HEALTH(LK-PLAYER)
         PLAYER-FOOD-LEVEL(LK-PLAYER) PLAYER-SATURATION(LK-PLAYER)

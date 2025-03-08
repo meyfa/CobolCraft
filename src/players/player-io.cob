@@ -37,6 +37,7 @@ WORKING-STORAGE SECTION.
     01 STR                      PIC X(256).
     01 LEN                      BINARY-LONG UNSIGNED.
     01 INT8                     BINARY-CHAR.
+    01 INT16                    BINARY-SHORT.
     01 INT32                    BINARY-LONG.
     01 INVENTORY-INDEX          BINARY-LONG UNSIGNED.
 LOCAL-STORAGE SECTION.
@@ -68,6 +69,9 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
 
     CALL "NbtEncode-Byte" USING NBTENC BUFFER "OnGround" PLAYER-ON-GROUND(LK-PLAYER-ID)
     CALL "NbtEncode-Float" USING NBTENC BUFFER "FallDistance" PLAYER-FALL-DISTANCE(LK-PLAYER-ID)
+
+    MOVE PLAYER-HURT-TIME(LK-PLAYER-ID) TO INT16
+    CALL "NbtEncode-Short" USING NBTENC BUFFER "HurtTime" INT16
 
     CALL "NbtEncode-Float" USING NBTENC BUFFER "Health" PLAYER-HEALTH(LK-PLAYER-ID)
     CALL "NbtEncode-Int" USING NBTENC BUFFER "foodLevel" PLAYER-FOOD-LEVEL(LK-PLAYER-ID)
@@ -168,6 +172,7 @@ WORKING-STORAGE SECTION.
     01 TAG                      PIC X(256).
     01 AT-END                   BINARY-CHAR UNSIGNED.
     01 INT8                     BINARY-CHAR.
+    01 INT16                    BINARY-SHORT.
     01 INT32                    BINARY-LONG.
     01 STR                      PIC X(256).
     01 LEN                      BINARY-LONG UNSIGNED.
@@ -240,6 +245,10 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
 
             WHEN "FallDistance"
                 CALL "NbtDecode-Float" USING NBTDEC BUFFER PLAYER-FALL-DISTANCE(LK-PLAYER-ID)
+
+            WHEN "HurtTime"
+                CALL "NbtDecode-Short" USING NBTDEC BUFFER INT16
+                MOVE INT16 TO PLAYER-HURT-TIME(LK-PLAYER-ID)
 
             WHEN "Health"
                 CALL "NbtDecode-Float" USING NBTDEC BUFFER PLAYER-HEALTH(LK-PLAYER-ID)
