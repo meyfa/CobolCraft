@@ -16,6 +16,7 @@ PROCEDURE DIVISION.
     CALL "Test-JsonParse-Integer"
     CALL "Test-JsonParse-Float"
     CALL "Test-JsonParse-SkipValue"
+    CALL "Test-JsonParse-FindValue"
     GOBACK.
 
     *> --- Test: JsonParse-ObjectStart ---
@@ -812,5 +813,66 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Test-JsonParse-SkipValue.
+
+    *> --- Test: JsonParse-FindValue ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Test-JsonParse-FindValue.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        01 STR          PIC X(100).
+        01 OFFSET       BINARY-LONG UNSIGNED.
+        01 FLAG         BINARY-CHAR UNSIGNED.
+
+    PROCEDURE DIVISION.
+        DISPLAY "  Test: JsonParse-FindValue".
+    EmptyObj.
+        DISPLAY "    Case: '    {}' - " WITH NO ADVANCING
+        MOVE "    {}" TO STR
+        MOVE 6 TO OFFSET
+        MOVE 0 TO FLAG
+        CALL "JsonParse-FindValue" USING STR OFFSET "foo" FLAG
+        IF OFFSET = 6 AND FLAG = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    Found.
+        DISPLAY "    Case: '    {""foo"": 42}' - " WITH NO ADVANCING
+        MOVE "    {  ""foo"": 42  }" TO STR
+        MOVE 6 TO OFFSET
+        MOVE 0 TO FLAG
+        CALL "JsonParse-FindValue" USING STR OFFSET "foo" FLAG
+        IF OFFSET = 14 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NotFound.
+        DISPLAY "    Case: '    {""bar"": 42}' - " WITH NO ADVANCING
+        MOVE "    {  ""bar"": 42  }" TO STR
+        MOVE 6 TO OFFSET
+        MOVE 0 TO FLAG
+        CALL "JsonParse-FindValue" USING STR OFFSET "foo" FLAG
+        IF OFFSET = 6 AND FLAG = 1
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+    NestedObj.
+        DISPLAY "    Case: '    {""bar"": {""foo"": 42}, ""foo"": 37}}' - " WITH NO ADVANCING
+        MOVE "    {  ""bar"": {""foo"": 42}, ""foo"": 37}" TO STR
+        MOVE 6 TO OFFSET
+        MOVE 0 TO FLAG
+        CALL "JsonParse-FindValue" USING STR OFFSET "foo" FLAG
+        IF OFFSET = 34 AND FLAG = 0
+            DISPLAY "PASS"
+        ELSE
+            DISPLAY "FAIL"
+        END-IF.
+
+        GOBACK.
+
+    END PROGRAM Test-JsonParse-FindValue.
 
 END PROGRAM Test-JsonParse.
