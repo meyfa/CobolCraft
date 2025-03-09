@@ -20,6 +20,8 @@ SERVER_JAR_EXTRACTED = $(DATA_DIR)/versions/1.21.4/server-1.21.4.jar
 # Code generator: templates, sources (without templates), objects, and binary
 CODEGEN_TPL_DIR = $(ROOT_DIR)/codegen/templates
 CODEGEN_TPL = $(wildcard $(CODEGEN_TPL_DIR)/*.tpl.cob $(CODEGEN_TPL_DIR)/*/*.tpl.cob $(CODEGEN_TPL_DIR)/*/*/*.tpl.cob)
+CODEGEN_CPY_DIR = $(ROOT_DIR)/codegen/_copybooks
+CODEGEN_CPY = $(wildcard $(CODEGEN_CPY_DIR)/*.cpy $(CODEGEN_CPY_DIR)/*/*.cpy)
 CODEGEN_MAIN_SRC = $(ROOT_DIR)/codegen/codegen.cob
 CODEGEN_SRC = $(filter-out $(CODEGEN_TPL), $(wildcard $(ROOT_DIR)/codegen/*.cob $(ROOT_DIR)/codegen/*/*.cob $(ROOT_DIR)/codegen/*/*/*.cob))
 CODEGEN_OBJECTS = $(patsubst $(ROOT_DIR)/codegen/%.cob, $(OBJECTS_DIR)/codegen/%.o, $(CODEGEN_SRC))
@@ -34,6 +36,7 @@ CODEGEN_BIN_DEPS = $(CPP_OBJECTS) $(OBJECTS_DIR)/files.o $(OBJECTS_DIR)/encoding
 
 # Application: copybooks, sources, objects, and binary
 CPY_DIR = $(ROOT_DIR)/src/_copybooks
+CPY = $(wildcard $(CPY_DIR)/*.cpy $(CPY_DIR)/*/*.cpy)
 MAIN_SRC = $(ROOT_DIR)/src/main.cob
 SRC = $(filter-out $(MAIN_SRC), $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src/*/*.cob $(ROOT_DIR)/src/*/*/*.cob $(ROOT_DIR)/src/*/*/*/*.cob))
 OBJECTS = $(patsubst $(ROOT_DIR)/src/%.cob, $(OBJECTS_DIR)/%.o, $(SRC))
@@ -111,13 +114,13 @@ $(OBJECTS): $(OBJECTS_DIR)/%.o: $(ROOT_DIR)/src/%.cob $(GLOBALDEPS)
 	@mkdir -p $(@D)
 	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
 
-$(CODEGEN_OBJECTS): $(OBJECTS_DIR)/codegen/%.o: $(ROOT_DIR)/codegen/%.cob
+$(CODEGEN_OBJECTS): $(OBJECTS_DIR)/codegen/%.o: $(ROOT_DIR)/codegen/%.cob $(GLOBALDEPS) $(CODEGEN_CPY)
 	@mkdir -p $(@D)
-	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
+	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -I $(CODEGEN_CPY_DIR) -o $@ $<
 
 $(CODEGEN_BIN): $(CODEGEN_MAIN_SRC) $(CODEGEN_OBJECTS) $(CODEGEN_BIN_DEPS)
 	@mkdir -p $(@D)
-	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $^
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -I $(CODEGEN_CPY_DIR) -lstdc++ -lz -o $@ $^
 
 $(CODEGEN_OUT_SRC): $(SERVER_JAR_EXTRACTED) $(CODEGEN_BIN) $(CODEGEN_TPL)
 	@mkdir -p $(@D)
