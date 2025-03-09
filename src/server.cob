@@ -172,7 +172,7 @@ LoadDatapack.
 
 LoadGenerated.
     DISPLAY "Loading generated data..."
-    CALL "GC-BlocksLootTable"
+    CALL "Generated-BlocksLootTable"
     .
 
 LoadPackets.

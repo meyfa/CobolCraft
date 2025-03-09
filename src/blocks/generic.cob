@@ -49,10 +49,8 @@ PROCEDURE DIVISION.
         01 BLOCKSTATE-ID            BINARY-LONG.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
         01 BLOCK-REGISTRY-ID        BINARY-LONG.
-        01 DROP-REFERENCE           PIC X(256).
-        01 DROPPED-ITEM-SLOT.
-            COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==DROPPED-ITEM==.
         01 LOOT-PTR                 PROGRAM-POINTER.
+        01 SURVIVES-EXPLOSION       BINARY-LONG             VALUE 1.
     LINKAGE SECTION.
         COPY DD-CALLBACK-BLOCK-DESTROY.
 
@@ -72,16 +70,7 @@ PROCEDURE DIVISION.
             CALL "GetCallback-BlockLoot" USING BLOCK-REGISTRY-ID LOOT-PTR
 
             IF LOOT-PTR NOT = NULL
-                CALL LOOT-PTR USING DROP-REFERENCE
-                CALL "Registries-Get-EntryId" USING "minecraft:item" DROP-REFERENCE DROPPED-ITEM-SLOT-ID
-                IF DROPPED-ITEM-SLOT-ID > 0
-                    MOVE 1 TO DROPPED-ITEM-SLOT-COUNT
-                    *> TODO data components
-                    MOVE 2 TO DROPPED-ITEM-SLOT-NBT-LENGTH
-                    MOVE X"0000" TO DROPPED-ITEM-SLOT-NBT-DATA(1:2)
-
-                    CALL "World-DropItem-FromBlock" USING DROPPED-ITEM-SLOT LK-POSITION
-                END-IF
+                CALL LOOT-PTR USING LK-POSITION SURVIVES-EXPLOSION
             END-IF
         END-IF
 

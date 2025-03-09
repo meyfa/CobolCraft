@@ -14,7 +14,7 @@ The following features are already working:
 - [X] support for Minecraft's file formats (import existing worlds)
 - [X] multiplayer (configurable number of concurrent players)
 - [X] ping/server status (i.e., show as online in the server list)
-- [X] breaking and placing blocks
+- [X] breaking and placing blocks, with auto-generated loot table code
 - [X] block interaction (right-clicking, e.g., to open doors)
 - [X] player inventory
 - [X] crafting, both 2x2 and 3x3
@@ -143,15 +143,16 @@ All sources (COBOL and C++) are compiled into a single `cobolcraft` binary.
 
 The official Minecraft (Java Edition) server and client applications contain large amounts of data such as:
 
-* block and item types
-* entity types
+* block, item, and entity types
 * biomes
 * protocol IDs for packets
 * tags (e.g., which blocks are mineable with a pickaxe)
+* recipes
+* loot tables (e.g., what items a block drops when broken, and under which conditions)
 
 The CobolCraft `Makefile` has a target to download the .jar and extract this data as JSON, which is used in two ways:
 
-* at compile-time to automatically generate COBOL code, such as for loot tables of all the block types
+* at compile-time to automatically generate COBOL code, such as for block loot tables
 * at runtime to load the data into memory.
 
 A custom-built generic JSON parser (written in COBOL and fully unit-tested) is used for both tasks.
