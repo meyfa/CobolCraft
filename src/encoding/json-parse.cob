@@ -595,14 +595,15 @@ END PROGRAM JsonParse-SkipValue.
 
 *> --- JsonParse-FindValue ---
 *> Iterate the JSON object and find the value of the given key. The absolute offset of the value is returned, so it
-*> can then be read by the caller.
+*> can then be read by the caller. If the key is not found, the offset is not changed.
+*>
 *> NOTE: This should not be called repeatedly on the same object. Use a PERFORM loop instead.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. JsonParse-FindValue.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 AT-END           BINARY-CHAR UNSIGNED.
+    01 OFFSET           BINARY-LONG UNSIGNED.
     01 STR              PIC X(256).
 LINKAGE SECTION.
     01 LK-INPUT         PIC X ANY LENGTH.
@@ -612,24 +613,28 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-KEY LK-FLAG.
     MOVE 0 TO LK-FLAG
+    MOVE LK-OFFSET TO OFFSET
 
     PERFORM UNTIL EXIT
-        CALL "JsonParse-ObjectKey" USING LK-INPUT LK-OFFSET LK-FLAG STR
+        CALL "JsonParse-ObjectKey" USING LK-INPUT OFFSET LK-FLAG STR
         IF LK-FLAG = 1 OR STR = LK-KEY
             EXIT PERFORM
         END-IF
 
-        CALL "JsonParse-SkipValue" USING LK-INPUT LK-OFFSET LK-FLAG
+        CALL "JsonParse-SkipValue" USING LK-INPUT OFFSET LK-FLAG
         IF LK-FLAG = 1
             EXIT PERFORM
         END-IF
 
-        CALL "JsonParse-Comma" USING LK-INPUT LK-OFFSET AT-END
-        IF AT-END = 1
-            MOVE 1 TO LK-FLAG
+        CALL "JsonParse-Comma" USING LK-INPUT OFFSET LK-FLAG
+        IF LK-FLAG = 1
             EXIT PERFORM
         END-IF
     END-PERFORM
+
+    IF LK-FLAG = 0
+        MOVE OFFSET TO LK-OFFSET
+    END-IF
 
     GOBACK.
 
