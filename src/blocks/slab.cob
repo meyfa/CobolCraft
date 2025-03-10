@@ -50,6 +50,8 @@ PROCEDURE DIVISION.
         COPY DD-CALLBACK-BLOCK-DESTROY.
 
     PROCEDURE DIVISION USING LK-PLAYER LK-POSITION LK-FACE.
+        *> TODO: Remove this implementation in favor of loot tables
+
         CALL "World-GetBlock" USING LK-POSITION BLOCK-ID
         IF BLOCK-ID = AIR-BLOCK-STATE
             GOBACK

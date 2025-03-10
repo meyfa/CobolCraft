@@ -338,12 +338,15 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> initialized once
     01 INIT-DONE                    BINARY-CHAR UNSIGNED.
+    01 REPLACE-PTR                  PROGRAM-POINTER.
     COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==CONDITION-EXPLOSION==.
     COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==CONDITION-MATCH-TOOL==.
+    COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==CONDITION-RANDOM-CHANCE==.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
     01 JSONBUF                      PIC X(16000)                EXTERNAL.
     01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    01 CONDITION-CHANCE             FLOAT-LONG                  EXTERNAL.
     *> dynamic variables
     01 FAILURE                      BINARY-CHAR UNSIGNED.
     01 STR                          PIC X(64).
@@ -356,6 +359,8 @@ PROCEDURE DIVISION USING LK-BUFFER LK-LENGTH.
     IF INIT-DONE = 0
         CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-explosion.tpl.cob" OMITTED CONDITION-EXPLOSION-TPL
         CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-match-tool.tpl.cob" OMITTED CONDITION-MATCH-TOOL-TPL
+        SET REPLACE-PTR TO ENTRY "CG-BlocksLootTable-CondChance"
+        CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-random-chance.tpl.cob" REPLACE-PTR CONDITION-RANDOM-CHANCE-TPL
         MOVE 1 TO INIT-DONE
     END-IF
 
@@ -363,7 +368,7 @@ PROCEDURE DIVISION USING LK-BUFFER LK-LENGTH.
     PERFORM AssertOk
 
     PERFORM UNTIL EXIT
-        PERFORM ParsePoolCondition
+        PERFORM ParseCondition
         CALL "JsonParse-Comma" USING JSONBUF JSONPOS FAILURE
         IF FAILURE > 0 EXIT PERFORM END-IF
     END-PERFORM
@@ -373,7 +378,7 @@ PROCEDURE DIVISION USING LK-BUFFER LK-LENGTH.
 
     GOBACK.
 
-ParsePoolCondition.
+ParseCondition.
     CALL "JsonParse-ObjectStart" USING JSONBUF JSONPOS FAILURE
     PERFORM AssertOk
 
@@ -384,6 +389,9 @@ ParsePoolCondition.
         EVALUATE STR
             WHEN "condition"
                 CALL "JsonParse-String" USING JSONBUF JSONPOS FAILURE CONDITION-TYPE
+                PERFORM AssertOk
+            WHEN "chance"
+                CALL "JsonParse-Float" USING JSONBUF JSONPOS FAILURE CONDITION-CHANCE
                 PERFORM AssertOk
             WHEN OTHER
                 CALL "JsonParse-SkipValue" USING JSONBUF JSONPOS FAILURE
@@ -399,8 +407,41 @@ ParsePoolCondition.
     EVALUATE CONDITION-TYPE
         WHEN "minecraft:survives_explosion"
             CALL "Codegen-TemplateEval" USING CONDITION-EXPLOSION-TPL LK-BUFFER LK-LENGTH
+
         WHEN "minecraft:match_tool"
             CALL "Codegen-TemplateEval" USING CONDITION-MATCH-TOOL-TPL LK-BUFFER LK-LENGTH
+
+        WHEN "minecraft:block_state_property"
+            *> TODO implement
+            CONTINUE
+
+        WHEN "minecraft:random_chance"
+            CALL "Codegen-TemplateEval" USING CONDITION-RANDOM-CHANCE-TPL LK-BUFFER LK-LENGTH
+
+        WHEN "minecraft:table_bonus"
+            *> TODO implement
+            CONTINUE
+
+        WHEN "minecraft:location_check"
+            *> TODO implement
+            CONTINUE
+
+        WHEN "minecraft:entity_properties"
+            *> TODO implement
+            *> Note: Even without any predicate for the entity, this condition can still serve a purpose:
+            *>       It detects that the block was mined/exploded directly by an entity, vs. destroyed by a piston etc.
+            CONTINUE
+
+        WHEN "minecraft:inverted"
+            *> TODO implement
+            CONTINUE
+
+        WHEN "minecraft:any_of"
+            *> TODO implement
+            CONTINUE
+
+        WHEN OTHER
+            COPY ASSERT-FAILED REPLACING MSG BY =="CG-BlocksLootTable-Conditions: Unexpected condition type: " FUNCTION TRIM(CONDITION-TYPE)==.
     END-EVALUATE
     .
 
@@ -410,6 +451,32 @@ AssertOk.
     .
 
 END PROGRAM CG-BlocksLootTable-Conditions.
+
+*> --- CG-BlocksLootTable-CondChance ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. CG-BlocksLootTable-CondChance.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared state
+    01 CONDITION-CHANCE             FLOAT-LONG                  EXTERNAL.
+    01 CHANCE-FORMAT                PIC 9.9(9).
+LINKAGE SECTION.
+    01 LK-VARNAME                   PIC X ANY LENGTH.
+    01 LK-BUFFER                    PIC X ANY LENGTH.
+    01 LK-LENGTH                    BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-VARNAME LK-BUFFER LK-LENGTH.
+    EVALUATE LK-VARNAME
+        WHEN "CHANCE"
+            MOVE CONDITION-CHANCE TO CHANCE-FORMAT
+            STRING CHANCE-FORMAT INTO LK-BUFFER(LK-LENGTH + 1:)
+            ADD 11 TO LK-LENGTH
+    END-EVALUATE
+
+    GOBACK.
+
+END PROGRAM CG-BlocksLootTable-CondChance.
 
 *> --- CG-BlocksLootTable-Entry ---
 IDENTIFICATION DIVISION.
@@ -454,15 +521,19 @@ PROCEDURE DIVISION USING LK-BUFFER LK-LENGTH.
     EVALUATE STR
         WHEN "minecraft:item"
             CALL "Codegen-TemplateEval" USING ENTRY-ITEM-TPL LK-BUFFER LK-LENGTH
+
         WHEN "minecraft:alternatives"
             CALL "CG-BlocksLootTable-Alternative" USING LK-BUFFER LK-LENGTH
-        WHEN OTHER
+
+        WHEN "minecraft:dynamic"
+            *> TODO implement
             CALL "JsonParse-SkipValue" USING JSONBUF JSONPOS FAILURE
             PERFORM AssertOk
-
-            *> TODO Move this into a template
             STRING "        CONTINUE" X"0A" INTO LK-BUFFER(LK-LENGTH + 1:)
             ADD 17 TO LK-LENGTH
+
+        WHEN OTHER
+            COPY ASSERT-FAILED REPLACING MSG BY =="CG-BlocksLootTable-Entry: Unexpected entry type: " FUNCTION TRIM(STR)==.
     END-EVALUATE
 
     GOBACK.
