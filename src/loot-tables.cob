@@ -1,3 +1,26 @@
+*> --- LootTables-RandomChance ---
+*> Evaluate a random chance condition.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LootTables-RandomChance.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 RANDOM-NUMBER            FLOAT-LONG.
+LINKAGE SECTION.
+    *> The chance, such as "0.125". Given as a string to avoid a working-storage item in each caller.
+    01 LK-CHANCE                PIC X ANY LENGTH.
+    *> The result; unchanged if the chance is met, set to 0 otherwise.
+    01 LK-COND                  BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-CHANCE LK-COND.
+    *> TODO Use a better random number generator - dependent on the loot table's "random_sequence".
+    MOVE FUNCTION RANDOM TO RANDOM-NUMBER
+    IF RANDOM-NUMBER >= FUNCTION NUMVAL(LK-CHANCE)
+        MOVE 0 TO LK-COND
+    END-IF.
+
+END PROGRAM LootTables-RandomChance.
+
 *> --- BlocksLoot-Drop ---
 *> Helper function to be called by the BlocksLootTable generated code.
 *> Drops 1 piece of a named item at the given block position.
