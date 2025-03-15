@@ -15,3 +15,5 @@
         03 PREFIX-TPL-VAR-END       BINARY-LONG UNSIGNED.
         *> variable name (excluding the $)
         03 PREFIX-TPL-VAR-NAME      PIC X(32).
+        *> indentation (number of spaces) to apply to child templates rendered within this variable
+        03 PREFIX-TPL-VAR-INDENT    BINARY-LONG UNSIGNED.

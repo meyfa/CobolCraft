@@ -1,2 +1,2 @@
-    SET CB TO ENTRY "$PROGID$"
-    CALL "Register" USING "$BLOCK-NAME$" CB
+SET CB TO ENTRY "$progid$"
+CALL "Register" USING "$block-name$" CB

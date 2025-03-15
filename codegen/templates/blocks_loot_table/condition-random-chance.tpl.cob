@@ -1,1 +1,1 @@
-        CALL "LootTables-RandomChance" USING "$CHANCE$" COND
+CALL "LootTables-RandomChance" USING "$chance$" COND

@@ -1,1 +1,1 @@
-        MOVE 0 TO COND
+MOVE 0 TO COND

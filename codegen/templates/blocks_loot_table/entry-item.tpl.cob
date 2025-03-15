@@ -1,1 +1,6 @@
-        CALL "BlocksLoot-Drop" USING LK-POS "$ITEM-NAME$"
+MOVE 1 TO COND
+$conditions$
+IF COND NOT = 0
+    ADD 1 TO POOL-SIZE
+    MOVE "$item-name$" TO POOL-ID(POOL-SIZE)
+END-IF
