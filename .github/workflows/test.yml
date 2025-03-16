@@ -12,16 +12,20 @@ permissions:
 jobs:
   test:
     name: Test
-    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         # Ubuntu 24.04 has GnuCOBOL 3.1.2, while Ubuntu 24.10 has GnuCOBOL 3.2.0.
         image-tag: ["24.04", "24.10"]
+        # Test on both x86 and ARM host architectures.
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
     container:
       image: ubuntu:${{ matrix.image-tag }}
     steps:
+      - run: uname -a && dpkg --print-architecture
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -31,7 +35,7 @@ jobs:
       - run: cobc --version
 
       - name: Build
-        run: make --jobs $(nproc)
+        run: make --jobs="$(nproc)"
 
       - name: Run tests
         shell: bash
