@@ -42,7 +42,9 @@ SRC = $(filter-out $(MAIN_SRC), $(wildcard $(ROOT_DIR)/src/*.cob $(ROOT_DIR)/src
 OBJECTS = $(patsubst $(ROOT_DIR)/src/%.cob, $(OBJECTS_DIR)/%.o, $(SRC))
 BIN = cobolcraft
 
-# Unit tests: sources, objects, and binary
+# Unit tests: copybooks, sources, objects, and binary
+TEST_CPY_DIR = $(ROOT_DIR)/tests/_copybooks
+TEST_CPY = $(wildcard $(TEST_CPY_DIR)/*.cpy $(TEST_CPY_DIR)/*/*.cpy)
 TEST_MAIN_SRC = $(ROOT_DIR)/tests/test.cob
 TEST_SRC = $(filter-out $(TEST_MAIN_SRC), $(wildcard $(ROOT_DIR)/tests/*.cob $(ROOT_DIR)/tests/*/*.cob))
 TEST_OBJECTS = $(patsubst $(ROOT_DIR)/tests/%.cob, $(OBJECTS_DIR)/tests/%.o, $(TEST_SRC))
@@ -134,10 +136,10 @@ $(BIN): $(MAIN_SRC) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
 	@mkdir -p $(@D)
 	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $^
 
-$(TEST_OBJECTS): $(OBJECTS_DIR)/tests/%.o: $(ROOT_DIR)/tests/%.cob $(GLOBALDEPS)
+$(TEST_OBJECTS): $(OBJECTS_DIR)/tests/%.o: $(ROOT_DIR)/tests/%.cob $(GLOBALDEPS) $(TEST_CPY)
 	@mkdir -p $(@D)
-	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -o $@ $<
+	$(COBC) -c $(COBC_OPTS) $(COB_MTFLAGS) -I $(TEST_CPY_DIR) -o $@ $<
 
 $(TEST_BIN): $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
 	@mkdir -p $(@D)
-	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -lstdc++ -lz -o $@ $^
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -I $(TEST_CPY_DIR) -lstdc++ -lz -o $@ $^

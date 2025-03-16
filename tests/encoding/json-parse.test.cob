@@ -3,7 +3,7 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. Test-JsonParse.
 
 PROCEDURE DIVISION.
-    DISPLAY "Test: json-parse.cob"
+    COPY TEST-SUITE REPLACING ==NAME== BY =="encoding/json-parse.cob"==.
     CALL "Test-JsonParse-ObjectStart"
     CALL "Test-JsonParse-ObjectEnd"
     CALL "Test-JsonParse-ArrayStart"
@@ -30,29 +30,21 @@ PROCEDURE DIVISION.
         01 FLAG         BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-ObjectStart".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-ObjectStart"==.
     Simple.
-        DISPLAY "    Case: '    {' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    {'"==.
         MOVE "    {" TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-ObjectStart" USING STR OFFSET FLAG
-        IF OFFSET = 6 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 0==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-ObjectStart" USING STR OFFSET FLAG
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -69,29 +61,21 @@ PROCEDURE DIVISION.
         01 FLAG         BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-ObjectEnd".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-ObjectEnd"==.
     Simple.
-        DISPLAY "    Case: '    }' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    }'"==.
         MOVE "    }" TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-ObjectEnd" USING STR OFFSET FLAG
-        IF OFFSET = 6 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 0==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-ObjectEnd" USING STR OFFSET FLAG
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -108,29 +92,21 @@ PROCEDURE DIVISION.
         01 FLAG         BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-ArrayStart".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-ArrayStart"==.
     Simple.
-        DISPLAY "    Case: '    [' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ['"==.
         MOVE "    [" TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-ArrayStart" USING STR OFFSET FLAG
-        IF OFFSET = 6 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 0==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-ArrayStart" USING STR OFFSET FLAG
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -147,29 +123,21 @@ PROCEDURE DIVISION.
         01 FLAG         BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-ArrayEnd".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-ArrayEnd"==.
     Simple.
-        DISPLAY "    Case: '    ]' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ]'"==.
         MOVE "    ]" TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-ArrayEnd" USING STR OFFSET FLAG
-        IF OFFSET = 6 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 0==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-ArrayEnd" USING STR OFFSET FLAG
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -186,29 +154,21 @@ PROCEDURE DIVISION.
         01 FLAG         BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-Comma".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-Comma"==.
     Simple.
-        DISPLAY "    Case: '    ,  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ,  '"==.
         MOVE "    ,  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Comma" USING STR OFFSET FLAG
-        IF OFFSET = 6 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 0==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-Comma" USING STR OFFSET FLAG
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -226,64 +186,44 @@ PROCEDURE DIVISION.
         01 RESULT       PIC X(100).
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-String".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-String"==.
     Simple.
-        DISPLAY "    Case: '    ""abc""  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""abc""  '"==.
         MOVE "    ""abc""  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-String" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 10 AND FLAG = 0 AND RESULT = "abc"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 10 AND FLAG = 0 AND RESULT = "abc"==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-String" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     MissingEnd.
-        DISPLAY "    Case: '    ""abc' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""abc'"==.
         MOVE SPACES TO STR
         MOVE "    ""abc" TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-String" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     EscapedChar.
-        DISPLAY "    Case: '    ""1\""2\\3\/4\b5\f6\n7\r8\t9""  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""1\""2\\3\/4\b5\f6\n7\r8\t9""  '"==.
         MOVE "    ""1\""2\\3\/4\b5\f6\n7\r8\t9""  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-String" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 32 AND FLAG = 0 AND RESULT = X"3122325C332F3408350C360A370D380939"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 32 AND FLAG = 0 AND RESULT = X"3122325C332F3408350C360A370D380939"==.
     EscapedUnicodeChar.
         *> TODO: test for unsupported unicode characters (i.e., outside the ASCII range)
-        DISPLAY "    Case: '    ""foo \u002D bar""  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""foo \u002D bar""  '"==.
         MOVE "    ""foo \u002D bar""  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-String" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 21 AND FLAG = 0 AND RESULT = "foo - bar"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 21 AND FLAG = 0 AND RESULT = "foo - bar"==.
 
         GOBACK.
 
@@ -301,63 +241,43 @@ PROCEDURE DIVISION.
         01 RESULT       PIC X(100).
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-ObjectKey".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-ObjectKey"==.
     Simple.
-        DISPLAY "    Case: '    ""abc""  :  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""abc""  :  '"==.
         MOVE "    ""abc""  :  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-ObjectKey" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 13 AND FLAG = 0 AND RESULT = "abc"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 13 AND FLAG = 0 AND RESULT = "abc"==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-ObjectKey" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     MissingEnd.
-        DISPLAY "    Case: '    ""abc' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""abc'"==.
         MOVE SPACES TO STR
         MOVE "    ""abc" TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-ObjectKey" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     MissingColon.
-        DISPLAY "    Case: '    ""abc""  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""abc""  '"==.
         MOVE "    ""abc""  " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-ObjectKey" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     Consecutive.
-        DISPLAY "    Case: '    ""abc"" ""def""  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""abc"" ""def""  '"==.
         MOVE "    ""abc"" ""def""  " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-ObjectKey" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -374,40 +294,28 @@ PROCEDURE DIVISION.
         01 FLAG         BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-Null".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-Null"==.
     Simple.
-        DISPLAY "    Case: '    null  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    null  '"==.
         MOVE "    null  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Null" USING STR OFFSET FLAG
-        IF OFFSET = 9 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 9 AND FLAG = 0==.
     BooleanLiteral.
-        DISPLAY "    Case: '    true  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    true  '"==.
         MOVE "    true  " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-Null" USING STR OFFSET FLAG
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-Null" USING STR OFFSET FLAG
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -425,51 +333,35 @@ PROCEDURE DIVISION.
         01 RESULT       BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-Boolean".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-Boolean"==.
     TrueValue.
-        DISPLAY "    Case: '    true  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    true  '"==.
         MOVE "    true  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Boolean" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 9 AND FLAG = 0 AND RESULT = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 9 AND FLAG = 0 AND RESULT = 1==.
     FalseValue.
-        DISPLAY "    Case: '    false  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    false  '"==.
         MOVE "    false  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Boolean" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 10 AND FLAG = 0 AND RESULT = 0==.
     NullLiteral.
-        DISPLAY "    Case: '    null  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    null  '"==.
         MOVE "    null  " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-Boolean" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-Boolean" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -487,51 +379,35 @@ PROCEDURE DIVISION.
         01 RESULT       BINARY-LONG.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-Integer".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-Integer"==.
     Simple.
-        DISPLAY "    Case: '    123  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    123  '"==.
         MOVE "    123  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Integer" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 8 AND FLAG = 0 AND RESULT = 123
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 8 AND FLAG = 0 AND RESULT = 123==.
     Missing.
-        DISPLAY "    Case: '   ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'   '"==.
         MOVE "   " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-Integer" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     NegativeInt.
-        DISPLAY "    Case: '    -123  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    -123  '"==.
         MOVE "    -123  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Integer" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 9 AND FLAG = 0 AND RESULT = -123
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 9 AND FLAG = 0 AND RESULT = -123==.
     MinusOnly.
-        DISPLAY "    Case: '    -  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    -  '"==.
         MOVE "    -  " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-Integer" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
 
         GOBACK.
 
@@ -549,117 +425,77 @@ PROCEDURE DIVISION.
         01 RESULT       FLOAT-LONG.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-Float".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-Float"==.
     FloatZero.
-        DISPLAY "    Case: '  0.0  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  0.0  '"==.
         MOVE "  0.0  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 6 AND FLAG = 0 AND RESULT = 0.0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 0 AND RESULT = 0.0==.
     PositiveInt.
-        DISPLAY "    Case: '  123  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  123  '"==.
         MOVE "  123  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 6 AND FLAG = 0 AND RESULT = 123
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 0 AND RESULT = 123==.
     NegativeInt.
-        DISPLAY "    Case: '  -123  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  -123  '"==.
         MOVE "  -123  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 7 AND FLAG = 0 AND RESULT = -123
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 7 AND FLAG = 0 AND RESULT = -123==.
     PositiveFloat.
-        DISPLAY "    Case: '  123.456  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  123.456  '"==.
         MOVE "  123.456  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 123.456
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 10 AND FLAG = 0 AND RESULT = 123.456==.
     NegativeFloat.
-        DISPLAY "    Case: '  -123.456  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  -123.456  '"==.
         MOVE "  -123.456  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 11 AND FLAG = 0 AND RESULT = -123.456
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 11 AND FLAG = 0 AND RESULT = -123.456==.
     Missing.
-        DISPLAY "    Case: '  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  '"==.
         MOVE "  " TO STR
         MOVE 1 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FLAG = 1==.
     ScientificNotationMinus.
-        DISPLAY "    Case: '  1.23e-4  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  1.23e-4  '"==.
         MOVE "  1.23e-4  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 1.23e-4
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 10 AND FLAG = 0 AND RESULT = 1.23e-4==.
     ScientificNotationUpper.
-        DISPLAY "    Case: '  1.23E-4  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  1.23E-4  '"==.
         MOVE "  1.23E-4  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 1.23e-4
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 10 AND FLAG = 0 AND RESULT = 1.23e-4==.
     ScientificNotationPlus.
-        DISPLAY "    Case: '  1.23e+4  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  1.23e+4  '"==.
         MOVE "  1.23e+4  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 10 AND FLAG = 0 AND RESULT = 12300.0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 10 AND FLAG = 0 AND RESULT = 12300.0==.
     ScientificNotationNegative.
-        DISPLAY "    Case: '  -1.23e-4  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  -1.23e-4  '"==.
         MOVE "  -1.23e-4  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
-        IF OFFSET = 11 AND FLAG = 0 AND RESULT = -1.23e-4
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 11 AND FLAG = 0 AND RESULT = -1.23e-4==.
 
         GOBACK.
 
@@ -676,139 +512,91 @@ PROCEDURE DIVISION.
         01 FLAG         BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-SkipValue".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-SkipValue"==.
     PositiveInt.
-        DISPLAY "    Case: '    123  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    123  '"==.
         MOVE "    123  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 8 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 8 AND FLAG = 0==.
     NegativeInt.
-        DISPLAY "    Case: '    -123  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    -123  '"==.
         MOVE "    -123  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 9 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 9 AND FLAG = 0==.
     PositiveFloat.
-        DISPLAY "    Case: '    123.456  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    123.456  '"==.
         MOVE "    123.456  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 12 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 12 AND FLAG = 0==.
     NegativeFloat.
-        DISPLAY "    Case: '    -123.456  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    -123.456  '"==.
         MOVE "    -123.456  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 13 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 13 AND FLAG = 0==.
     ScientificNotation.
-        DISPLAY "    Case: '    1.23e-4  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    1.23e-4  '"==.
         MOVE "    1.23e-4  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 12 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 12 AND FLAG = 0==.
     StringValue.
-        DISPLAY "    Case: '    ""abc""  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""abc""  '"==.
         MOVE "    ""abc""  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 10 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 10 AND FLAG = 0==.
     StringEscape.
-        DISPLAY "    Case: '    ""1\""2\\3\/4\b5\f6\n7\r8\t9""  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    ""1\""2\\3\/4\b5\f6\n7\r8\t9""  '"==.
         MOVE "    ""1\""2\\3\/4\b5\f6\n7\r8\t9""  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 32 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 32 AND FLAG = 0==.
     SimpleObject.
-        DISPLAY "    Case: '    {  }  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    {  }  '"==.
         MOVE "    {  }  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 9 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 9 AND FLAG = 0==.
     ComplexObject.
-        DISPLAY "    Case: '    {""abc"": 123, ""foo"": { ""bar"": ""baz"" }, ""bool"": true, ""null"": null }  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    {""abc"": 123, ""foo"": { ""bar"": ""baz"" }, ""bool"": true, ""null"": null }  '"==.
         MOVE "    {""abc"": 123, ""foo"": { ""bar"": ""baz"" }, ""bool"": true, ""null"": null }  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 71 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 71 AND FLAG = 0==.
     SimpleArray.
-        DISPLAY "    Case: '    [  ]  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    [  ]  '"==.
         MOVE "    [  ]  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 9 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 9 AND FLAG = 0==.
     NestedArray.
-        DISPLAY "    Case: '    [ 1,2, [3,   4], 5  ]  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    [ 1,2, [3,   4], 5  ]  '"==.
         MOVE "    [ 1,2, [3,   4], 5  ]  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 26 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 26 AND FLAG = 0==.
     ObjectAndArray.
-        DISPLAY "    Case: '    {""foo"":[{}, {""bar"":42}]}  ' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    {""foo"":[{}, {""bar"":42}]}  '"==.
         MOVE "    {""foo"":[{}, {""bar"":42}]}  " TO STR
         MOVE 1 TO OFFSET
         MOVE 1 TO FLAG
         CALL "JsonParse-SkipValue" USING STR OFFSET FLAG
-        IF OFFSET = 29 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 29 AND FLAG = 0==.
 
         GOBACK.
 
@@ -825,51 +613,35 @@ PROCEDURE DIVISION.
         01 FLAG         BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonParse-FindValue".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonParse-FindValue"==.
     EmptyObj.
-        DISPLAY "    Case: '    {}' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    {}'"==.
         MOVE "    {}" TO STR
         MOVE 6 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-FindValue" USING STR OFFSET "foo" FLAG
-        IF OFFSET = 6 AND FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 1==.
     Found.
-        DISPLAY "    Case: '    {""foo"": 42}' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    {""foo"": 42}'"==.
         MOVE "    {  ""foo"": 42  }" TO STR
         MOVE 6 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-FindValue" USING STR OFFSET "foo" FLAG
-        IF OFFSET = 14 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 14 AND FLAG = 0==.
     NotFound.
-        DISPLAY "    Case: '    {""bar"": 42}' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    {""bar"": 42}'"==.
         MOVE "    {  ""bar"": 42  }" TO STR
         MOVE 6 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-FindValue" USING STR OFFSET "foo" FLAG
-        IF OFFSET = 6 AND FLAG = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND FLAG = 1==.
     NestedObj.
-        DISPLAY "    Case: '    {""bar"": {""foo"": 42}, ""foo"": 37}}' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'    {""bar"": {""foo"": 42}, ""foo"": 37}}'"==.
         MOVE "    {  ""bar"": {""foo"": 42}, ""foo"": 37}" TO STR
         MOVE 6 TO OFFSET
         MOVE 0 TO FLAG
         CALL "JsonParse-FindValue" USING STR OFFSET "foo" FLAG
-        IF OFFSET = 34 AND FLAG = 0
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 34 AND FLAG = 0==.
 
         GOBACK.
 

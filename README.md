@@ -159,7 +159,10 @@ A custom-built generic JSON parser (written in COBOL and fully unit-tested) is u
 
 ### Tests
 
-Unit tests are available in the `tests/` directory.
+Unit tests are available in the `tests/` directory, using a custom copybook-based testing framework that tracks test
+suites, units, and assertions and provides a summary at the end of the run.
+Call `make test` to run the tests.
+
 The main goal here should be to test encoding and decoding of JSON and binary data and other things that are hard to
 debug, while testing the game logic itself is not so critical.
 

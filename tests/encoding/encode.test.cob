@@ -3,7 +3,7 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. Test-Encode.
 
 PROCEDURE DIVISION.
-    DISPLAY "Test: encode.cob"
+    COPY TEST-SUITE REPLACING ==NAME== BY =="encoding/encode.cob"==.
     CALL "Test-Encode-Byte"
     CALL "Test-Encode-UnsignedShort"
     CALL "Test-Encode-UnsignedInt"
@@ -29,37 +29,25 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-Byte".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-Byte"==.
     Byte0.
-        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0"==.
         MOVE 0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Byte" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"00" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00" AND BUFFERPOS = 2==.
     ByteMax.
-        DISPLAY "    Case: 127 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="127"==.
         MOVE 127 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Byte" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"7F" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"7F" AND BUFFERPOS = 2==.
     ByteMin.
-        DISPLAY "    Case: -128 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-128"==.
         MOVE -128 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Byte" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"80" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"80" AND BUFFERPOS = 2==.
 
         GOBACK.
 
@@ -76,37 +64,25 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-UnsignedShort".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-UnsignedShort"==.
     Short0.
-        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0"==.
         MOVE 0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedShort" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"0000" AND BUFFERPOS = 3
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"0000" AND BUFFERPOS = 3==.
     Short1.
-        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="1"==.
         MOVE 1 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedShort" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"0001" AND BUFFERPOS = 3
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"0001" AND BUFFERPOS = 3==.
     ShortMax.
-        DISPLAY "    Case: 65535 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="65535"==.
         MOVE 65535 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedShort" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FFFF" AND BUFFERPOS = 3
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FFFF" AND BUFFERPOS = 3==.
 
         GOBACK.
 
@@ -123,37 +99,25 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-UnsignedInt".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-UnsignedInt"==.
     Int0.
-        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0"==.
         MOVE 0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"00000000" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00000000" AND BUFFERPOS = 5==.
     Int1.
-        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="1"==.
         MOVE 1 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"00000001" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00000001" AND BUFFERPOS = 5==.
     IntMax.
-        DISPLAY "    Case: 4294967295 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="4294967295"==.
         MOVE 4294967295 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FFFFFFFF" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FFFFFFFF" AND BUFFERPOS = 5==.
 
         GOBACK.
 
@@ -170,107 +134,67 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-VarInt".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-VarInt"==.
     Int0.
-        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0"==.
         MOVE 0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"00" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00" AND BUFFERPOS = 2==.
     Int1.
-        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="1"==.
         MOVE 1 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"01" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"01" AND BUFFERPOS = 2==.
     Int127.
-        DISPLAY "    Case: 127 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="127"==.
         MOVE 127 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"7F" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"7F" AND BUFFERPOS = 2==.
     Int128.
-        DISPLAY "    Case: 128 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="128"==.
         MOVE 128 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"8001" AND BUFFERPOS = 3
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"8001" AND BUFFERPOS = 3==.
     Int255.
-        DISPLAY "    Case: 255 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="255"==.
         MOVE 255 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FF01" AND BUFFERPOS = 3
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FF01" AND BUFFERPOS = 3==.
     Int25565.
-        DISPLAY "    Case: 25565 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="25565"==.
         MOVE 25565 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"DDC701" AND BUFFERPOS = 4
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"DDC701" AND BUFFERPOS = 4==.
     Int2097151.
-        DISPLAY "    Case: 2097151 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="2097151"==.
         MOVE 2097151 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FFFF7F" AND BUFFERPOS = 4
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FFFF7F" AND BUFFERPOS = 4==.
     IntMax.
-        DISPLAY "    Case: 2147483647 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="2147483647"==.
         MOVE 2147483647 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FFFFFFFF07" AND BUFFERPOS = 6
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FFFFFFFF07" AND BUFFERPOS = 6==.
     IntNegative1.
-        DISPLAY "    Case: -1 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-1"==.
         MOVE -1 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FFFFFFFF0F" AND BUFFERPOS = 6
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FFFFFFFF0F" AND BUFFERPOS = 6==.
     IntMin.
-        DISPLAY "    Case: -2147483648 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-2147483648"==.
         MOVE -2147483648 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-VarInt" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"8080808008" AND BUFFERPOS = 6
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"8080808008" AND BUFFERPOS = 6==.
 
         GOBACK.
 
@@ -286,88 +210,52 @@ PROCEDURE DIVISION.
         01 RESULT       BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-GetVarIntLength".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-GetVarIntLength"==.
     Int0.
-        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0"==.
         MOVE 0 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 1==.
     Int1.
-        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="1"==.
         MOVE 1 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 1==.
     Int127.
-        DISPLAY "    Case: 127 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="127"==.
         MOVE 127 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 1==.
     Int128.
-        DISPLAY "    Case: 128 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="128"==.
         MOVE 128 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 2==.
     Int255.
-        DISPLAY "    Case: 255 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="255"==.
         MOVE 255 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 2==.
     Int25565.
-        DISPLAY "    Case: 25565 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="25565"==.
         MOVE 25565 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 3
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 3==.
     IntMax.
-        DISPLAY "    Case: 2147483647 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="2147483647"==.
         MOVE 2147483647 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 5==.
     IntNegative1.
-        DISPLAY "    Case: -1 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-1"==.
         MOVE -1 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 5==.
     IntMin.
-        DISPLAY "    Case: -2147483648 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-2147483648"==.
         MOVE -2147483648 TO VALUE-IN
         CALL "Encode-GetVarIntLength" USING VALUE-IN RESULT
-        IF RESULT = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = 5==.
 
         GOBACK.
 
@@ -384,47 +272,31 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-UnsignedLong".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-UnsignedLong"==.
     Long0.
-        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0"==.
         MOVE 0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedLong" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"0000000000000000" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"0000000000000000" AND BUFFERPOS = 9==.
     Long1.
-        DISPLAY "    Case: 1 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="1"==.
         MOVE 1 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedLong" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"0000000000000001" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"0000000000000001" AND BUFFERPOS = 9==.
     Long25565.
-        DISPLAY "    Case: 25565 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="25565"==.
         MOVE 25565 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedLong" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"00000000000063DD" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00000000000063DD" AND BUFFERPOS = 9==.
     LongMax.
-        DISPLAY "    Case: 18446744073709551615 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="18446744073709551615"==.
         MOVE 18446744073709551615 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-UnsignedLong" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FFFFFFFFFFFFFFFF" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FFFFFFFFFFFFFFFF" AND BUFFERPOS = 9==.
 
         GOBACK.
 
@@ -441,100 +313,65 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-Double".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-Double"==.
     PositiveZero.
-        DISPLAY "    Case: +0.0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="+0.0"==.
         MOVE 0.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Double" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"0000000000000000" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"0000000000000000" AND BUFFERPOS = 9==.
     NegativeZero.
         *> Note: I've found no way to differentiate +0.0 and -0.0 in COBOL, so they're encoded the same.
-        DISPLAY "    Case: -0.0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-0.0"==.
         MOVE -0.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Double" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"0000000000000000" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"0000000000000000" AND BUFFERPOS = 9==.
     PositiveInfinity.
-        *> Note: FLOAT-INFINITY is not supported in GnuCOBOL.
-        DISPLAY "    Case: +Infinity - " WITH NO ADVANCING
-        DISPLAY "SKIP".
+        COPY TEST-CASE REPLACING ==NAME== BY =="+Infinity"==.
+        COPY TEST-SKIP REPLACING REASON BY =="FLOAT-INFINITY is not supported in GnuCOBOL"==.
     NegativeInfinity.
-        *> Note: FLOAT-INFINITY is not supported in GnuCOBOL.
-        DISPLAY "    Case: -Infinity - " WITH NO ADVANCING
-        DISPLAY "SKIP".
+        COPY TEST-CASE REPLACING ==NAME== BY =="-Infinity"==.
+        COPY TEST-SKIP REPLACING REASON BY =="FLOAT-INFINITY is not supported in GnuCOBOL"==.
     NaN.
-        *> Note: FLOAT-NOT-A-NUMBER is not supported in GnuCOBOL.
-        DISPLAY "    Case: NaN - " WITH NO ADVANCING
-        DISPLAY "SKIP".
+        COPY TEST-CASE REPLACING ==NAME== BY =="NaN"==.
+        COPY TEST-SKIP REPLACING REASON BY =="FLOAT-INFINITY is not supported in GnuCOBOL"==.
     Positive1.
-        DISPLAY "    Case: +1.0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="+1.0"==.
         MOVE 1.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Double" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"3FF0000000000000" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"3FF0000000000000" AND BUFFERPOS = 9==.
     Negative1.
-        DISPLAY "    Case: -1.0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-1.0"==.
         MOVE -1.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Double" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"BFF0000000000000" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"BFF0000000000000" AND BUFFERPOS = 9==.
     PositiveDecimal.
-        DISPLAY "    Case: +12.125 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="+12.125"==.
         MOVE 12.125 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Double" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"4028400000000000" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"4028400000000000" AND BUFFERPOS = 9==.
     NegativeDecimal.
-        DISPLAY "    Case: -12.125 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-12.125"==.
         MOVE -12.125 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Double" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"C028400000000000" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"C028400000000000" AND BUFFERPOS = 9==.
     PositiveMax.
-        DISPLAY "    Case: +1.79769E+308 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="+1.79769E+308"==.
         MOVE 1.79769313486231570814527423731704357E+308 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Double" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"7FEFFFFFFFFFFFFF" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"7FEFFFFFFFFFFFFF" AND BUFFERPOS = 9==.
     NegativeMax.
-        DISPLAY "    Case: -1.79769E+308 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-1.79769E+308"==.
         MOVE -1.79769313486231570814527423731704357E+308 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Double" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FFEFFFFFFFFFFFFF" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FFEFFFFFFFFFFFFF" AND BUFFERPOS = 9==.
 
         GOBACK.
 
@@ -551,100 +388,65 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-Float".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-Float"==.
     PositiveZero.
-        DISPLAY "    Case: +0.0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="+0.0"==.
         MOVE 0.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Float" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"00000000" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00000000" AND BUFFERPOS = 5==.
     NegativeZero.
         *> Note: I've found no way to differentiate +0.0 and -0.0 in COBOL, so they're encoded the same.
-        DISPLAY "    Case: -0.0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-0.0"==.
         MOVE -0.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Float" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"00000000" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00000000" AND BUFFERPOS = 5==.
     PositiveInfinity.
-        *> Note: FLOAT-INFINITY is not supported in GnuCOBOL.
-        DISPLAY "    Case: +Infinity - " WITH NO ADVANCING
-        DISPLAY "SKIP".
+        COPY TEST-CASE REPLACING ==NAME== BY =="+Infinity"==.
+        COPY TEST-SKIP REPLACING REASON BY =="FLOAT-INFINITY is not supported in GnuCOBOL"==.
     NegativeInfinity.
-        *> Note: FLOAT-INFINITY is not supported in GnuCOBOL.
-        DISPLAY "    Case: -Infinity - " WITH NO ADVANCING
-        DISPLAY "SKIP".
+        COPY TEST-CASE REPLACING ==NAME== BY =="-Infinity"==.
+        COPY TEST-SKIP REPLACING REASON BY =="FLOAT-INFINITY is not supported in GnuCOBOL"==.
     NaN.
-        *> Note: FLOAT-NOT-A-NUMBER is not supported in GnuCOBOL.
-        DISPLAY "    Case: NaN - " WITH NO ADVANCING
-        DISPLAY "SKIP".
+        COPY TEST-CASE REPLACING ==NAME== BY =="NaN"==.
+        COPY TEST-SKIP REPLACING REASON BY =="FLOAT-INFINITY is not supported in GnuCOBOL"==.
     Positive1.
-        DISPLAY "    Case: +1.0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="+1.0"==.
         MOVE 1.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Float" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"3F800000" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"3F800000" AND BUFFERPOS = 5==.
     Negative1.
-        DISPLAY "    Case: -1.0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-1.0"==.
         MOVE -1.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Float" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"BF800000" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"BF800000" AND BUFFERPOS = 5==.
     PositiveDecimal.
-        DISPLAY "    Case: +12.125 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="+12.125"==.
         MOVE 12.125 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Float" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"41420000" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"41420000" AND BUFFERPOS = 5==.
     NegativeDecimal.
-        DISPLAY "    Case: -12.125 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-12.125"==.
         MOVE -12.125 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Float" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"C1420000" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"C1420000" AND BUFFERPOS = 5==.
     PositiveMax.
-        DISPLAY "    Case: +3.40282E+38 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="+3.40282E+38"==.
         MOVE 3.40282346638528859811704183484516925E+38 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Float" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"7F7FFFFF" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"7F7FFFFF" AND BUFFERPOS = 5==.
     NegativeMax.
-        DISPLAY "    Case: -3.40282E+38 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-3.40282E+38"==.
         MOVE -3.40282346638528859811704183484516925E+38 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Float" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"FF7FFFFF" AND BUFFERPOS = 5
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FF7FFFFF" AND BUFFERPOS = 5==.
 
         GOBACK.
 
@@ -662,31 +464,23 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-String".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-String"==.
     Empty.
-        DISPLAY "    Case: '' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="''"==.
         MOVE SPACES TO STR
         MOVE 0 TO STR-LEN
         MOVE ALL X"FF" TO BUFFER
         MOVE 2 TO BUFFERPOS
         CALL "Encode-String" USING STR STR-LEN BUFFER BUFFERPOS
-        IF BUFFER = X"FF00FFFFFFFFFFFFFFFFFFFFFFFFFFFF" AND BUFFERPOS = 3
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FF00FFFFFFFFFFFFFFFFFFFFFFFFFFFF" AND BUFFERPOS = 3==.
     HelloWorld.
-        DISPLAY "    Case: 'Hello, World!' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'Hello, World!'"==.
         MOVE "Hello, World!" TO STR
         MOVE 13 TO STR-LEN
         MOVE ALL X"FF" TO BUFFER
         MOVE 2 TO BUFFERPOS
         CALL "Encode-String" USING STR STR-LEN BUFFER BUFFERPOS
-        IF BUFFER = X"FF0D48656C6C6F2C20576F726C6421FF" AND BUFFERPOS = 16
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"FF0D48656C6C6F2C20576F726C6421FF" AND BUFFERPOS = 16==.
 
         GOBACK.
 
@@ -703,47 +497,31 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-Angle".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-Angle"==.
     ZeroDeg.
-        DISPLAY "    Case: 0.0deg - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0.0deg"==.
         MOVE 0.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Angle" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"00" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00" AND BUFFERPOS = 2==.
     HalfRotation.
-        DISPLAY "    Case: 180.0deg - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="180.0deg"==.
         MOVE 180.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Angle" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"80" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"80" AND BUFFERPOS = 2==.
     Over360.
-        DISPLAY "    Case: 560.0deg - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="560.0deg"==.
         MOVE 560.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Angle" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"8E" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"8E" AND BUFFERPOS = 2==.
     NegativeDeg.
-        DISPLAY "    Case: -90.0deg - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-90.0deg"==.
         MOVE -90.0 TO VALUE-IN
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Angle" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"C0" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"C0" AND BUFFERPOS = 2==.
 
         GOBACK.
 
@@ -764,31 +542,23 @@ PROCEDURE DIVISION.
         01 HEXSTR       PIC X(20).
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-Position".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-Position"==.
     AllZero.
-        DISPLAY "    Case: (0, 0, 0) - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="(0, 0, 0)"==.
         MOVE 0 TO VALUE-X
         MOVE 0 TO VALUE-Y
         MOVE 0 TO VALUE-Z
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Position" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"0000000000000000" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"0000000000000000" AND BUFFERPOS = 9==.
     WikiVgExample.
-        DISPLAY "    Case: 18357644 831 -20882616 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="18357644 831 -20882616"==.
         MOVE 18357644 TO VALUE-X
         MOVE 831 TO VALUE-Y
         MOVE -20882616 TO VALUE-Z
         MOVE 1 TO BUFFERPOS
         CALL "Encode-Position" USING VALUE-IN BUFFER BUFFERPOS
-        IF BUFFER = X"4607632C15B4833F" AND BUFFERPOS = 9
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"4607632C15B4833F" AND BUFFERPOS = 9==.
 
         GOBACK.
 
@@ -806,9 +576,9 @@ PROCEDURE DIVISION.
         01 BUFFERPOS    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Encode-InventorySlot".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Encode-InventorySlot"==.
     Empty.
-        DISPLAY "    Case: empty - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="empty"==.
         MOVE 0 TO IN-SLOT-COUNT
         MOVE 1234 TO IN-SLOT-ID
         MOVE 42 TO IN-SLOT-NBT-LENGTH
@@ -816,13 +586,9 @@ PROCEDURE DIVISION.
         INITIALIZE BUFFER
         MOVE 1 TO BUFFERPOS
         CALL "Encode-InventorySlot" USING IN-SLOT BUFFER BUFFERPOS
-        IF BUFFER = X"00" AND BUFFERPOS = 2
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"00" AND BUFFERPOS = 2==.
     Simple.
-        DISPLAY "    Case: simple - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="simple"==.
         MOVE 42 TO IN-SLOT-COUNT
         MOVE 25565 TO IN-SLOT-ID
         MOVE 2 TO IN-SLOT-NBT-LENGTH
@@ -830,11 +596,7 @@ PROCEDURE DIVISION.
         INITIALIZE BUFFER
         MOVE 1 TO BUFFERPOS
         CALL "Encode-InventorySlot" USING IN-SLOT BUFFER BUFFERPOS
-        IF BUFFER = X"2ADDC7010000" AND BUFFERPOS = 7
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = X"2ADDC7010000" AND BUFFERPOS = 7==.
 
         GOBACK.
 

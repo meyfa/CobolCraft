@@ -3,7 +3,7 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. Test-Region.
 
 PROCEDURE DIVISION.
-    DISPLAY "Test: region.cob"
+    COPY TEST-SUITE REPLACING ==NAME== BY =="region.cob"==.
     CALL "Test-Region-RegionFileName"
     GOBACK.
 
@@ -21,69 +21,49 @@ PROCEDURE DIVISION.
         01 RESULT       PIC X(255).
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: Region-RegionFileName"
+        COPY TEST-UNIT REPLACING ==NAME== BY =="Region-RegionFileName"==.
         MOVE "test-world-name" TO SP-LEVEL-NAME
         .
     AllZero.
-        DISPLAY "    Case: 0 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0 0"==.
         MOVE FILE-TYPE-REGION TO TYPE-IN
         MOVE 0 TO X-IN
         MOVE 0 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING TYPE-IN X-IN Z-IN RESULT
-        IF RESULT = "test-world-name/region/r.0.0.mca"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = "test-world-name/region/r.0.0.mca"==.
     NegativeX.
-        DISPLAY "    Case: -1 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-1 0"==.
         MOVE FILE-TYPE-REGION TO TYPE-IN
         MOVE -1 TO X-IN
         MOVE 0 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING TYPE-IN X-IN Z-IN RESULT
-        IF RESULT = "test-world-name/region/r.-1.0.mca"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = "test-world-name/region/r.-1.0.mca"==.
     NegativeZ.
-        DISPLAY "    Case: 0 -1 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0 -1"==.
         MOVE FILE-TYPE-REGION TO TYPE-IN
         MOVE 0 TO X-IN
         MOVE -1 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING TYPE-IN X-IN Z-IN RESULT
-        IF RESULT = "test-world-name/region/r.0.-1.mca"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = "test-world-name/region/r.0.-1.mca"==.
     LargerValues.
-        DISPLAY "    Case: 1234 -5678 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="1234 -5678"==.
         MOVE FILE-TYPE-REGION TO TYPE-IN
         MOVE 1234 TO X-IN
         MOVE -5678 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING TYPE-IN X-IN Z-IN RESULT
-        IF RESULT = "test-world-name/region/r.1234.-5678.mca"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = "test-world-name/region/r.1234.-5678.mca"==.
     EntityData.
         MOVE FILE-TYPE-ENTITY TO TYPE-IN
-        DISPLAY "    Case: entity data - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="entity data"==.
         MOVE -123 TO X-IN
         MOVE 456 TO Z-IN
         MOVE SPACES TO RESULT
         CALL "Region-RegionFileName" USING TYPE-IN X-IN Z-IN RESULT
-        IF RESULT = "test-world-name/entities/r.-123.456.mca"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL, actual: " FUNCTION TRIM(RESULT)
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==RESULT = "test-world-name/entities/r.-123.456.mca"==.
 
         GOBACK.
 

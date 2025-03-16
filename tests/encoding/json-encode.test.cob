@@ -3,7 +3,7 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. Test-JsonEncode.
 
 PROCEDURE DIVISION.
-    DISPLAY "Test: json-encode.cob"
+    COPY TEST-SUITE REPLACING ==NAME== BY =="encoding/json-encode.cob"==.
     CALL "Test-JsonEncode-ObjectStart"
     CALL "Test-JsonEncode-ObjectEnd"
     CALL "Test-JsonEncode-ArrayStart"
@@ -24,17 +24,13 @@ PROCEDURE DIVISION.
         01 OFFSET       BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonEncode-ObjectStart".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonEncode-ObjectStart"==.
     Basic.
-        DISPLAY "    Case: basic - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="basic"==.
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-ObjectStart" USING BUFFER OFFSET
-        IF OFFSET = 3 AND BUFFER = " {"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 3 AND BUFFER = " {"==.
 
         GOBACK.
 
@@ -50,17 +46,13 @@ PROCEDURE DIVISION.
         01 OFFSET       BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonEncode-ObjectEnd".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonEncode-ObjectEnd"==.
     Basic.
-        DISPLAY "    Case: basic - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="basic"==.
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-ObjectEnd" USING BUFFER OFFSET
-        IF OFFSET = 3 AND BUFFER = " }"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 3 AND BUFFER = " }"==.
 
         GOBACK.
 
@@ -76,17 +68,13 @@ PROCEDURE DIVISION.
         01 OFFSET       BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonEncode-ArrayStart".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonEncode-ArrayStart"==.
     Basic.
-        DISPLAY "    Case: basic - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="basic"==.
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-ArrayStart" USING BUFFER OFFSET
-        IF OFFSET = 3 AND BUFFER = " ["
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 3 AND BUFFER = " ["==.
 
         GOBACK.
 
@@ -102,17 +90,13 @@ PROCEDURE DIVISION.
         01 OFFSET       BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonEncode-ArrayEnd".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonEncode-ArrayEnd"==.
     Basic.
-        DISPLAY "    Case: basic - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="basic"==.
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-ArrayEnd" USING BUFFER OFFSET
-        IF OFFSET = 3 AND BUFFER = " ]"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 3 AND BUFFER = " ]"==.
 
         GOBACK.
 
@@ -128,17 +112,13 @@ PROCEDURE DIVISION.
         01 OFFSET       BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonEncode-Comma".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonEncode-Comma"==.
     Basic.
-        DISPLAY "    Case: basic - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="basic"==.
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-Comma" USING BUFFER OFFSET
-        IF OFFSET = 3 AND BUFFER = " ,"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 3 AND BUFFER = " ,"==.
 
         GOBACK.
 
@@ -156,43 +136,31 @@ PROCEDURE DIVISION.
         01 STR-LEN      BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonEncode-String".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonEncode-String"==.
     EmptyString.
-        DISPLAY "    Case: '' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="''"==.
         MOVE SPACES TO STR
         MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-String" USING BUFFER OFFSET STR STR-LEN
-        IF OFFSET = 4 AND BUFFER = " """""
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 4 AND BUFFER = " """""==.
     Simple.
-        DISPLAY "    Case: 'abc' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'abc'"==.
         MOVE "abc" TO STR
         MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-String" USING BUFFER OFFSET STR STR-LEN
-        IF OFFSET = 7 AND BUFFER = " ""abc"""
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 7 AND BUFFER = " ""abc"""==.
     EscapedChar.
-        DISPLAY "    Case: '1""2\\3/4\b5\f6\n7\r8\t9' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'1""2\\3/4\b5\f6\n7\r8\t9'"==.
         MOVE X"3122325C332F3408350C360A370D380939" TO STR
         MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-String" USING BUFFER OFFSET STR STR-LEN
-        IF OFFSET = 28 AND BUFFER = " ""1\""2\\3/4\b5\f6\n7\r8\t9"""
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 28 AND BUFFER = " ""1\""2\\3/4\b5\f6\n7\r8\t9"""==.
     EscapedUnicodeChar.
         *> TODO: add this test - requires support for non-ASCII characters
 
@@ -212,19 +180,15 @@ PROCEDURE DIVISION.
         01 STR-LEN      BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonEncode-ObjectKey".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonEncode-ObjectKey"==.
     Simple.
-        DISPLAY "    Case: 'foo ""bar""' - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="'foo ""bar""'"==.
         MOVE "foo ""bar""" TO STR
         MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO STR-LEN
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-ObjectKey" USING BUFFER OFFSET STR STR-LEN
-        IF OFFSET = 16 AND BUFFER = " ""foo \""bar\"""":"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 16 AND BUFFER = " ""foo \""bar\"""":"==.
 
         GOBACK.
 
@@ -241,40 +205,28 @@ PROCEDURE DIVISION.
         01 INT64        BINARY-LONG-LONG.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: JsonEncode-Integer".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="JsonEncode-Integer"==.
     Int0.
-        DISPLAY "    Case: 0 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="0"==.
         MOVE 0 TO INT64
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-Integer" USING BUFFER OFFSET INT64
-        IF OFFSET = 3 AND BUFFER = " 0"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 3 AND BUFFER = " 0"==.
     Simple.
-        DISPLAY "    Case: 123 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="123"==.
         MOVE 123 TO INT64
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-Integer" USING BUFFER OFFSET INT64
-        IF OFFSET = 5 AND BUFFER = " 123"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 5 AND BUFFER = " 123"==.
     NegativeInt.
-        DISPLAY "    Case: -123 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="-123"==.
         MOVE -123 TO INT64
         INITIALIZE BUFFER
         MOVE 2 TO OFFSET
         CALL "JsonEncode-Integer" USING BUFFER OFFSET INT64
-        IF OFFSET = 6 AND BUFFER = " -123"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 6 AND BUFFER = " -123"==.
 
         GOBACK.
 
