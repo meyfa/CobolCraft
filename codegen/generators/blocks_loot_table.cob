@@ -415,6 +415,8 @@ WORKING-STORAGE SECTION.
     01 CONDITION-CHANCES-POS        BINARY-LONG UNSIGNED        EXTERNAL.
     01 CONDITION-ENCHANTMENT        PIC X(64)                   EXTERNAL.
     01 CONDITION-TERM-POS           BINARY-LONG UNSIGNED        EXTERNAL.
+    01 CONDITION-BLOCK              PIC X(64)                   EXTERNAL.
+    01 CONDITION-PROPERTIES-POS     BINARY-LONG UNSIGNED        EXTERNAL.
     *> dynamic variables
     01 FAILURE                      BINARY-CHAR UNSIGNED.
     01 STR                          PIC X(64).
@@ -429,7 +431,8 @@ PROCEDURE DIVISION USING LK-BUFFER LK-LENGTH.
         CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-inverted.tpl.cob" REPLACE-PTR CONDITION-INVERTED-TPL
         CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-explosion.tpl.cob" OMITTED CONDITION-EXPLOSION-TPL
         CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-match-tool.tpl.cob" OMITTED CONDITION-MATCH-TOOL-TPL
-        CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-block-state-property.tpl.cob" OMITTED CONDITION-BLOCK-STATE-PROPERTY-TPL
+        SET REPLACE-PTR TO ENTRY "CG-BlocksLootTable-CondBlock"
+        CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-block-state-property.tpl.cob" REPLACE-PTR CONDITION-BLOCK-STATE-PROPERTY-TPL
         SET REPLACE-PTR TO ENTRY "CG-BlocksLootTable-CondChance"
         CALL "Codegen-TemplateLoad" USING "blocks_loot_table/condition-random-chance.tpl.cob" REPLACE-PTR CONDITION-RANDOM-CHANCE-TPL
         SET REPLACE-PTR TO ENTRY "CG-BlocksLootTable-CondTable"
@@ -463,6 +466,13 @@ PROCEDURE DIVISION USING LK-BUFFER LK-LENGTH.
             WHEN "term"
             WHEN "terms"
                 MOVE JSONPOS TO CONDITION-TERM-POS
+                CALL "JsonParse-SkipValue" USING JSONBUF JSONPOS FAILURE
+                PERFORM AssertOk
+            WHEN "block"
+                CALL "JsonParse-String" USING JSONBUF JSONPOS FAILURE CONDITION-BLOCK
+                PERFORM AssertOk
+            WHEN "properties"
+                MOVE JSONPOS TO CONDITION-PROPERTIES-POS
                 CALL "JsonParse-SkipValue" USING JSONBUF JSONPOS FAILURE
                 PERFORM AssertOk
             WHEN OTHER
@@ -630,6 +640,94 @@ AssertOk.
     END PROGRAM ReplaceCallback.
 
 END PROGRAM CG-BlocksLootTable-CondAnyOf.
+
+*> --- CG-BlocksLootTable-CondBlock ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. CG-BlocksLootTable-CondBlock.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    *> shared state
+    01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
+    01 JSONBUF                      PIC X(16000)                EXTERNAL.
+    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    01 CONDITION-BLOCK              PIC X(64)                   EXTERNAL.
+    01 CONDITION-PROPERTIES-POS     BINARY-LONG UNSIGNED        EXTERNAL.
+    *> dynamic variables
+    01 FAILURE                      BINARY-CHAR UNSIGNED.
+    01 STR                          PIC X(64).
+LOCAL-STORAGE SECTION.
+    01 JSONPOS-BACKUP               BINARY-LONG UNSIGNED.
+    01 PROPERTIES-STR               PIC X(1024).
+    01 PROPERTIES-STR-LENGTH        BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-VARNAME                   PIC X ANY LENGTH.
+    01 LK-BUFFER                    PIC X ANY LENGTH.
+    01 LK-LENGTH                    BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-VARNAME LK-BUFFER LK-LENGTH.
+    EVALUATE LK-VARNAME
+        WHEN "block-name"
+            STRING FUNCTION TRIM(CONDITION-BLOCK) INTO LK-BUFFER(LK-LENGTH + 1:)
+            ADD FUNCTION STORED-CHAR-LENGTH(CONDITION-BLOCK) TO LK-LENGTH
+        WHEN "properties"
+            MOVE JSONPOS TO JSONPOS-BACKUP
+            MOVE CONDITION-PROPERTIES-POS TO JSONPOS
+            PERFORM ParseProperties
+            MOVE JSONPOS-BACKUP TO JSONPOS
+    END-EVALUATE
+
+    GOBACK.
+
+ParseProperties.
+    CALL "JsonParse-ObjectStart" USING JSONBUF JSONPOS FAILURE
+    PERFORM AssertOk
+
+    PERFORM UNTIL EXIT
+        CALL "JsonParse-ObjectKey" USING JSONBUF JSONPOS FAILURE STR
+        PERFORM AssertOk
+
+        *> separate properties with a space
+        IF PROPERTIES-STR-LENGTH > 0
+            ADD 1 TO PROPERTIES-STR-LENGTH
+        END-IF
+
+        STRING FUNCTION TRIM(STR) INTO PROPERTIES-STR(PROPERTIES-STR-LENGTH + 1:)
+        ADD FUNCTION STORED-CHAR-LENGTH(STR) TO PROPERTIES-STR-LENGTH
+
+        CALL "JsonParse-String" USING JSONBUF JSONPOS FAILURE STR
+        IF FAILURE NOT = 0
+            COPY ASSERT-FAILED REPLACING MSG BY =="CG-BlocksLootTable-CondBlock: Property ranges not yet supported: " FUNCTION TRIM(CURRENT-FILENAME)==.
+        END-IF
+
+        MOVE "=" TO PROPERTIES-STR(PROPERTIES-STR-LENGTH + 1:)
+        ADD 1 TO PROPERTIES-STR-LENGTH
+
+        STRING FUNCTION TRIM(STR) INTO PROPERTIES-STR(PROPERTIES-STR-LENGTH + 1:)
+        ADD FUNCTION STORED-CHAR-LENGTH(STR) TO PROPERTIES-STR-LENGTH
+
+        CALL "JsonParse-Comma" USING JSONBUF JSONPOS FAILURE
+        IF FAILURE > 0 EXIT PERFORM END-IF
+    END-PERFORM
+
+    CALL "JsonParse-ObjectEnd" USING JSONBUF JSONPOS FAILURE
+    PERFORM AssertOk
+
+    *> Avoid compiler warning due to empty string literal
+    IF PROPERTIES-STR-LENGTH = 0
+        MOVE 1 TO PROPERTIES-STR-LENGTH
+    END-IF
+
+    STRING PROPERTIES-STR(1:PROPERTIES-STR-LENGTH) INTO LK-BUFFER(LK-LENGTH + 1:)
+    ADD PROPERTIES-STR-LENGTH TO LK-LENGTH
+    .
+
+AssertOk.
+    COPY ASSERT REPLACING COND BY ==FAILURE = 0==,
+        MSG BY =="CG-BlocksLootTable-CondBlock: Failed to parse JSON: " FUNCTION TRIM(CURRENT-FILENAME)==.
+    .
+
+END PROGRAM CG-BlocksLootTable-CondBlock.
 
 *> --- CG-BlocksLootTable-CondChance ---
 IDENTIFICATION DIVISION.

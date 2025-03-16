@@ -53,6 +53,70 @@ PROCEDURE DIVISION USING LK-MIN-STR LK-MAX-STR LK-RESULT.
 
 END PROGRAM LootTables-NumberUniform.
 
+*> --- LootTables-BlockState ---
+*> Evaluate a block state condition. This checks whether the mined block has the correct ID, and can additionally
+*> check the block's properties, such as whether a slab is a double slab.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LootTables-BlockState.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==BLOCK==.
+    01 IDX                      BINARY-LONG UNSIGNED.
+    01 IDX2                     BINARY-LONG UNSIGNED.
+    01 PROPERTY-NAME            PIC X(16).
+    01 PROPERTY-VALUE           PIC X(16).
+    01 ACTUAL-VALUE             PIC X(16).
+LINKAGE SECTION.
+    01 LK-BLOCK-ID              BINARY-LONG UNSIGNED.
+    *> The expected name of the block, such as "minecraft:stone_slab".
+    01 LK-COND-NAME             PIC X ANY LENGTH.
+    *> The expected properties of the block, such as "type=double". Multiple properties are separated by spaces.
+    01 LK-COND-PROPERTIES       PIC X ANY LENGTH.
+    *> The result; unchanged if the chance is met, set to 0 otherwise.
+    01 LK-COND                  BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-BLOCK-ID LK-COND-NAME LK-COND-PROPERTIES LK-COND.
+    CALL "Blocks-Get-StateDescription" USING LK-BLOCK-ID BLOCK-DESCRIPTION
+
+    IF BLOCK-NAME NOT = LK-COND-NAME
+        MOVE 0 TO LK-COND
+        GOBACK
+    END-IF
+
+    IF LK-COND-PROPERTIES = SPACES
+        GOBACK *> nothing to check
+    END-IF
+
+    PERFORM VARYING IDX FROM 1 BY 1 UNTIL IDX > FUNCTION LENGTH(LK-COND-PROPERTIES)
+        *> find the next equals sign
+        PERFORM VARYING IDX2 FROM IDX BY 1 UNTIL IDX2 > FUNCTION LENGTH(LK-COND-PROPERTIES) OR LK-COND-PROPERTIES(IDX2:1) = "="
+            CONTINUE
+        END-PERFORM
+
+        MOVE LK-COND-PROPERTIES(IDX:IDX2 - IDX) TO PROPERTY-NAME
+        COMPUTE IDX = IDX2 + 1
+
+        *> find the next space
+        PERFORM VARYING IDX2 FROM IDX BY 1 UNTIL IDX2 > FUNCTION LENGTH(LK-COND-PROPERTIES) OR LK-COND-PROPERTIES(IDX2:1) = SPACE
+            CONTINUE
+        END-PERFORM
+
+        MOVE LK-COND-PROPERTIES(IDX:IDX2 - IDX) TO PROPERTY-VALUE
+
+        CALL "Blocks-Description-GetValue" USING BLOCK-DESCRIPTION PROPERTY-NAME ACTUAL-VALUE
+        IF ACTUAL-VALUE NOT = PROPERTY-VALUE
+            MOVE 0 TO LK-COND
+            GOBACK
+        END-IF
+
+        MOVE IDX2 TO IDX
+    END-PERFORM
+
+    GOBACK.
+
+END PROGRAM LootTables-BlockState.
+
 *> --- LootTables-RandomChance ---
 *> Evaluate a random chance condition.
 IDENTIFICATION DIVISION.
@@ -128,9 +192,7 @@ PROCEDURE DIVISION USING LK-ITEM-COUNT LK-SET-COUNT LK-ADDITIVE.
         ADD LK-SET-COUNT TO LK-ITEM-COUNT
     ELSE
         MOVE LK-SET-COUNT TO LK-ITEM-COUNT
-    END-IF
-
-    GOBACK.
+    END-IF.
 
 END PROGRAM LootTables-SetCount.
 
@@ -153,9 +215,7 @@ PROCEDURE DIVISION USING LK-ITEM-COUNT LK-MIN-STR LK-MAX-STR.
         MOVE FUNCTION NUMVAL(LK-MIN-STR) TO LK-ITEM-COUNT
     ELSE IF LK-ITEM-COUNT > FUNCTION NUMVAL(LK-MAX-STR)
         MOVE FUNCTION NUMVAL(LK-MAX-STR) TO LK-ITEM-COUNT
-    END-IF
-
-    GOBACK.
+    END-IF.
 
 END PROGRAM LootTables-LimitCount.
 
