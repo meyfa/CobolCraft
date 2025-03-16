@@ -6,7 +6,7 @@ WORKING-STORAGE SECTION.
     01 CB                       PROGRAM-POINTER.
 
 PROCEDURE DIVISION.
-$REGISTRATIONS$
+$registrations:indent=4$
     GOBACK.
 
     IDENTIFICATION DIVISION.
@@ -25,6 +25,6 @@ $REGISTRATIONS$
         GOBACK.
 
     END PROGRAM Register.
-$CALLBACKS$
+$callbacks:indent=4$
 
 END PROGRAM Generated-BlocksLootTable.

@@ -1,0 +1,2 @@
+$term$
+MOVE FUNCTION MAX(0, 1 - COND) TO COND
