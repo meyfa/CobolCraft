@@ -1,3 +1,58 @@
+*> --- LootTables-NumberBinomial ---
+*> Evaluate a binomial distribution number provider.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LootTables-NumberBinomial.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 NUM-TRIALS               BINARY-LONG UNSIGNED.
+    01 PROBABILITY              FLOAT-LONG.
+LINKAGE SECTION.
+    01 LK-N-STR                 PIC X ANY LENGTH.
+    01 LK-P-STR                 PIC X ANY LENGTH.
+    01 LK-RESULT                FLOAT-LONG.
+
+PROCEDURE DIVISION USING LK-N-STR LK-P-STR LK-RESULT.
+    MOVE 0 TO LK-RESULT
+
+    MOVE FUNCTION NUMVAL(LK-N-STR) TO NUM-TRIALS
+    MOVE FUNCTION NUMVAL(LK-P-STR) TO PROBABILITY
+
+    PERFORM NUM-TRIALS TIMES
+        IF FUNCTION RANDOM < PROBABILITY
+            ADD 1 TO LK-RESULT
+        END-IF
+    END-PERFORM
+
+    GOBACK.
+
+END PROGRAM LootTables-NumberBinomial.
+
+*> --- LootTables-NumberUniform ---
+*> Evaluate a uniform distribution number provider.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LootTables-NumberUniform.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 MINVAL                   FLOAT-LONG.
+    01 MAXVAL                   FLOAT-LONG.
+LINKAGE SECTION.
+    01 LK-MIN-STR               PIC X ANY LENGTH.
+    01 LK-MAX-STR               PIC X ANY LENGTH.
+    01 LK-RESULT                FLOAT-LONG.
+
+PROCEDURE DIVISION USING LK-MIN-STR LK-MAX-STR LK-RESULT.
+    MOVE FUNCTION NUMVAL(LK-MIN-STR) TO MINVAL
+    MOVE FUNCTION NUMVAL(LK-MAX-STR) TO MAXVAL
+
+    *> random number between min and max, inclusive
+    COMPUTE LK-RESULT = MINVAL + FUNCTION RANDOM * (MAXVAL - MINVAL + 1)
+
+    GOBACK.
+
+END PROGRAM LootTables-NumberUniform.
+
 *> --- LootTables-RandomChance ---
 *> Evaluate a random chance condition.
 IDENTIFICATION DIVISION.
@@ -57,6 +112,68 @@ PROCEDURE DIVISION USING LK-ENCHANTMENT LK-CHANCES LK-COND.
 
 END PROGRAM LootTables-TableBonus.
 
+*> --- LootTables-SetCount ---
+*> Apply the "minecraft:set_count" function to a loot table item.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LootTables-SetCount.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-ITEM-COUNT            BINARY-LONG.
+    01 LK-SET-COUNT             FLOAT-LONG.
+    01 LK-ADDITIVE              PIC X ANY LENGTH.
+
+PROCEDURE DIVISION USING LK-ITEM-COUNT LK-SET-COUNT LK-ADDITIVE.
+    IF LK-ADDITIVE = "true"
+        ADD LK-SET-COUNT TO LK-ITEM-COUNT
+    ELSE
+        MOVE LK-SET-COUNT TO LK-ITEM-COUNT
+    END-IF
+
+    GOBACK.
+
+END PROGRAM LootTables-SetCount.
+
+*> --- LootTables-LimitCount ---
+*> Apply the "minecraft:limit_count" function to a loot table item.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LootTables-LimitCount.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 MINVAL                   FLOAT-LONG.
+    01 MAXVAL                   FLOAT-LONG.
+LINKAGE SECTION.
+    01 LK-ITEM-COUNT            BINARY-LONG.
+    01 LK-MIN-STR               PIC X ANY LENGTH.
+    01 LK-MAX-STR               PIC X ANY LENGTH.
+
+PROCEDURE DIVISION USING LK-ITEM-COUNT LK-MIN-STR LK-MAX-STR.
+    IF LK-ITEM-COUNT < FUNCTION NUMVAL(LK-MIN-STR)
+        MOVE FUNCTION NUMVAL(LK-MIN-STR) TO LK-ITEM-COUNT
+    ELSE IF LK-ITEM-COUNT > FUNCTION NUMVAL(LK-MAX-STR)
+        MOVE FUNCTION NUMVAL(LK-MAX-STR) TO LK-ITEM-COUNT
+    END-IF
+
+    GOBACK.
+
+END PROGRAM LootTables-LimitCount.
+
+*> --- LootTables-ExplosionDecay ---
+*> Apply the "minecraft:explosion_decay" function to a loot table item.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. LootTables-ExplosionDecay.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-ITEM-COUNT            BINARY-LONG.
+
+PROCEDURE DIVISION USING LK-ITEM-COUNT.
+    *> TODO implement
+    GOBACK.
+
+END PROGRAM LootTables-ExplosionDecay.
+
 *> --- BlocksLoot-DropRandom ---
 *> Helper function to be called by the BlocksLootTable generated code.
 *> Drops random items from a pool at the given block position.
@@ -70,23 +187,29 @@ WORKING-STORAGE SECTION.
         COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==DROP==.
 LINKAGE SECTION.
     01 LK-POOL-SIZE             BINARY-LONG UNSIGNED.
-    01 LK-POOL-IDS.
-        02 LK-POOL-ID           PIC X(64) OCCURS 0 TO 16 TIMES DEPENDING ON LK-POOL-SIZE.
+    01 LK-POOL-ITEMS.
+        02 LK-POOL-ITEM         OCCURS 0 TO 16 TIMES DEPENDING ON LK-POOL-SIZE.
+            03 LK-ITEM-ID       PIC X(64).
+            03 LK-ITEM-COUNT    BINARY-LONG.
     01 LK-POSITION.
         02 LK-X                 BINARY-LONG.
         02 LK-Y                 BINARY-LONG.
         02 LK-Z                 BINARY-LONG.
 
-PROCEDURE DIVISION USING LK-POOL-SIZE LK-POOL-IDS LK-POSITION.
+PROCEDURE DIVISION USING LK-POOL-SIZE LK-POOL-ITEMS LK-POSITION.
     IF LK-POOL-SIZE = 0
         GOBACK
     END-IF
 
     COMPUTE RANDOM-INDEX = (FUNCTION RANDOM * LK-POOL-SIZE) + 1
 
-    CALL "Registries-Get-EntryId" USING "minecraft:item" LK-POOL-ID(RANDOM-INDEX) DROP-SLOT-ID
+    IF LK-ITEM-COUNT(RANDOM-INDEX) <= 0
+        GOBACK
+    END-IF
+
+    CALL "Registries-Get-EntryId" USING "minecraft:item" LK-ITEM-ID(RANDOM-INDEX) DROP-SLOT-ID
     IF DROP-SLOT-ID > 0
-        MOVE 1 TO DROP-SLOT-COUNT
+        MOVE LK-ITEM-COUNT(RANDOM-INDEX) TO DROP-SLOT-COUNT
 
         *> TODO item components
         MOVE 2 TO DROP-SLOT-NBT-LENGTH

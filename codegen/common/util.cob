@@ -1,3 +1,5 @@
+*> --- Codegen-ProgramId ---
+*> Generate a program id from a prefix and name.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Codegen-ProgramId.
 
@@ -42,3 +44,43 @@ PROCEDURE DIVISION USING LK-PREFIX LK-NAME LK-PROGRAM-ID.
     GOBACK.
 
 END PROGRAM Codegen-ProgramId.
+
+*> --- Codegen-WriteFloat ---
+*> Write a float to the output buffer.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Codegen-WriteFloat.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 FLOAT-DISPLAY                PIC -(9)9.9(9).
+    01 FLOAT-STR                    PIC X(20).
+    01 FLOAT-STR-LEN                BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-FLOAT                     FLOAT-LONG.
+    01 LK-BUFFER                    PIC X ANY LENGTH.
+    01 LK-LENGTH                    BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-FLOAT LK-BUFFER LK-LENGTH.
+    MOVE LK-FLOAT TO FLOAT-DISPLAY
+    MOVE FUNCTION TRIM(FLOAT-DISPLAY) TO FLOAT-STR
+    MOVE FUNCTION STORED-CHAR-LENGTH(FLOAT-STR) TO FLOAT-STR-LEN
+
+    *> Remove trailing zeros (and the decimal point)
+    PERFORM UNTIL FLOAT-STR-LEN = 1
+        EVALUATE FLOAT-STR(FLOAT-STR-LEN:1)
+        WHEN "0"
+            SUBTRACT 1 FROM FLOAT-STR-LEN
+        WHEN "."
+            SUBTRACT 1 FROM FLOAT-STR-LEN
+            EXIT PERFORM
+        WHEN OTHER
+            EXIT PERFORM
+        END-EVALUATE
+    END-PERFORM
+
+    STRING FLOAT-STR(1:FLOAT-STR-LEN) INTO LK-BUFFER(LK-LENGTH + 1:)
+    ADD FLOAT-STR-LEN TO LK-LENGTH
+
+    GOBACK.
+
+END PROGRAM Codegen-WriteFloat.

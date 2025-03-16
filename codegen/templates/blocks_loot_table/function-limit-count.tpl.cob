@@ -1,0 +1,7 @@
+MOVE COND TO COND-BACKUP
+MOVE 1 TO COND
+$conditions$
+IF COND NOT = 0
+    CALL "LootTables-LimitCount" USING ITEM-COUNT(POOL-SIZE) "$min$" "$max$"
+END-IF
+MOVE COND-BACKUP TO COND
