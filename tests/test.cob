@@ -6,6 +6,7 @@ PROCEDURE DIVISION.
     DISPLAY "Running tests..."
     CALL "Test-CPP"
     CALL "Test-Strings"
+    CALL "Test-UUID"
     CALL "Test-Decode"
     CALL "Test-Encode"
     CALL "Test-NbtEncode"
