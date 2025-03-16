@@ -1,0 +1,1 @@
+MOVE $value$ TO NUM
