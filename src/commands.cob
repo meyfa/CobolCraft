@@ -62,6 +62,7 @@ WORKING-STORAGE SECTION.
         02 PART OCCURS 128 TIMES.
             03 PART-VALUE       PIC X(256).
             03 PART-LENGTH      BINARY-LONG UNSIGNED.
+    01 TEMP-UINT                BINARY-LONG UNSIGNED.
     *> command handling
     01 BUFFER                   PIC X(255).
     01 COMMAND-INDEX            BINARY-LONG UNSIGNED.
@@ -108,7 +109,9 @@ PROCEDURE DIVISION USING LK-CLIENT-ID LK-INPUT LK-INPUT-LENGTH.
             *> any other character extends the part
             WHEN OTHER
                 ADD 1 TO PART-LENGTH(PART-COUNT)
-                MOVE LK-INPUT(OFFSET + INPUT-INDEX:1) TO PART-VALUE(PART-COUNT)(PART-LENGTH(PART-COUNT):1)
+                *> temporary variable to work around broken codegen on Aarch64 with GnuCOBOL 3.1.2
+                MOVE PART-LENGTH(PART-COUNT) TO TEMP-UINT
+                MOVE LK-INPUT(OFFSET + INPUT-INDEX:1) TO PART-VALUE(PART-COUNT)(TEMP-UINT:1)
         END-EVALUATE
     END-PERFORM
     IF PART-LENGTH(PART-COUNT) = 0

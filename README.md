@@ -41,7 +41,7 @@ Some are supported, however:
 
 ## How-to
 
-CobolCraft was developed using GnuCOBOL and is meant to be run on Linux.
+CobolCraft was developed using GnuCOBOL and is meant to be run on Linux (x86_64 or arm64 architectures).
 Support for other operating systems such as Windows has not been tested.
 However, it is possible to use Docker for a platform-independent deployment.
 
@@ -58,7 +58,7 @@ To deploy on Linux, make sure all prerequisites are installed:
 Run the following commands to build and run CobolCraft:
 
 ```sh
-make --jobs=j$(nproc)
+make --jobs=$(nproc)
 make run
 ```
 
