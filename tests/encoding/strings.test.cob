@@ -3,7 +3,7 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. Test-Strings.
 
 PROCEDURE DIVISION.
-    DISPLAY "Test: uuid.cob"
+    COPY TEST-SUITE REPLACING ==NAME== BY =="encoding/strings.cob"==.
     CALL "Test-Strings-TrimFileExt"
     GOBACK.
 
@@ -16,52 +16,32 @@ PROCEDURE DIVISION.
         01 BUFFER       PIC X(20).
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: TrimFileExt".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="TrimFileExt"==.
     AllSpaces.
-        DISPLAY "    Case: spaces - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="spaces"==.
         MOVE SPACES TO BUFFER
         CALL "TrimFileExt" USING BUFFER
-        IF BUFFER = SPACES
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = SPACES==.
     AllDots.
-        DISPLAY "    Case: dots - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="dots"==.
         MOVE ALL "." TO BUFFER
         CALL "TrimFileExt" USING BUFFER
-        IF BUFFER = SPACES
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = SPACES==.
     NoExt.
-        DISPLAY "    Case: no ext - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="no ext"==.
         MOVE "foo/bar" TO BUFFER
         CALL "TrimFileExt" USING BUFFER
-        IF BUFFER = "foo/bar"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = "foo/bar"==.
     Ext.
-        DISPLAY "    Case: ext - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="ext"==.
         MOVE "foo/bar.ext" TO BUFFER
         CALL "TrimFileExt" USING BUFFER
-        IF BUFFER = "foo/bar"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = "foo/bar"==.
     Ext2.
-        DISPLAY "    Case: ext2 - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="ext2"==.
         MOVE "foo/bar.tar.gz" TO BUFFER
         CALL "TrimFileExt" USING BUFFER
-        IF BUFFER = "foo/bar"
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==BUFFER = "foo/bar"==.
 
         GOBACK.
 

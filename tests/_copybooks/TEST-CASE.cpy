@@ -1,0 +1,2 @@
+DISPLAY "    Case: " NAME " - " WITH NO ADVANCING
+CALL "TestCaseStarted" USING NAME.

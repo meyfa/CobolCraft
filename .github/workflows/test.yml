@@ -31,14 +31,11 @@ jobs:
       - run: cobc --version
 
       - name: Build
-        run: make -j $(nproc)
+        run: make --jobs $(nproc)
 
       - name: Run tests
         shell: bash
-        run: |
-          set -eo pipefail
-          make test | tee test.log
-          ! grep -q "FAIL\|ERROR" test.log
+        run: make test
 
       - name: Smoke test
         shell: bash

@@ -3,7 +3,7 @@ IDENTIFICATION DIVISION.
 PROGRAM-ID. Test-ServerProperties.
 
 PROCEDURE DIVISION.
-    DISPLAY "Test: server-properties.cob"
+    COPY TEST-SUITE REPLACING ==NAME== BY =="server-properties.cob"==.
     CALL "Test-ServerProperties-S"
     CALL "Test-ServerProperties-D"
     GOBACK.
@@ -22,9 +22,9 @@ PROCEDURE DIVISION.
         01 EXPECTED                 PIC X(1024).
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: ServerProperties-Serialize".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="ServerProperties-Serialize"==.
     Basic.
-        DISPLAY "    Case: basic - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="basic"==.
         *> initialize the server properties
         INITIALIZE SERVER-PROPERTIES
         MOVE 12345 TO SP-PORT
@@ -47,16 +47,8 @@ PROCEDURE DIVISION.
             "motd=test-motd" NEWLINE
             "max-players=42" NEWLINE
         INTO EXPECTED
-        IF FAILURE = 0 AND BUFFER(1:BUFFER-LENGTH) = EXPECTED
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-            DISPLAY "--- expected ---"
-            DISPLAY FUNCTION TRIM(EXPECTED)
-            DISPLAY "--- actual ---"
-            DISPLAY BUFFER(1:BUFFER-LENGTH)
-            DISPLAY "---"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FAILURE = 0 AND BUFFER(1:BUFFER-LENGTH) = EXPECTED==.
+        .
 
         GOBACK.
 
@@ -75,27 +67,22 @@ PROCEDURE DIVISION.
         01 FAILURE                  BINARY-CHAR UNSIGNED.
 
     PROCEDURE DIVISION.
-        DISPLAY "  Test: ServerProperties-Deserialize".
+        COPY TEST-UNIT REPLACING ==NAME== BY =="ServerProperties-Deserialize"==.
     Defaults.
-        DISPLAY "    Case: defaults - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="defaults"==.
         MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         INITIALIZE BUFFER
         MOVE 0 TO BUFFER-LENGTH
         CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
-        IF FAILURE = 0
-                AND SP-PORT = 25565
-                AND SP-LEVEL-NAME = "world"
-                AND SP-WHITELIST-ENABLE = 0
-                AND SP-MOTD = "CobolCraft"
-                AND MAX-PLAYERS = 10
-                AND MAX-CLIENTS = 10
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FAILURE = 0
+            AND SP-PORT = 25565
+            AND SP-LEVEL-NAME = "world"
+            AND SP-WHITELIST-ENABLE = 0
+            AND SP-MOTD = "CobolCraft"
+            AND MAX-PLAYERS = 10 AND MAX-CLIENTS = 10==.
     FullProperties.
-        DISPLAY "    Case: full properties - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="full properties"==.
         MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         STRING
@@ -107,65 +94,45 @@ PROCEDURE DIVISION.
         INTO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
         CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
-        IF FAILURE = 0
-                AND SP-PORT = 1337
-                AND SP-LEVEL-NAME = "foobar"
-                AND SP-WHITELIST-ENABLE = 1
-                AND SP-MOTD = "foobar 42"
-                AND MAX-PLAYERS = 31
-                AND MAX-CLIENTS = 31
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FAILURE = 0
+            AND SP-PORT = 1337
+            AND SP-LEVEL-NAME = "foobar"
+            AND SP-WHITELIST-ENABLE = 1
+            AND SP-MOTD = "foobar 42"
+            AND MAX-PLAYERS = 31
+            AND MAX-CLIENTS = 31==.
     EmptyLevelName.
-        DISPLAY "    Case: empty level-name - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="empty level-name"==.
         MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         MOVE "level-name=" TO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
         CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
-        IF FAILURE = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FAILURE = 1==.
     EmptyMotd.
-        DISPLAY "    Case: empty motd - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="empty motd"==.
         MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         MOVE "motd=" TO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
         CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
-        IF FAILURE = 0 AND SP-MOTD = SPACES
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FAILURE = 0 AND SP-MOTD = SPACES==.
     InvalidPort.
-        DISPLAY "    Case: invalid port - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="invalid port"==.
         MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         MOVE "server-port=abc" TO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
         CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
-        IF FAILURE = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FAILURE = 1==.
     ZeroMaxPlayers.
-        DISPLAY "    Case: zero max players - " WITH NO ADVANCING
+        COPY TEST-CASE REPLACING ==NAME== BY =="zero max players"==.
         MOVE 0 TO FAILURE
         INITIALIZE SERVER-PROPERTIES
         MOVE "max-players=0" TO BUFFER
         MOVE FUNCTION STORED-CHAR-LENGTH(BUFFER) TO BUFFER-LENGTH
         CALL "ServerProperties-Deserialize" USING BUFFER BUFFER-LENGTH FAILURE
-        IF FAILURE = 1
-            DISPLAY "PASS"
-        ELSE
-            DISPLAY "FAIL"
-        END-IF.
+        COPY TEST-ASSERT REPLACING COND BY ==FAILURE = 1==.
 
         GOBACK.
 
