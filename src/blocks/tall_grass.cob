@@ -6,7 +6,6 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 HARDNESS                 FLOAT-SHORT                 VALUE 0.0.
     01 FACE-PTR                 PROGRAM-POINTER.
-    01 REPLACEABLE-PTR          PROGRAM-POINTER.
     01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
     01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
     01 BLOCK-TYPE               PIC X(64).
@@ -17,7 +16,6 @@ WORKING-STORAGE SECTION.
 
 PROCEDURE DIVISION.
     SET FACE-PTR TO ENTRY "Callback-Face"
-    SET REPLACEABLE-PTR TO ENTRY "Callback-Replaceable"
 
     *> Loop over all blocks and register the callback for each matching block type
     CALL "Blocks-GetCount" USING BLOCK-COUNT
@@ -31,7 +29,6 @@ PROCEDURE DIVISION.
             CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
             PERFORM VARYING STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL STATE-ID > BLOCK-MAXIMUM-STATE-ID
                 CALL "SetCallback-BlockFace" USING STATE-ID FACE-PTR
-                CALL "SetCallback-BlockReplaceable" USING STATE-ID REPLACEABLE-PTR
             END-PERFORM
             *> set metadata
             CALL "Blocks-SetHardness" USING BLOCK-INDEX HARDNESS
@@ -54,20 +51,5 @@ PROCEDURE DIVISION.
         GOBACK.
 
     END PROGRAM Callback-Face.
-
-    *> --- Callback-Replaceable ---
-    IDENTIFICATION DIVISION.
-    PROGRAM-ID. Callback-Replaceable.
-
-    DATA DIVISION.
-    LINKAGE SECTION.
-        COPY DD-CALLBACK-BLOCK-REPLACEABLE.
-
-    PROCEDURE DIVISION USING LK-BLOCK-STATE LK-RESULT.
-        *> Tall grass is replaceable.
-        MOVE 1 TO LK-RESULT
-        GOBACK.
-
-    END PROGRAM Callback-Replaceable.
 
 END PROGRAM RegisterBlock-TallGrass.
