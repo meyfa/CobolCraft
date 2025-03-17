@@ -98,13 +98,54 @@ PROCEDURE DIVISION.
     PROGRAM-ID. Callback-Replaceable.
 
     DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-TAGS.
+        01 TAGS-BLOCK-REGISTRY      BINARY-LONG UNSIGNED.
+        01 REPLACEABLE-TAG          BINARY-LONG UNSIGNED.
+        01 TAG-INDEX                BINARY-LONG UNSIGNED.
+        COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
+        01 BLOCK-REGISTRY-ID        BINARY-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-BLOCK-REPLACEABLE.
 
     PROCEDURE DIVISION USING LK-BLOCK-STATE LK-RESULT.
-        *> Assume all blocks are non-replaceable by default (right-clicking the block with a block in hand will not
-        *> replace the block).
+        *> On first call: Look up indices into the tags table
+        IF TAGS-BLOCK-REGISTRY = 0
+            *> find the block-related tags
+            PERFORM VARYING TAG-INDEX FROM 1 BY 1 UNTIL TAG-INDEX > TAGS-REGISTRY-COUNT
+                IF TAGS-REGISTRY-NAME(TAG-INDEX) = "minecraft:block"
+                    MOVE TAG-INDEX TO TAGS-BLOCK-REGISTRY
+                    EXIT PERFORM
+                END-IF
+            END-PERFORM
+
+            *> find the "minecraft:replaceable" tag
+            PERFORM VARYING TAG-INDEX FROM 1 BY 1 UNTIL TAG-INDEX > TAGS-REGISTRY-LENGTH(TAGS-BLOCK-REGISTRY)
+                IF TAGS-REGISTRY-TAG-NAME(TAGS-BLOCK-REGISTRY, TAG-INDEX) = "minecraft:replaceable"
+                    MOVE TAG-INDEX TO REPLACEABLE-TAG
+                    EXIT PERFORM
+                END-IF
+            END-PERFORM
+        END-IF
+
+        *> Obtain the block ID from the block state ID
+        CALL "Blocks-Get-StateDescription" USING LK-BLOCK-STATE CLICKED-DESCRIPTION
+        CALL "Registries-Get-EntryId" USING "minecraft:block" CLICKED-NAME BLOCK-REGISTRY-ID
+        IF BLOCK-REGISTRY-ID < 0
+            MOVE 0 TO LK-RESULT
+            GOBACK
+        END-IF
+
+        *> Check if the block has the "minecraft:replaceable" tag.
+        PERFORM VARYING TAG-INDEX FROM 1 BY 1 UNTIL TAG-INDEX > TAGS-REGISTRY-TAG-LENGTH(TAGS-BLOCK-REGISTRY, REPLACEABLE-TAG)
+            IF TAGS-REGISTRY-TAG-ENTRY(TAGS-BLOCK-REGISTRY, REPLACEABLE-TAG, TAG-INDEX) = BLOCK-REGISTRY-ID
+                MOVE 1 TO LK-RESULT
+                GOBACK
+            END-IF
+        END-PERFORM
+
         MOVE 0 TO LK-RESULT
+
         GOBACK.
 
     END PROGRAM Callback-Replaceable.
