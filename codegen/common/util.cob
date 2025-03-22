@@ -45,6 +45,28 @@ PROCEDURE DIVISION USING LK-PREFIX LK-NAME LK-PROGRAM-ID.
 
 END PROGRAM Codegen-ProgramId.
 
+*> --- Codegen-WriteInt ---
+*> Write an integer to the output buffer.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Codegen-WriteInt.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 INT-STR                      PIC -(9)9.
+LINKAGE SECTION.
+    01 LK-INT                       BINARY-LONG.
+    01 LK-BUFFER                    PIC X ANY LENGTH.
+    01 LK-LENGTH                    BINARY-LONG UNSIGNED.
+
+PROCEDURE DIVISION USING LK-INT LK-BUFFER LK-LENGTH.
+    MOVE LK-INT TO INT-STR
+    STRING FUNCTION TRIM(INT-STR) INTO LK-BUFFER(LK-LENGTH + 1:)
+    ADD FUNCTION STORED-CHAR-LENGTH(INT-STR) TO LK-LENGTH
+
+    GOBACK.
+
+END PROGRAM Codegen-WriteInt.
+
 *> --- Codegen-WriteFloat ---
 *> Write a float to the output buffer.
 IDENTIFICATION DIVISION.

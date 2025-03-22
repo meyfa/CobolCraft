@@ -123,8 +123,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==POOL==.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     *> dynamic variables
     01 BLOCK-NAME                   PIC X(64).
     01 PROGID                       PIC X(30).
@@ -215,8 +214,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 FUNCTION-POSITIONS                                       EXTERNAL.
         02 FUNCTION-COUNT           BINARY-LONG UNSIGNED.
         02 FUNCTION-POSITION        BINARY-LONG UNSIGNED OCCURS 0 TO 16 TIMES DEPENDING ON FUNCTION-COUNT.
@@ -362,8 +360,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     *> dynamic variables
     01 FAILURE                      BINARY-CHAR UNSIGNED.
 LINKAGE SECTION.
@@ -409,8 +406,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==CONDITION-TABLE-BONUS==.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 CONDITION-CHANCE             FLOAT-LONG                  EXTERNAL.
     01 CONDITION-CHANCES-POS        BINARY-LONG UNSIGNED        EXTERNAL.
     01 CONDITION-ENCHANTMENT        PIC X(64)                   EXTERNAL.
@@ -538,8 +534,7 @@ PROGRAM-ID. CG-BlocksLootTable-CondInvert IS RECURSIVE.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    *> shared state
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 CONDITION-TERM-POS           BINARY-LONG UNSIGNED        EXTERNAL.
 LOCAL-STORAGE SECTION.
     01 JSONPOS-BACKUP               BINARY-LONG UNSIGNED.
@@ -571,8 +566,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==CONDITION-ANY-OF==.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 CONDITION-TERM-POS           BINARY-LONG UNSIGNED        EXTERNAL.
     *> dynamic variables
     01 FAILURE                      BINARY-CHAR UNSIGNED.
@@ -649,8 +643,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 CONDITION-BLOCK              PIC X(64)                   EXTERNAL.
     01 CONDITION-PROPERTIES-POS     BINARY-LONG UNSIGNED        EXTERNAL.
     *> dynamic variables
@@ -761,8 +754,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 CONDITION-ENCHANTMENT        PIC X(64)                   EXTERNAL.
     01 CONDITION-CHANCES-POS        BINARY-LONG UNSIGNED        EXTERNAL.
     *> dynamic variables
@@ -839,8 +831,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==ENTRY-ITEM==.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     *> dynamic variables
     01 FAILURE                      BINARY-CHAR UNSIGNED.
     01 STR                          PIC X(64).
@@ -906,8 +897,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==ENTRY-ALTERNATIVE==.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     *> dynamic variables
     01 FAILURE                      BINARY-CHAR UNSIGNED.
     01 STR                          PIC X(64).
@@ -1021,8 +1011,7 @@ WORKING-STORAGE SECTION.
     01 LAST-JSONPOS                 BINARY-LONG UNSIGNED.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 FUNCTION-POSITIONS                                       EXTERNAL.
         02 FUNCTION-COUNT           BINARY-LONG UNSIGNED.
         02 FUNCTION-POSITION        BINARY-LONG UNSIGNED OCCURS 0 TO 16 TIMES DEPENDING ON FUNCTION-COUNT.
@@ -1259,7 +1248,7 @@ PROGRAM-ID. CG-BlocksLootTable-FnSetCount.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> shared state
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 FN-CONDITIONS-POS            BINARY-LONG UNSIGNED        EXTERNAL.
     01 FN-ADD                       BINARY-CHAR UNSIGNED        EXTERNAL.
     01 FN-COUNT-POS                 BINARY-LONG UNSIGNED        EXTERNAL.
@@ -1301,7 +1290,7 @@ PROGRAM-ID. CG-BlocksLootTable-FnLimit.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> shared state
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 FN-CONDITIONS-POS            BINARY-LONG UNSIGNED        EXTERNAL.
     01 FN-LIMIT-MIN                 FLOAT-LONG                  EXTERNAL.
     01 FN-LIMIT-MAX                 FLOAT-LONG                  EXTERNAL.
@@ -1334,7 +1323,7 @@ PROGRAM-ID. CG-BlocksLootTable-FnExplDecay.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     *> shared state
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 FN-CONDITIONS-POS            BINARY-LONG UNSIGNED        EXTERNAL.
 LINKAGE SECTION.
     01 LK-VARNAME                   PIC X ANY LENGTH.
@@ -1366,8 +1355,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CODEGEN-TEMPLATE REPLACING LEADING ==PREFIX== BY ==NUMBER-BINOMIAL==.
     *> shared state
     01 CURRENT-FILENAME             PIC X(255)                  EXTERNAL.
-    01 JSONPOS                      BINARY-LONG UNSIGNED        EXTERNAL.
-    01 JSONBUF                      PIC X(16000)                EXTERNAL.
+    COPY DD-CODEGEN-JSON.
     01 NUM-CONSTANT-VALUE           FLOAT-LONG                  EXTERNAL.
     01 NUM-BINOM-N                  FLOAT-LONG                  EXTERNAL.
     01 NUM-BINOM-P                  FLOAT-LONG                  EXTERNAL.

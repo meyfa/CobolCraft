@@ -123,14 +123,7 @@ LoadRegistries.
 
 LoadItems.
     DISPLAY "Loading items...                " WITH NO ADVANCING
-
-    CALL "Files-ReadAll" USING FILE-ITEMS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
-        MSG BY =="Failed to read: " FUNCTION TRIM(FILE-ITEMS)==.
-
-    CALL "Items-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
-        MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-ITEMS)==.
+    CALL "Generated-Items"
 
     CALL "Items-GetCount" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
@@ -171,7 +164,7 @@ LoadDatapack.
     .
 
 LoadGenerated.
-    DISPLAY "Loading generated data..."
+    DISPLAY "Loading block loot table..."
     CALL "Generated-BlocksLootTable"
     .
 
