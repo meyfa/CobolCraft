@@ -62,6 +62,7 @@ PROCEDURE DIVISION USING LK-TPLNAME OPTIONAL LK-REPLACE-PTR LK-TPL.
             END-PERFORM
 
             ADD 1 TO LK-TPL-VARS
+            INITIALIZE LK-TPL-VAR(LK-TPL-VARS)
             MOVE IDX TO LK-TPL-VAR-START(LK-TPL-VARS)
             MOVE IDX2 TO LK-TPL-VAR-END(LK-TPL-VARS)
 
@@ -83,12 +84,18 @@ PROCEDURE DIVISION USING LK-TPLNAME OPTIONAL LK-REPLACE-PTR LK-TPL.
                 EVALUATE TRANSFORM-NAME
                     WHEN "indent"
                         MOVE FUNCTION NUMVAL(TRANSFORM-VALUE) TO LK-TPL-VAR-INDENT(LK-TPL-VARS)
+                    WHEN "newline"
+                        EVALUATE TRANSFORM-VALUE
+                            WHEN "after"
+                                MOVE 1 TO LK-TPL-VAR-NEWLINE(LK-TPL-VARS)
+                            WHEN OTHER
+                                COPY ASSERT-FAILED REPLACING MSG BY =="Codegen: Unknown newline transform value: " FUNCTION TRIM(TRANSFORM-VALUE)==.
+                        END-EVALUATE
                     WHEN OTHER
                         COPY ASSERT-FAILED REPLACING MSG BY =="Codegen: Unknown transform: " FUNCTION TRIM(TRANSFORM-NAME)==.
                 END-EVALUATE
             ELSE
                 MOVE LK-TPL-BUFFER(IDX + 1:IDX2 - IDX - 1) TO LK-TPL-VAR-NAME(LK-TPL-VARS)
-                MOVE 0 TO LK-TPL-VAR-INDENT(LK-TPL-VARS)
             END-IF
 
             MOVE IDX2 TO IDX
@@ -133,10 +140,16 @@ PROCEDURE DIVISION USING LK-TPL LK-OUT-BUFFER LK-OUT-LENGTH.
 
             SUBTRACT LK-TPL-VAR-INDENT(VAR-INDEX) FROM CURRENT-INDENT
 
-            *> HACK: Remove trailing newlines in replaced text, as the parent template should handle that.
-            PERFORM UNTIL LK-OUT-LENGTH <= PREV-OUT-LENGTH OR LK-OUT-BUFFER(LK-OUT-LENGTH:1) NOT = X"0A"
-                SUBTRACT 1 FROM LK-OUT-LENGTH
-            END-PERFORM
+            *> Ensure a single newline after the variable if requested
+            IF LK-TPL-VAR-NEWLINE(VAR-INDEX) NOT = 0
+                MOVE X"0A" TO LK-OUT-BUFFER(LK-OUT-LENGTH + 1:1)
+                ADD 1 TO LK-OUT-LENGTH
+            ELSE
+                *> Otherwise, remove any trailing newlines
+                PERFORM UNTIL LK-OUT-LENGTH <= PREV-OUT-LENGTH OR LK-OUT-BUFFER(LK-OUT-LENGTH:1) NOT = X"0A"
+                    SUBTRACT 1 FROM LK-OUT-LENGTH
+                END-PERFORM
+            END-IF
         END-IF
 
         *> move to after the variable

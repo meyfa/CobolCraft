@@ -170,14 +170,7 @@ LoadGenerated.
 
 LoadPackets.
     DISPLAY "Loading packets...              " WITH NO ADVANCING
-
-    CALL "Files-ReadAll" USING FILE-PACKETS DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
-        MSG BY =="Failed to read: " FUNCTION TRIM(FILE-PACKETS)==.
-
-    CALL "Packets-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
-        MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-PACKETS)==.
+    CALL "Generated-Packets"
 
     CALL "Packets-GetCount" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
