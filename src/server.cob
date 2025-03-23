@@ -274,6 +274,9 @@ RegisterBlocks.
     CALL "RegisterBlock-Lava"
     CALL "RegisterBlock-CraftingTable"
 
+    *> Register block entities
+    CALL "RegisterBlockEntity-Sign"
+
     DISPLAY "done"
     .
 

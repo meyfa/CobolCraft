@@ -25,6 +25,16 @@
         *> Called to determine the item form of a block, such as for the "pick block" action (middle-click).
         03 CB-PTR-BLOCK-ITEM USAGE PROGRAM-POINTER.
 
+*> One set of callbacks per block entity type.
+01 BLOCK-ENTITY-CALLBACKS EXTERNAL.
+    02 CALLBACK OCCURS 200 TIMES.
+        *> Called to allocate memory for block entity data.
+        03 CB-PTR-BLOCK-ENTITY-ALLOCATE USAGE PROGRAM-POINTER.
+        *> Called to save block entity data into an NBT compound tag for storage.
+        03 CB-PTR-BLOCK-ENTITY-SERIALIZE USAGE PROGRAM-POINTER.
+        *> Called to load block entity data from an NBT compound tag.
+        03 CB-PTR-BLOCK-ENTITY-DESERIALIZE USAGE PROGRAM-POINTER.
+
 *> One set of callbacks per entity type.
 01 ENTITY-CALLBACKS EXTERNAL.
     02 CALLBACK OCCURS 200 TIMES.

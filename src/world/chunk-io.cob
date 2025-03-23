@@ -4,6 +4,7 @@ PROGRAM-ID. World-SaveChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-CALLBACKS.
     COPY DD-REGION-FILES.
     01 FILE-TYPE                BINARY-CHAR UNSIGNED.
     01 BUFFER                   PIC X(1048576).
@@ -227,46 +228,43 @@ SaveChunkRegion.
     *> start block entities
     CALL "NbtEncode-List" USING NBTENC BUFFER "block_entities"
 
-    IF CHUNK-BLOCK-ENTITY-COUNT > 0
-        MOVE 1 TO BLOCK-INDEX
-        MOVE 0 TO BLOCK-ENTITY-COUNT
-        PERFORM 98304 TIMES
-            IF CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) >= 0
-                *> start block entity
-                CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
+    MOVE 0 TO BLOCK-ENTITY-COUNT
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-ENTITY-COUNT >= CHUNK-BLOCK-ENTITY-COUNT
+        IF CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) >= 0
+            ADD 1 TO BLOCK-ENTITY-COUNT
 
-                MOVE CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) TO INT32
-                CALL "Registries-Get-EntryName" USING "minecraft:block_entity_type" INT32 STR
-                MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
-                CALL "NbtEncode-String" USING NBTENC BUFFER "id" STR LEN
+            *> start block entity
+            CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
 
-                *> x, y, z
-                SUBTRACT 1 FROM BLOCK-INDEX GIVING INT32
-                DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-ENTITY-X
-                DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-ENTITY-Z
-                SUBTRACT 64 FROM INT32 GIVING BLOCK-ENTITY-Y
-                *> x and z are in the world coordinate system
-                COMPUTE BLOCK-ENTITY-X = BLOCK-ENTITY-X + CHUNK-X * 16
-                COMPUTE BLOCK-ENTITY-Z = BLOCK-ENTITY-Z + CHUNK-Z * 16
+            MOVE CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) TO INT32
+            SET SERIALIZE-PTR TO CB-PTR-BLOCK-ENTITY-SERIALIZE(INT32 + 1)
 
-                CALL "NbtEncode-Int" USING NBTENC BUFFER "x" BLOCK-ENTITY-X
-                CALL "NbtEncode-Int" USING NBTENC BUFFER "y" BLOCK-ENTITY-Y
-                CALL "NbtEncode-Int" USING NBTENC BUFFER "z" BLOCK-ENTITY-Z
+            CALL "Registries-Get-EntryName" USING "minecraft:block_entity_type" INT32 STR
+            MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
+            CALL "NbtEncode-String" USING NBTENC BUFFER "id" STR LEN
 
-                *> TODO: write the block entity-specific data
+            *> x, y, z
+            SUBTRACT 1 FROM BLOCK-INDEX GIVING INT32
+            DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-ENTITY-X
+            DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-ENTITY-Z
+            SUBTRACT 64 FROM INT32 GIVING BLOCK-ENTITY-Y
+            *> x and z are in the world coordinate system
+            COMPUTE BLOCK-ENTITY-X = BLOCK-ENTITY-X + CHUNK-X * 16
+            COMPUTE BLOCK-ENTITY-Z = BLOCK-ENTITY-Z + CHUNK-Z * 16
 
-                *> end block entity
-                CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
+            CALL "NbtEncode-Int" USING NBTENC BUFFER "x" BLOCK-ENTITY-X
+            CALL "NbtEncode-Int" USING NBTENC BUFFER "y" BLOCK-ENTITY-Y
+            CALL "NbtEncode-Int" USING NBTENC BUFFER "z" BLOCK-ENTITY-Z
 
-                *> stop the loop once all block entities have been written
-                ADD 1 TO BLOCK-ENTITY-COUNT
-                IF BLOCK-ENTITY-COUNT >= CHUNK-BLOCK-ENTITY-COUNT
-                    EXIT PERFORM
-                END-IF
+            *> block entity data
+            IF SERIALIZE-PTR NOT = NULL
+                CALL SERIALIZE-PTR USING CHUNK-BLOCK-ENTITY(BLOCK-INDEX) NBTENC BUFFER
             END-IF
-            ADD 1 TO BLOCK-INDEX
-        END-PERFORM
-    END-IF
+
+            *> end block entity
+            CALL "NbtEncode-EndCompound" USING NBTENC BUFFER
+        END-IF
+    END-PERFORM
 
     *> end block entities
     CALL "NbtEncode-EndList" USING NBTENC BUFFER
@@ -346,6 +344,7 @@ PROGRAM-ID. World-LoadChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-CALLBACKS.
     COPY DD-REGION-FILES.
     01 FILE-TYPE                BINARY-CHAR UNSIGNED.
     01 BUFFER                   PIC X(1048576).
@@ -365,6 +364,7 @@ WORKING-STORAGE SECTION.
     01 ACCEPTED-CHUNK-STATUS-ID BINARY-LONG.
     01 X-POS                    BINARY-LONG.
     01 Z-POS                    BINARY-LONG.
+    01 DID-DECODE-SECTIONS      BINARY-CHAR UNSIGNED.
     01 CHUNK-SECTION-MIN-Y      BINARY-LONG.
     01 CHUNK-INDEX              BINARY-LONG UNSIGNED.
     01 LOADED-SECTION-COUNT     BINARY-LONG UNSIGNED.
@@ -381,6 +381,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CHUNK-ENTITY.
     *> entity data
     01 ENTITY-PTR               POINTER.
+    01 ALLOCATE-PTR             PROGRAM-POINTER.
     01 DESERIALIZE-PTR          PROGRAM-POINTER.
 LINKAGE SECTION.
     01 LK-CHUNK-X               BINARY-LONG.
@@ -482,13 +483,35 @@ LoadChunkRegion.
     END-IF
     SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
 
-    *> Skip ahead until we find the sections tag.
-    CALL "NbtDecode-SkipUntilTag" USING NBTDEC BUFFER "sections" AT-END
-    IF AT-END > 0
+    *> Decode NBT
+    MOVE 0 TO DID-DECODE-SECTIONS
+    PERFORM UNTIL EXIT
+        CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
+        EVALUATE TRUE
+            WHEN AT-END > 0
+                EXIT PERFORM
+            WHEN TAG = "sections"
+                PERFORM DecodeSections
+                MOVE 1 TO DID-DECODE-SECTIONS
+            WHEN TAG = "block_entities"
+                PERFORM DecodeBlockEntities
+            WHEN OTHER
+                CALL "NbtDecode-Skip" USING NBTDEC BUFFER
+        END-EVALUATE
+    END-PERFORM
+
+    IF DID-DECODE-SECTIONS = 0
         MOVE 1 TO LK-FAILURE
         GOBACK
     END-IF
 
+    CALL "NbtDecode-SkipRemainingTags" USING NBTDEC BUFFER
+
+    *> end root tag
+    CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
+    .
+
+DecodeSections.
     *> start sections
     CALL "NbtDecode-List" USING NBTDEC BUFFER LOADED-SECTION-COUNT
 
@@ -520,45 +543,73 @@ LoadChunkRegion.
 
     *> end sections
     CALL "NbtDecode-EndList" USING NBTDEC BUFFER
+    .
 
-    *> Skip to the block entities
-    *> TODO: make this position-independent
-    CALL "NbtDecode-SkipUntilTag" USING NBTDEC BUFFER "block_entities" AT-END
-    IF AT-END = 0
-        CALL "NbtDecode-List" USING NBTDEC BUFFER BLOCK-ENTITY-COUNT
-        MOVE BLOCK-ENTITY-COUNT TO CHUNK-BLOCK-ENTITY-COUNT
-        PERFORM BLOCK-ENTITY-COUNT TIMES
-            CALL "NbtDecode-Compound" USING NBTDEC BUFFER
-            PERFORM UNTIL EXIT
-                CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
-                IF AT-END > 0
-                    EXIT PERFORM
-                END-IF
-                EVALUATE TAG
-                    WHEN "id"
-                        CALL "NbtDecode-String" USING NBTDEC BUFFER STR LEN
-                        CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" STR(1:LEN) BLOCK-ENTITY-ID
-                    WHEN "x"
-                        CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-X
-                    WHEN "y"
-                        CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-Y
-                    WHEN "z"
-                        CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-Z
-                    WHEN OTHER
-                        CALL "NbtDecode-Skip" USING NBTDEC BUFFER
-                END-EVALUATE
-            END-PERFORM
-            *> convert to chunk-relative coordinates
-            COMPUTE INT32 = FUNCTION MOD(BLOCK-ENTITY-X, 16) + 16 * (FUNCTION MOD(BLOCK-ENTITY-Z, 16) + 16 * (BLOCK-ENTITY-Y + 64)) + 1
-            MOVE BLOCK-ENTITY-ID TO CHUNK-BLOCK-ENTITY-ID(INT32)
-            CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
+DecodeBlockEntities.
+    *> start block entities
+    CALL "NbtDecode-List" USING NBTDEC BUFFER BLOCK-ENTITY-COUNT
+
+    PERFORM BLOCK-ENTITY-COUNT TIMES
+        CALL "NbtDecode-Compound" USING NBTDEC BUFFER
+
+        *> Backup the NBT decoder so we can decode the block entity twice
+        MOVE NBTDEC TO SEEK-NBTDEC
+
+        *> Decode once to find the coordinates and type
+        PERFORM UNTIL EXIT
+            CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
+            IF AT-END > 0
+                EXIT PERFORM
+            END-IF
+            EVALUATE TAG
+                WHEN "id"
+                    CALL "NbtDecode-String" USING NBTDEC BUFFER STR LEN
+                    CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" STR(1:LEN) BLOCK-ENTITY-ID
+                WHEN "x"
+                    CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-X
+                WHEN "y"
+                    CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-Y
+                WHEN "z"
+                    CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-Z
+                WHEN OTHER
+                    CALL "NbtDecode-Skip" USING NBTDEC BUFFER
+            END-EVALUATE
         END-PERFORM
-        CALL "NbtDecode-EndList" USING NBTDEC BUFFER
-    END-IF
 
-    *> end root tag
-    CALL "NbtDecode-SkipRemainingTags" USING NBTDEC BUFFER
-    CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
+        *> convert to chunk-relative coordinates
+        COMPUTE INT32 = FUNCTION MOD(BLOCK-ENTITY-X, 16) + 16 * (FUNCTION MOD(BLOCK-ENTITY-Z, 16) + 16 * (BLOCK-ENTITY-Y + 64)) + 1
+        MOVE BLOCK-ENTITY-ID TO CHUNK-BLOCK-ENTITY-ID(INT32)
+        ADD 1 TO CHUNK-BLOCK-ENTITY-COUNT
+
+        *> Find the allocation and deserialize routines
+        SET ALLOCATE-PTR TO CB-PTR-BLOCK-ENTITY-ALLOCATE(BLOCK-ENTITY-ID + 1)
+        SET DESERIALIZE-PTR TO CB-PTR-BLOCK-ENTITY-DESERIALIZE(BLOCK-ENTITY-ID + 1)
+
+        IF ALLOCATE-PTR NOT = NULL
+            CALL ALLOCATE-PTR USING CHUNK-BLOCK-ENTITY-DATA(INT32)
+
+            *> Deserialize the block entity
+            IF DESERIALIZE-PTR NOT = NULL
+                MOVE SEEK-NBTDEC TO NBTDEC
+                PERFORM UNTIL EXIT
+                    CALL "NbtDecode-Peek" USING NBTDEC BUFFER AT-END TAG
+                    EVALUATE TRUE
+                        WHEN AT-END > 0
+                            EXIT PERFORM
+                        WHEN TAG = "id" OR "x" OR "y" OR "z"
+                            CALL "NbtDecode-Skip" USING NBTDEC BUFFER
+                        WHEN OTHER
+                            CALL DESERIALIZE-PTR USING CHUNK-BLOCK-ENTITY(INT32) NBTDEC BUFFER TAG
+                    END-EVALUATE
+                END-PERFORM
+            END-IF
+        END-IF
+
+        CALL "NbtDecode-EndCompound" USING NBTDEC BUFFER
+    END-PERFORM
+
+    *> end block entities
+    CALL "NbtDecode-EndList" USING NBTDEC BUFFER
     .
 
 LoadChunkEntities.

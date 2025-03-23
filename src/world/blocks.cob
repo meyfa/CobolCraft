@@ -121,13 +121,14 @@ PROCEDURE DIVISION USING OPTIONAL LK-CLIENT LK-POSITION LK-BLOCK-ID.
     MOVE LK-BLOCK-ID TO CHUNK-SECTION-BLOCK(SECTION-INDEX, BLOCK-INDEX)
     MOVE 1 TO CHUNK-DIRTY-BLOCKS
 
-    *> If the block is changing to a different type (not just state), remove any block entity
+    *> If the block is changing to a different type (not just state), deallocate and remove any block entity
     IF PREVIOUS-BLOCK-ID NOT = 0
         CALL "Blocks-CompareBlockType" USING PREVIOUS-BLOCK-ID LK-BLOCK-ID IS-SAME-BLOCK-TYPE
         IF IS-SAME-BLOCK-TYPE = 0
             COMPUTE BLOCK-IN-CHUNK-INDEX = ((LK-Y + 64) * 16 + (FUNCTION MOD(LK-Z, 16))) * 16 + (FUNCTION MOD(LK-X, 16)) + 1
             IF CHUNK-BLOCK-ENTITY-ID(BLOCK-IN-CHUNK-INDEX) >= 0
                 MOVE -1 TO CHUNK-BLOCK-ENTITY-ID(BLOCK-IN-CHUNK-INDEX)
+                FREE CHUNK-BLOCK-ENTITY-DATA(BLOCK-IN-CHUNK-INDEX)
                 SUBTRACT 1 FROM CHUNK-BLOCK-ENTITY-COUNT
             END-IF
         END-IF
@@ -154,6 +155,7 @@ PROGRAM-ID. World-SetBlockEntity.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    COPY DD-CALLBACKS.
     COPY DD-WORLD.
     COPY DD-CHUNK-REF.
     COPY DD-CLIENT-STATES.
@@ -164,10 +166,7 @@ WORKING-STORAGE SECTION.
     01 CHUNK-INDEX              BINARY-LONG UNSIGNED.
     01 BLOCK-IN-CHUNK-INDEX     BINARY-LONG UNSIGNED.
     01 CLIENT-ID                BINARY-LONG UNSIGNED.
-    *> TODO support entity data
-    *> Currently, only block entities without any data (= empty compound tag) are supported.
-    01 ENTITY-DATA              PIC X(2)                    VALUE X"0A00".
-    01 ENTITY-DATA-LENGTH       BINARY-LONG UNSIGNED        VALUE 2.
+    01 ALLOCATE-PTR             PROGRAM-POINTER.
 LINKAGE SECTION.
     01 LK-POSITION.
         02 LK-X                 BINARY-LONG.
@@ -187,18 +186,27 @@ PROCEDURE DIVISION USING LK-POSITION LK-BLOCK-ENTITY-ID.
 
     COMPUTE BLOCK-IN-CHUNK-INDEX = ((LK-Y + 64) * 16 + (FUNCTION MOD(LK-Z, 16))) * 16 + (FUNCTION MOD(LK-X, 16)) + 1
 
+    *> Deallocate and remove any existing block entity
     IF CHUNK-BLOCK-ENTITY-ID(BLOCK-IN-CHUNK-INDEX) >= 0
+        FREE CHUNK-BLOCK-ENTITY-DATA(BLOCK-IN-CHUNK-INDEX)
         SUBTRACT 1 FROM CHUNK-BLOCK-ENTITY-COUNT
     END-IF
 
-    *> Set the block entity ID
+    *> Set the block entity ID and mark the chunk as dirty
     MOVE LK-BLOCK-ENTITY-ID TO CHUNK-BLOCK-ENTITY-ID(BLOCK-IN-CHUNK-INDEX)
     ADD 1 TO CHUNK-BLOCK-ENTITY-COUNT
+    MOVE 1 TO CHUNK-DIRTY-BLOCKS
+
+    *> Allocate memory for the block entity data
+    SET ALLOCATE-PTR TO CB-PTR-BLOCK-ENTITY-ALLOCATE(LK-BLOCK-ENTITY-ID + 1)
+    IF ALLOCATE-PTR NOT = NULL
+        CALL ALLOCATE-PTR USING CHUNK-BLOCK-ENTITY-DATA(BLOCK-IN-CHUNK-INDEX)
+    END-IF
 
     *> Notify clients
     PERFORM VARYING CLIENT-ID FROM 1 BY 1 UNTIL CLIENT-ID > MAX-CLIENTS
         IF CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
-            CALL "SendPacket-BlockEntityData" USING CLIENT-ID LK-POSITION LK-BLOCK-ENTITY-ID ENTITY-DATA ENTITY-DATA-LENGTH
+            CALL "SendPacket-BlockEntityData" USING CLIENT-ID LK-POSITION CHUNK-BLOCK-ENTITY(BLOCK-IN-CHUNK-INDEX)
         END-IF
     END-PERFORM
 

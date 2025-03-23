@@ -27,6 +27,9 @@ WORKING-STORAGE SECTION.
     01 ENTITY-COUNT             BINARY-LONG UNSIGNED.
     01 BLOCK-X                  BINARY-CHAR UNSIGNED.
     01 BLOCK-Z                  BINARY-CHAR UNSIGNED.
+    COPY DD-CALLBACKS.
+    COPY DD-NBT-ENCODER.
+    01 SERIALIZE-PTR            PROGRAM-POINTER.
 LINKAGE SECTION.
     01 LK-CLIENT                BINARY-LONG UNSIGNED.
     01 LK-CHUNK-X               BINARY-LONG.
@@ -43,9 +46,8 @@ LINKAGE SECTION.
     01 LK-BLOCK-ENTITIES.
         02 LK-BLOCK-ENTITY-COUNT    BINARY-LONG UNSIGNED.
         *> block entity IDs for each block
-        02 LK-BLOCK-ENTITY-IDS.
-            *> a value < 0 indicates no entity
-            03 LK-BLOCK-ENTITY-ID   OCCURS 98304 TIMES BINARY-CHAR.
+        02 LK-BLOCK-ENTITY          OCCURS 98304 TIMES.
+            COPY DD-BLOCK-ENTITY REPLACING LEADING ==BLOCK-ENTITY== BY ==LK-BLOCK-ENTITY==.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK-X LK-CHUNK-Z LK-SECTIONS LK-BLOCK-ENTITIES.
     COPY PROC-PACKET-INIT.
@@ -91,41 +93,39 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK-X LK-CHUNK-Z LK-SECTIONS LK-BLOCK-EN
 
     *> block entities prefixed by count
     CALL "Encode-VarInt" USING LK-BLOCK-ENTITY-COUNT PAYLOAD PAYLOADPOS
-    IF LK-BLOCK-ENTITY-COUNT > 0
-        MOVE 1 TO BLOCK-INDEX
-        MOVE 0 TO ENTITY-COUNT
-        PERFORM 98304 TIMES
-            IF LK-BLOCK-ENTITY-ID(BLOCK-INDEX) >= 0
-                *> packed XZ coordinates: (X << 4) | Z
-                SUBTRACT 1 FROM BLOCK-INDEX GIVING INT32
-                DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-X
-                DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-Z
-                COMPUTE UINT8 = BLOCK-X * 16 + BLOCK-Z
-                MOVE FUNCTION CHAR(UINT8 + 1) TO PAYLOAD(PAYLOADPOS:1)
-                ADD 1 TO PAYLOADPOS
+    MOVE 0 TO ENTITY-COUNT
+    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL ENTITY-COUNT >= LK-BLOCK-ENTITY-COUNT
+        IF LK-BLOCK-ENTITY-ID(BLOCK-INDEX) >= 0
+            ADD 1 TO ENTITY-COUNT
 
-                *> Y coordinate
-                COMPUTE INT16 = INT32 - 64
-                CALL "Encode-Short" USING INT16 PAYLOAD PAYLOADPOS
+            *> packed XZ coordinates: (X << 4) | Z
+            SUBTRACT 1 FROM BLOCK-INDEX GIVING INT32
+            DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-X
+            DIVIDE INT32 BY 16 GIVING INT32 REMAINDER BLOCK-Z
+            COMPUTE UINT8 = BLOCK-X * 16 + BLOCK-Z
+            MOVE FUNCTION CHAR(UINT8 + 1) TO PAYLOAD(PAYLOADPOS:1)
+            ADD 1 TO PAYLOADPOS
 
-                *> block entity type
-                MOVE LK-BLOCK-ENTITY-ID(BLOCK-INDEX) TO INT32
-                CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
+            *> Y coordinate
+            COMPUTE INT16 = INT32 - 64
+            CALL "Encode-Short" USING INT16 PAYLOAD PAYLOADPOS
 
-                *> block entity NBT - send an empty compound tag for now
-                *> TODO: implement block entity NBT
-                MOVE X"0a00" TO PAYLOAD(PAYLOADPOS:2)
-                ADD 2 TO PAYLOADPOS
+            *> block entity type
+            MOVE LK-BLOCK-ENTITY-ID(BLOCK-INDEX) TO INT32
+            CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 
-                *> stop the loop once all entities have been sent
-                ADD 1 TO ENTITY-COUNT
-                IF ENTITY-COUNT >= LK-BLOCK-ENTITY-COUNT
-                    EXIT PERFORM
-                END-IF
+            *> block entity NBT
+            SET SERIALIZE-PTR TO CB-PTR-BLOCK-ENTITY-SERIALIZE(INT32 + 1)
+            INITIALIZE NBTENC
+            MOVE PAYLOADPOS TO NBTENC-OFFSET
+            CALL "NbtEncode-Compound" USING NBTENC PAYLOAD OMITTED
+            IF SERIALIZE-PTR NOT = NULL
+                CALL SERIALIZE-PTR USING LK-BLOCK-ENTITY(BLOCK-INDEX) NBTENC PAYLOAD
             END-IF
-            ADD 1 TO BLOCK-INDEX
-        END-PERFORM
-    END-IF
+            CALL "NbtEncode-EndCompound" USING NBTENC PAYLOAD
+            MOVE NBTENC-OFFSET TO PAYLOADPOS
+        END-IF
+    END-PERFORM
 
     *> sky light mask
     *> Note: Each 16x16x16 section needs a bit + 1 below the chunk + 1 above the chunk => 26 bits => 1 long.
