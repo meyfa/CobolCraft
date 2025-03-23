@@ -19,8 +19,11 @@ PROCEDURE DIVISION.
 
     MOVE 0 TO BUFFERLEN
     CALL "Codegen-TemplateEval" USING MAIN-TPL BUFFER BUFFERLEN
-    CALL "Codegen-Append" USING BUFFER(1:BUFFERLEN)
 
+    *> The loot table code is quite large and complex, so there may be redundant MOVEs and other optimizations possible.
+    CALL "Codegen-Optimize" USING BUFFER(1:BUFFERLEN)
+
+    CALL "Codegen-Append" USING BUFFER(1:BUFFERLEN)
     CALL "Codegen-End"
 
     GOBACK.
