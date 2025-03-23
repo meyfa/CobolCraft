@@ -17,3 +17,5 @@
         03 PREFIX-TPL-VAR-NAME      PIC X(32).
         *> indentation (number of spaces) to apply to child templates rendered within this variable
         03 PREFIX-TPL-VAR-INDENT    BINARY-LONG UNSIGNED.
+        *> whether to add a newline after the variable - especially useful for repeated variables
+        03 PREFIX-TPL-VAR-NEWLINE   BINARY-CHAR UNSIGNED.

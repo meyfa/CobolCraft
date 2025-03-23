@@ -8,6 +8,7 @@ WORKING-STORAGE SECTION.
 
 PROCEDURE DIVISION.
     INITIALIZE ITEMS
+
 $registrations:indent=4$
     GOBACK.
 
