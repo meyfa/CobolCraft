@@ -1,5 +1,5 @@
-*> This file contains common routines for entities. In the Java world, these would be found in parent classes and
-*> invoked via super.method(). In COBOL, we call them explicitly.
+*> This file contains common routines for entities. If this was Java, these routines would be found in parent
+*> classes and invoked via super.method(). In COBOL, we call them explicitly.
 
 *> --- EntityBase-Serialize ---
 IDENTIFICATION DIVISION.

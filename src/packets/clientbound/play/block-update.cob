@@ -5,7 +5,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PACKET REPLACING IDENTIFIER BY "play/clientbound/minecraft:block_update".
     *> buffer used to store the packet data
-    01 PAYLOAD          PIC X(64000).
+    01 PAYLOAD          PIC X(32).
     01 PAYLOADPOS       BINARY-LONG UNSIGNED.
     01 PAYLOADLEN       BINARY-LONG UNSIGNED.
 LINKAGE SECTION.

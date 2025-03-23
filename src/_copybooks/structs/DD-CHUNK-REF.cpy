@@ -18,11 +18,9 @@
                 05 CHUNK-SECTION-BIOME  OCCURS 64 TIMES BINARY-LONG UNSIGNED.
     02 CHUNK-BLOCK-ENTITIES.
         03 CHUNK-BLOCK-ENTITY-COUNT     BINARY-LONG UNSIGNED.
-        *> block entity IDs for each block
-        03 CHUNK-BLOCK-ENTITY-IDS.
-            *> set to a value < 0 to indicate no entity (since 0 is a valid ID)
-            *> TODO: support storing entity data, not just IDs
-            04 CHUNK-BLOCK-ENTITY-ID    OCCURS 98304 TIMES BINARY-CHAR.
+        *> block entity for each block - set type to a value < 0 to indicate no entity
+        03 CHUNK-BLOCK-ENTITY OCCURS 98304 TIMES.
+            COPY DD-BLOCK-ENTITY REPLACING LEADING ==BLOCK-ENTITY== BY ==CHUNK-BLOCK-ENTITY==.
     02 CHUNK-ENTITIES.
         03 CHUNK-ENTITY-COUNT           BINARY-LONG UNSIGNED.
         *> linked list of entities in the chunk - see DD-CHUNK-ENTITY.cpy
