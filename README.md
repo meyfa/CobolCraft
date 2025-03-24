@@ -7,7 +7,7 @@ A Minecraft server written in COBOL. It supports Minecraft 1.21.4 (the latest ve
 
 ## Features
 
-The following features are already working:
+The following features are already implemented:
 
 - [X] infinite terrain generation and dynamic chunk loading
 - [X] persisting world and player data to disk
@@ -27,20 +27,12 @@ The following features are already working:
 - [X] fall damage and void damage, dying, and respawning
 
 Note that blocks with multiple states, orientations, or interactive blocks require large amounts of specialized code
-to make them behave properly, which is way beyond the scope of this project.
-Some are supported, however:
+to make them behave properly, and many of these are not yet supported.
 
-- torches (all variants)
-- slabs (all variants)
-- stairs (non-connecting)
-- rotated pillars, such as logs or basalt
-- buttons (non-interactive)
-- doors (including interaction)
-- trapdoors (including interaction)
-- beds
-- signs
+Working blocks include: torches, slabs, stairs, rotated pillars (e.g. logs), buttons (non-interactive), doors,
+trapdoors, beds, and signs.
 
-## How-to
+## Getting Started
 
 CobolCraft was developed using GnuCOBOL and is meant to be run on Linux (x86_64 or arm64 architectures).
 Support for other operating systems such as Windows has not been tested.
