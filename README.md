@@ -38,6 +38,7 @@ Some are supported, however:
 - doors (including interaction)
 - trapdoors (including interaction)
 - beds
+- signs
 
 ## How-to
 

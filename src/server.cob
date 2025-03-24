@@ -217,6 +217,7 @@ RegisterPacketHandlers.
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:set_carried_item"            "RecvPacket-SetCarriedItem"
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:set_creative_mode_slot"      "RecvPacket-SetCreativeSlot"
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:swing"                       "RecvPacket-Swing"
+    CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:sign_update"                 "RecvPacket-SignUpdate"
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item_on"                 "RecvPacket-UseItemOn"
     CALL "RegisterPacketHandler" USING PACKET-STATE "minecraft:use_item"                    "RecvPacket-UseItem"
 
@@ -249,6 +250,7 @@ RegisterItems.
     CALL "RegisterItem-Door"
     CALL "RegisterItem-Trapdoor"
     CALL "RegisterItem-Bed"
+    CALL "RegisterItem-Sign"
     CALL "RegisterItem-Bucket"
     CALL "RegisterItem-WaterBucket"
     CALL "RegisterItem-LavaBucket"
@@ -270,6 +272,7 @@ RegisterBlocks.
     CALL "RegisterBlock-Door"
     CALL "RegisterBlock-Trapdoor"
     CALL "RegisterBlock-Bed"
+    CALL "RegisterBlock-Sign"
     CALL "RegisterBlock-Water"
     CALL "RegisterBlock-Lava"
     CALL "RegisterBlock-CraftingTable"

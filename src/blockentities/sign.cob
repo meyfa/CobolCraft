@@ -4,6 +4,7 @@ REPLACE ==DEFINE-BLOCK-ENTITY-STRUCT== BY ==
         02 STRUCT-FRONT-GLOWING     BINARY-CHAR UNSIGNED.
         02 STRUCT-FRONT-COLOR       PIC X(16).
         02 STRUCT-FRONT-LINES.
+            *> COPY within REPLACE is not supported, otherwise we could use DD-SIGN-LINES here
             03 STRUCT-FRONT-LINE OCCURS 4 TIMES.
                 04 STRUCT-FRONT-LINE-LEN BINARY-LONG UNSIGNED.
                 04 STRUCT-FRONT-LINE-STR PIC X(256).
@@ -192,3 +193,48 @@ PROCEDURE DIVISION.
     END PROGRAM Callback-Deserialize.
 
 END PROGRAM RegisterBlockEntity-Sign.
+
+*> --- BlockEntity-Sign-Update ---
+IDENTIFICATION DIVISION.
+PROGRAM-ID. BlockEntity-Sign-Update.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    01 SIGN-BLOCK-ENTITY-TYPE   BINARY-LONG                     VALUE -1.
+    01 BLOCK-ENTITY.
+        COPY DD-BLOCK-ENTITY.
+    DEFINE-BLOCK-ENTITY-STRUCT
+LINKAGE SECTION.
+    01 LK-POSITION.
+        02 LK-X                 BINARY-LONG.
+        02 LK-Y                 BINARY-LONG.
+        02 LK-Z                 BINARY-LONG.
+    01 LK-IS-FRONT-TEXT         BINARY-CHAR UNSIGNED.
+    *> Must be JSON text components
+    01 LK-LINES.
+        COPY DD-SIGN-LINES REPLACING LEADING ==PREFIX== BY ==LK==.
+
+PROCEDURE DIVISION USING LK-POSITION LK-IS-FRONT-TEXT LK-LINES.
+    IF SIGN-BLOCK-ENTITY-TYPE < 0
+        CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" "minecraft:sign" SIGN-BLOCK-ENTITY-TYPE
+        COPY ASSERT REPLACING COND BY ==SIGN-BLOCK-ENTITY-TYPE >= 0==, MSG BY =="BlockEntity-Sign-Update: Failed block entity lookup"==.
+    END-IF
+
+    CALL "World-GetBlockEntity" USING LK-POSITION BLOCK-ENTITY
+    IF BLOCK-ENTITY-ID NOT = SIGN-BLOCK-ENTITY-TYPE
+        GOBACK
+    END-IF
+
+    SET ADDRESS OF STRUCT TO BLOCK-ENTITY-DATA
+
+    IF LK-IS-FRONT-TEXT NOT = 0
+        MOVE LK-LINES TO STRUCT-FRONT-LINES
+    ELSE
+        MOVE LK-LINES TO STRUCT-BACK-LINES
+    END-IF
+
+    CALL "World-NotifyChanged" USING LK-POSITION
+
+    GOBACK.
+
+END PROGRAM BlockEntity-Sign-Update.
