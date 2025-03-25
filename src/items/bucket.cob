@@ -57,9 +57,9 @@ PROCEDURE DIVISION.
         IF PLAYER-GAMEMODE(LK-PLAYER) NOT = 1
             EVALUATE CURRENT-NAME
                 WHEN "minecraft:water"
-                    CALL "Registries-Get-EntryId" USING "minecraft:item" "minecraft:water_bucket" ITEM-ID
+                    CALL "Registries-Lookup" USING "minecraft:item" "minecraft:water_bucket" ITEM-ID
                 WHEN "minecraft:lava"
-                    CALL "Registries-Get-EntryId" USING "minecraft:item" "minecraft:lava_bucket" ITEM-ID
+                    CALL "Registries-Lookup" USING "minecraft:item" "minecraft:lava_bucket" ITEM-ID
             END-EVALUATE
 
             IF ITEM-ID >= 0

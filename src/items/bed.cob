@@ -103,7 +103,7 @@ PROCEDURE DIVISION.
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION-HEAD BLOCK-ID
 
         *> Place the block entities
-        CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" "minecraft:bed" BLOCK-ENTITY-TYPE
+        CALL "Registries-Lookup" USING "minecraft:block_entity_type" "minecraft:bed" BLOCK-ENTITY-TYPE
         CALL "World-SetBlockEntity" USING BLOCK-POSITION-FOOT BLOCK-ENTITY-TYPE
         CALL "World-SetBlockEntity" USING BLOCK-POSITION-HEAD BLOCK-ENTITY-TYPE
 

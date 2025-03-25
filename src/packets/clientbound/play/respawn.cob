@@ -24,7 +24,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-GAMEMODE.
     *> TODO deduplicate with login-play.cob
 
     *> dimension type (ID in the minecraft:dimension_type registry)
-    CALL "Registries-Get-EntryId" USING "minecraft:dimension_type" MINECRAFT-OVERWORLD INT32
+    CALL "Registries-Lookup" USING "minecraft:dimension_type" MINECRAFT-OVERWORLD INT32
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 
     *> dimension name="minecraft:overworld"

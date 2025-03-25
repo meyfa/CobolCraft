@@ -4,6 +4,7 @@ PROGRAM-ID. RegisterItem-Sign.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 ITEM-REGISTRY-ID         BINARY-LONG                 GLOBAL.
     01 BLOCK-ENTITY-TYPE        BINARY-LONG                 GLOBAL.
     01 USE-PTR                  PROGRAM-POINTER.
     COPY DD-TAGS.
@@ -13,7 +14,9 @@ WORKING-STORAGE SECTION.
     01 ITEM-NAME                PIC X(64).
 
 PROCEDURE DIVISION.
-    CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" "minecraft:sign" BLOCK-ENTITY-TYPE
+    CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY-ID
+
+    CALL "Registries-Lookup" USING "minecraft:block_entity_type" "minecraft:sign" BLOCK-ENTITY-TYPE
     COPY ASSERT REPLACING COND BY ==BLOCK-ENTITY-TYPE >= 0==, MSG BY =="RegisterItem-Sign: Failed block entity lookup"==.
 
     SET USE-PTR TO ENTRY "Callback-Use"
@@ -35,7 +38,7 @@ PROCEDURE DIVISION.
 
     PERFORM VARYING IDX-ITEM FROM 1 BY 1 UNTIL IDX-ITEM > TAGS-REGISTRY-TAG-LENGTH(IDX-REGISTRY, IDX-TAG)
         *> TODO avoid the name lookup
-        CALL "Registries-Get-EntryName" USING "minecraft:item" TAGS-REGISTRY-TAG-ENTRY(IDX-REGISTRY, IDX-TAG, IDX-ITEM) ITEM-NAME
+        CALL "Registries-EntryName" USING ITEM-REGISTRY-ID TAGS-REGISTRY-TAG-ENTRY(IDX-REGISTRY, IDX-TAG, IDX-ITEM) ITEM-NAME
         CALL "SetCallback-ItemUse" USING ITEM-NAME USE-PTR
     END-PERFORM
 

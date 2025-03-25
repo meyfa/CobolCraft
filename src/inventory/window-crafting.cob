@@ -11,7 +11,7 @@ WORKING-STORAGE SECTION.
     01 DROP-PTR                     PROGRAM-POINTER.
 
 PROCEDURE DIVISION.
-    CALL "Registries-Get-EntryId" USING "minecraft:menu" "minecraft:crafting" WINDOW-TYPE
+    CALL "Registries-Lookup" USING "minecraft:menu" "minecraft:crafting" WINDOW-TYPE
     IF WINDOW-TYPE < 0
         DISPLAY "RegisterBlock-CraftingTable: Failed to get window type ID"
         GOBACK

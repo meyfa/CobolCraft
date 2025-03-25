@@ -66,7 +66,7 @@ PROCEDURE DIVISION.
             CALL "Blocks-Get-StateDescription" USING BLOCKSTATE-ID CLICKED-DESCRIPTION
 
             *> get loot table callback
-            CALL "Registries-Get-EntryId" USING "minecraft:block" CLICKED-NAME BLOCK-REGISTRY-ID
+            CALL "Registries-Lookup" USING "minecraft:block" CLICKED-NAME BLOCK-REGISTRY-ID
             CALL "GetCallback-BlockLoot" USING BLOCK-REGISTRY-ID LOOT-PTR
 
             IF LOOT-PTR NOT = NULL
@@ -130,7 +130,7 @@ PROCEDURE DIVISION.
 
         *> Obtain the block ID from the block state ID
         CALL "Blocks-Get-StateDescription" USING LK-BLOCK-STATE CLICKED-DESCRIPTION
-        CALL "Registries-Get-EntryId" USING "minecraft:block" CLICKED-NAME BLOCK-REGISTRY-ID
+        CALL "Registries-Lookup" USING "minecraft:block" CLICKED-NAME BLOCK-REGISTRY-ID
         IF BLOCK-REGISTRY-ID < 0
             MOVE 0 TO LK-RESULT
             GOBACK

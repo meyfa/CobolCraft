@@ -20,7 +20,7 @@ $registrations:indent=4$
         01 LK-CALLBACK          PROGRAM-POINTER.
 
     PROCEDURE DIVISION USING LK-BLOCK-NAME LK-CALLBACK.
-        CALL "Registries-Get-EntryId" USING "minecraft:block" LK-BLOCK-NAME BLOCK-ID
+        CALL "Registries-Lookup" USING "minecraft:block" LK-BLOCK-NAME BLOCK-ID
         CALL "SetCallback-BlockLoot" USING BLOCK-ID LK-CALLBACK
         GOBACK.
 

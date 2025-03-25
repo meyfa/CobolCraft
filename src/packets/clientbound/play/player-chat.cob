@@ -65,7 +65,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-SENDER-UUID LK-SENDER-NAME LK-MESSAGE LK-M
     *> --- chat formatting ---
 
     *> chat type
-    CALL "Registries-Get-EntryId" USING "minecraft:chat_type" "minecraft:chat" INT32
+    CALL "Registries-Lookup" USING "minecraft:chat_type" "minecraft:chat" INT32
     ADD 1 TO INT32
     CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 

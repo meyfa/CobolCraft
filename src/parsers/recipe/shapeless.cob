@@ -87,7 +87,7 @@ PROCEDURE DIVISION USING LK-JSON LK-OFFSET LK-FAILURE.
     *> resolve ingredient IDs
     PERFORM VARYING INGREDIENTS-INDEX FROM 1 BY 1 UNTIL INGREDIENTS-INDEX > INGREDIENTS-COUNT
         MOVE INGREDIENT-NAME(INGREDIENTS-INDEX) TO STR
-        CALL "Registries-Get-EntryId" USING "minecraft:item" STR INGREDIENT-ID(INGREDIENTS-INDEX)
+        CALL "Registries-Lookup" USING "minecraft:item" STR INGREDIENT-ID(INGREDIENTS-INDEX)
         IF INGREDIENT-ID(INGREDIENTS-INDEX) <= 0
             MOVE 1 TO LK-FAILURE
             GOBACK
@@ -170,7 +170,7 @@ ParseIngredients.
                 END-IF
 
                 ADD 1 TO INGREDIENT-CHOICE-COUNT
-                CALL "Registries-Get-EntryId" USING "minecraft:item" STR INGREDIENT-CHOICE-ID(INGREDIENT-CHOICE-COUNT)
+                CALL "Registries-Lookup" USING "minecraft:item" STR INGREDIENT-CHOICE-ID(INGREDIENT-CHOICE-COUNT)
                 IF INGREDIENT-CHOICE-ID(INGREDIENT-CHOICE-COUNT) <= 0
                     MOVE 1 TO LK-FAILURE
                     GOBACK

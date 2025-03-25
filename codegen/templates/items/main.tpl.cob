@@ -24,7 +24,7 @@ $registrations:indent=4$
         01 LK-MAX-STACK-SIZE    BINARY-LONG UNSIGNED.
 
     PROCEDURE DIVISION USING LK-ITEM-NAME LK-MAX-STACK-SIZE.
-        CALL "Registries-Get-EntryId" USING "minecraft:item" LK-ITEM-NAME ITEM-ID
+        CALL "Registries-Lookup" USING "minecraft:item" LK-ITEM-NAME ITEM-ID
         MOVE LK-MAX-STACK-SIZE TO ITEM-ENTRY-MAX-STACK-SIZE(ITEM-ID + 1)
         ADD 1 TO ITEMS-COUNT
         GOBACK.

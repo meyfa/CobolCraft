@@ -1,11 +1,17 @@
 *> --- Copybook: shared data for game registries ---
 01 REGISTRIES EXTERNAL.
-    02 REGISTRIES-COUNT BINARY-LONG UNSIGNED.
+    *> Number of present registries
+    02 REGISTRY-COUNT BINARY-LONG UNSIGNED.
+
+    *> Registries indexed by ID (+1), must be without gaps
     02 REGISTRY OCCURS 100 TIMES.
-        03 REGISTRY-NAME PIC X(100).
-        03 REGISTRY-ID BINARY-LONG UNSIGNED.
+        *> Resource location of the registry
+        03 REGISTRY-NAME PIC X(64).
         03 REGISTRY-REQUIRES-PACKET BINARY-CHAR UNSIGNED.
-        03 REGISTRY-ENTRIES-COUNT BINARY-LONG UNSIGNED.
+
+        *> Number of entries in the registry
+        03 REGISTRY-ENTRY-COUNT BINARY-LONG UNSIGNED.
+
+        *> Entries indexed by ID (+1), must be without gaps
         03 REGISTRY-ENTRY OCCURS 2000 TIMES.
-            04 REGISTRY-ENTRY-NAME PIC X(100).
-            04 REGISTRY-ENTRY-ID BINARY-LONG UNSIGNED.
+            04 REGISTRY-ENTRY-NAME PIC X(64).

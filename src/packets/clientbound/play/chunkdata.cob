@@ -54,8 +54,8 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK-X LK-CHUNK-Z LK-SECTIONS LK-BLOCK-EN
 
     CALL "Blocks-Get-MaximumStateId" USING MAX-BLOCK-STATE-ID
 
-    CALL "Registries-GetRegistryIndex" USING "minecraft:worldgen/biome" INT32
-    CALL "Registries-GetRegistryLength" USING INT32 MAX-BIOME-ID
+    CALL "Registries-LookupRegistry" USING "minecraft:worldgen/biome" INT32
+    CALL "Registries-EntryCount" USING INT32 MAX-BIOME-ID
     SUBTRACT 1 FROM MAX-BIOME-ID
 
     MOVE 1 TO PAYLOADPOS

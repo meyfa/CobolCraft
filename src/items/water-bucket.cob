@@ -43,7 +43,7 @@ PROCEDURE DIVISION.
 
         *> Replace the bucket with an empty bucket
         IF PLAYER-GAMEMODE(LK-PLAYER) NOT = 1
-            CALL "Registries-Get-EntryId" USING "minecraft:item" "minecraft:bucket" ITEM-ID
+            CALL "Registries-Lookup" USING "minecraft:item" "minecraft:bucket" ITEM-ID
             IF ITEM-ID >= 0
                 CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT ITEM-ID
             END-IF

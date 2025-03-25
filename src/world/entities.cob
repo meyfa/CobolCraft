@@ -104,7 +104,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-ENTITY.
 
 SendMetadata.
     IF ENTITY-TYPE-ITEM < 0
-        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE-ITEM
+        CALL "Registries-Lookup" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE-ITEM
     END-IF
 
     *> TODO make this more generic
@@ -329,7 +329,7 @@ PROCEDURE DIVISION USING LK-SLOT LK-POSITION LK-VELOCITY OPTIONAL LK-THROWER.
     END-IF
 
     IF ENTITY-TYPE-ITEM < 0
-        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE-ITEM
+        CALL "Registries-Lookup" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE-ITEM
     END-IF
 
     INITIALIZE ENTITY

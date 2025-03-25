@@ -69,10 +69,10 @@ WORKING-STORAGE SECTION.
     01 VANILLA-DATAPACK-NAME        PIC X(50)               VALUE "minecraft".
     01 REGISTRY-COUNT               BINARY-LONG UNSIGNED.
     *> Variables used for item registration
-    01 REGISTRY-INDEX               BINARY-LONG.
+    01 REGISTRY-ID                  BINARY-LONG.
     01 REGISTRY-NAME                PIC X(100).
     01 REGISTRY-LENGTH              BINARY-LONG UNSIGNED.
-    01 REGISTRY-ENTRY-INDEX         BINARY-LONG UNSIGNED.
+    01 REGISTRY-ENTRY-ID            BINARY-LONG UNSIGNED.
     01 REGISTRY-ENTRY-NAME          PIC X(100).
 
 PROCEDURE DIVISION.
@@ -100,7 +100,7 @@ LoadRegistries.
     COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
         MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-REGISTRIES)==.
 
-    CALL "Registries-GetCount" USING TEMP-INT32
+    CALL "Registries-Count" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
     DISPLAY FUNCTION TRIM(DISPLAY-INT) " registries loaded"
 
@@ -153,11 +153,11 @@ LoadDatapack.
         MSG BY =="Failed to load datapack"==.
 
     *> Sanity check: There shouldn't be any empty registries now.
-    CALL "Registries-GetCount" USING REGISTRY-COUNT
-    PERFORM VARYING REGISTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-INDEX > REGISTRY-COUNT
-        CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
+    CALL "Registries-Count" USING REGISTRY-COUNT
+    PERFORM VARYING REGISTRY-ID FROM 0 BY 1 UNTIL REGISTRY-ID >= REGISTRY-COUNT
+        CALL "Registries-EntryCount" USING REGISTRY-ID REGISTRY-LENGTH
         IF REGISTRY-LENGTH <= 0
-            CALL "Registries-Iterate-Name" USING REGISTRY-INDEX REGISTRY-NAME
+            CALL "Registries-Name" USING REGISTRY-ID REGISTRY-NAME
             COPY ASSERT-FAILED REPLACING MSG BY =="Empty registry: " FUNCTION TRIM(REGISTRY-NAME)==.
         END-IF
     END-PERFORM
@@ -228,13 +228,13 @@ RegisterItems.
     DISPLAY "Registering item behavior...    " WITH NO ADVANCING
 
     *> Register a generic block item for each item that has an identically-named block
-    CALL "Registries-GetRegistryIndex" USING "minecraft:item" REGISTRY-INDEX
-    COPY ASSERT REPLACING COND BY ==REGISTRY-INDEX > 0==,
+    CALL "Registries-LookupRegistry" USING "minecraft:item" REGISTRY-ID
+    COPY ASSERT REPLACING COND BY ==REGISTRY-ID >= 0==,
         MSG BY =="Failed to find registry: minecraft:item"==.
 
-    CALL "Registries-GetRegistryLength" USING REGISTRY-INDEX REGISTRY-LENGTH
-    PERFORM VARYING REGISTRY-ENTRY-INDEX FROM 1 BY 1 UNTIL REGISTRY-ENTRY-INDEX > REGISTRY-LENGTH
-        CALL "Registries-Iterate-EntryName" USING REGISTRY-INDEX REGISTRY-ENTRY-INDEX REGISTRY-ENTRY-NAME
+    CALL "Registries-EntryCount" USING REGISTRY-ID REGISTRY-LENGTH
+    PERFORM VARYING REGISTRY-ENTRY-ID FROM 0 BY 1 UNTIL REGISTRY-ENTRY-ID >= REGISTRY-LENGTH
+        CALL "Registries-EntryName" USING REGISTRY-ID REGISTRY-ENTRY-ID REGISTRY-ENTRY-NAME
         CALL "Blocks-Get-DefaultStateId" USING REGISTRY-ENTRY-NAME TEMP-INT32
         IF TEMP-INT32 > 0
             CALL "RegisterItem-Block" USING REGISTRY-ENTRY-NAME
@@ -715,7 +715,7 @@ PROCEDURE DIVISION USING LK-CLIENT.
     MOVE CLIENT-PLAYER(LK-CLIENT) TO PLAYER-ID
 
     IF ENTITY-TYPE-PLAYER < 0
-        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:player" ENTITY-TYPE-PLAYER
+        CALL "Registries-Lookup" USING "minecraft:entity_type" "minecraft:player" ENTITY-TYPE-PLAYER
     END-IF
 
     *> send world time
