@@ -9,10 +9,7 @@ WORKING-STORAGE SECTION.
     COPY DD-CLIENT-STATES.
     COPY DD-PACKET-DIRECTIONS.
     *> File paths
-    01 FILE-REGISTRIES              PIC X(255)              VALUE "data/generated/reports/registries.json".
-    01 FILE-ITEMS                   PIC X(255)              VALUE "data/generated/reports/items.json".
     01 FILE-BLOCKS                  PIC X(255)              VALUE "data/generated/reports/blocks.json".
-    01 FILE-PACKETS                 PIC X(255)              VALUE "data/generated/reports/packets.json".
     01 FILE-DATAPACK-ROOT           PIC X(255)              VALUE "data/generated/data/".
     *> Configuration
     COPY DD-SERVER-PROPERTIES.
@@ -91,14 +88,7 @@ Init.
 
 LoadRegistries.
     DISPLAY "Loading registries...           " WITH NO ADVANCING
-
-    CALL "Files-ReadAll" USING FILE-REGISTRIES DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
-        MSG BY =="Failed to read: " FUNCTION TRIM(FILE-REGISTRIES)==.
-
-    CALL "Registries-Parse" USING DATA-BUFFER DATA-BUFFER-LEN DATA-FAILURE
-    COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
-        MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-REGISTRIES)==.
+    CALL "Generated-Registries"
 
     CALL "Registries-Count" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
