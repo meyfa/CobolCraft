@@ -11,7 +11,7 @@ WORKING-STORAGE SECTION.
 PROCEDURE DIVISION.
     SET INTERACT-PTR TO ENTRY "Callback-Interact"
 
-    CALL "Registries-Get-EntryId" USING "minecraft:menu" "minecraft:crafting" WINDOW-TYPE-CRAFTING
+    CALL "Registries-Lookup" USING "minecraft:menu" "minecraft:crafting" WINDOW-TYPE-CRAFTING
     IF WINDOW-TYPE-CRAFTING < 0
         DISPLAY "RegisterBlock-CraftingTable: Failed to get window type ID"
         GOBACK

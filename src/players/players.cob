@@ -200,7 +200,7 @@ PROCEDURE DIVISION.
     ADD 1 TO TIMER
 
     IF VOID-DAMAGE-TYPE < 0
-        CALL "Registries-Get-EntryId" USING "minecraft:damage_type" "minecraft:out_of_world" VOID-DAMAGE-TYPE
+        CALL "Registries-Lookup" USING "minecraft:damage_type" "minecraft:out_of_world" VOID-DAMAGE-TYPE
     END-IF
 
     *> Only tick players in the play state, as ticking may send packets that are not valid in other states.
@@ -307,7 +307,7 @@ HandleHitGround.
         EXIT PARAGRAPH
     END-IF
 
-    CALL "Registries-Get-EntryId" USING "minecraft:damage_type" "minecraft:fall" FALL-DAMAGE-TYPE
+    CALL "Registries-Lookup" USING "minecraft:damage_type" "minecraft:fall" FALL-DAMAGE-TYPE
     CALL "Players-Damage" USING LK-PLAYER FALL-DAMAGE-AMOUNT FALL-DAMAGE-TYPE
 
     MOVE 0 TO PLAYER-FALL-DISTANCE(LK-PLAYER)
@@ -427,13 +427,13 @@ PickDamageSound.
     .
 
 InitData.
-    CALL "Registries-Get-EntryId" USING "minecraft:damage_type" "minecraft:fall" TYPE-FALL
-    CALL "Registries-Get-EntryId" USING "minecraft:damage_type" "minecraft:generic_kill" TYPE-GENERIC_KILL
-    CALL "Registries-Get-EntryId" USING "minecraft:damage_type" "minecraft:out_of_world" TYPE-OUT_OF_WORLD
+    CALL "Registries-Lookup" USING "minecraft:damage_type" "minecraft:fall" TYPE-FALL
+    CALL "Registries-Lookup" USING "minecraft:damage_type" "minecraft:generic_kill" TYPE-GENERIC_KILL
+    CALL "Registries-Lookup" USING "minecraft:damage_type" "minecraft:out_of_world" TYPE-OUT_OF_WORLD
 
-    CALL "Registries-Get-EntryId" USING "minecraft:sound_event" "minecraft:entity.player.hurt" SOUND-HURT
-    CALL "Registries-Get-EntryId" USING "minecraft:sound_event" "minecraft:entity.player.small_fall" SOUND-SMALL_FALL
-    CALL "Registries-Get-EntryId" USING "minecraft:sound_event" "minecraft:entity.player.big_fall" SOUND-BIG_FALL
+    CALL "Registries-Lookup" USING "minecraft:sound_event" "minecraft:entity.player.hurt" SOUND-HURT
+    CALL "Registries-Lookup" USING "minecraft:sound_event" "minecraft:entity.player.small_fall" SOUND-SMALL_FALL
+    CALL "Registries-Lookup" USING "minecraft:sound_event" "minecraft:entity.player.big_fall" SOUND-BIG_FALL
     .
 
 END PROGRAM Players-Damage.

@@ -248,7 +248,7 @@ LINKAGE SECTION.
 PROCEDURE DIVISION USING LK-PARENT-NODE LK-NODE-NAME LK-PARSER OPTIONAL LK-PROPERTIES LK-NODE-INDEX.
     CALL "AddCommandNode" USING LK-PARENT-NODE NODE-TYPE LK-NODE-NAME LK-NODE-INDEX
 
-    CALL "Registries-Get-EntryId" USING "minecraft:command_argument_type" LK-PARSER PARSER-ID
+    CALL "Registries-Lookup" USING "minecraft:command_argument_type" LK-PARSER PARSER-ID
 
     COPY ASSERT REPLACING COND BY ==PARSER-ID > 0==,
         MSG BY =="AddCommandArgument: Unknown command parser: " FUNCTION TRIM(LK-PARSER)==.

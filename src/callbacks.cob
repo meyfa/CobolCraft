@@ -30,7 +30,7 @@ LINKAGE SECTION.
     01 LK-CB-PTR                    PROGRAM-POINTER.
 
 PROCEDURE DIVISION USING LK-ITEM-NAME LK-CB-PTR.
-    CALL "Registries-Get-EntryId" USING "minecraft:item" LK-ITEM-NAME PROTOCOL-ID
+    CALL "Registries-Lookup" USING "minecraft:item" LK-ITEM-NAME PROTOCOL-ID
     MOVE LK-CB-PTR TO CB-PTR-USE(PROTOCOL-ID + 1)
     GOBACK.
 
@@ -49,7 +49,7 @@ LINKAGE SECTION.
     01 LK-CB-PTR                    PROGRAM-POINTER.
 
 PROCEDURE DIVISION USING LK-ITEM-NAME LK-CB-PTR.
-    CALL "Registries-Get-EntryId" USING "minecraft:item" LK-ITEM-NAME PROTOCOL-ID
+    CALL "Registries-Lookup" USING "minecraft:item" LK-ITEM-NAME PROTOCOL-ID
     MOVE CB-PTR-USE(PROTOCOL-ID + 1) TO LK-CB-PTR
     GOBACK.
 

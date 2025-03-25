@@ -46,7 +46,7 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
         GOBACK
     END-IF
 
-    CALL "Registries-Get-EntryId" USING "minecraft:item" IDENTIFIER ITEM-ID
+    CALL "Registries-Lookup" USING "minecraft:item" IDENTIFIER ITEM-ID
     IF ITEM-ID > 0
         CALL "Inventory-PickItem" USING PLAYER-ID ITEM-ID
     END-IF

@@ -63,7 +63,7 @@ PROCEDURE DIVISION.
             END-IF
         END-IF
 
-        CALL "Registries-Get-EntryId" USING "minecraft:damage_type" "minecraft:generic_kill" DAMAGE-TYPE
+        CALL "Registries-Lookup" USING "minecraft:damage_type" "minecraft:generic_kill" DAMAGE-TYPE
         CALL "Players-Damage" USING PLAYER-ID DAMAGE-AMOUNT DAMAGE-TYPE
 
         INITIALIZE BUFFER

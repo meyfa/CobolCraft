@@ -4,17 +4,20 @@ PROGRAM-ID. RegisterEntity-Item.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 ITEM-REGISTRY-ID         BINARY-LONG                     GLOBAL.
     01 SERIALIZE-PTR            PROGRAM-POINTER.
     01 DESERIALIZE-PTR          PROGRAM-POINTER.
     01 TICK-PTR                 PROGRAM-POINTER.
     01 ENTITY-TYPE              BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
+    CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY-ID
+
     SET SERIALIZE-PTR TO ENTRY "Callback-Serialize"
     SET DESERIALIZE-PTR TO ENTRY "Callback-Deserialize"
     SET TICK-PTR TO ENTRY "Callback-Tick"
 
-    CALL "Registries-Get-EntryId" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE
+    CALL "Registries-Lookup" USING "minecraft:entity_type" "minecraft:item" ENTITY-TYPE
 
     CALL "SetCallback-EntitySerialize" USING ENTITY-TYPE SERIALIZE-PTR
     CALL "SetCallback-EntityDeserialize" USING ENTITY-TYPE DESERIALIZE-PTR
@@ -47,7 +50,7 @@ PROCEDURE DIVISION.
 
         *> Item: id
         MOVE ENTITY-ITEM-SLOT-ID TO INT32
-        CALL "Registries-Get-EntryName" USING "minecraft:item" INT32 STR
+        CALL "Registries-EntryName" USING ITEM-REGISTRY-ID INT32 STR
         MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
         CALL "NbtEncode-String" USING LK-NBTENC LK-BUFFER "id" STR LEN
 
@@ -113,7 +116,7 @@ PROCEDURE DIVISION.
             EVALUATE TAG
                 WHEN "id"
                     CALL "NbtDecode-String" USING LK-NBTDEC LK-BUFFER STR LEN
-                    CALL "Registries-Get-EntryId" USING "minecraft:item" STR(1:LEN) ENTITY-ITEM-SLOT-ID
+                    CALL "Registries-Lookup" USING "minecraft:item" STR(1:LEN) ENTITY-ITEM-SLOT-ID
                 WHEN "Count"
                     CALL "NbtDecode-Int" USING LK-NBTDEC LK-BUFFER INT32
                     MOVE INT32 TO ENTITY-ITEM-SLOT-COUNT

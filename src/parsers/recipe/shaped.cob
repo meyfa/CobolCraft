@@ -228,7 +228,7 @@ ParseKey.
                 END-IF
             ELSE
                 *> just a single item
-                CALL "Registries-Get-EntryId" USING "minecraft:item" STR TEMP-INT32
+                CALL "Registries-Lookup" USING "minecraft:item" STR TEMP-INT32
                 IF TEMP-INT32 <= 0
                     MOVE 1 TO LK-FAILURE
                     GOBACK
@@ -250,7 +250,7 @@ ParseKey.
                 END-IF
 
                 ADD 1 TO PATTERN-KEY-OPTIONS(PATTERN-KEY-COUNT)
-                CALL "Registries-Get-EntryId" USING "minecraft:item" STR TEMP-INT32
+                CALL "Registries-Lookup" USING "minecraft:item" STR TEMP-INT32
                 IF TEMP-INT32 <= 0
                     MOVE 1 TO LK-FAILURE
                     GOBACK

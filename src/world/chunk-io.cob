@@ -4,6 +4,9 @@ PROGRAM-ID. World-SaveChunk.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 BIOME-REGISTRY-ID        BINARY-LONG                 VALUE -1.
+    01 BLOCK-ENTITY-REGISTRY-ID BINARY-LONG                 VALUE -1.
+    01 ENTITY-REGISTRY-ID       BINARY-LONG                 VALUE -1.
     COPY DD-CALLBACKS.
     COPY DD-REGION-FILES.
     01 FILE-TYPE                BINARY-CHAR UNSIGNED.
@@ -53,6 +56,12 @@ LINKAGE SECTION.
     01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CHUNK-INDEX LK-FAILURE.
+    IF BIOME-REGISTRY-ID < 0
+        CALL "Registries-LookupRegistry" USING "minecraft:worldgen/biome" BIOME-REGISTRY-ID
+        CALL "Registries-LookupRegistry" USING "minecraft:block_entity_type" BLOCK-ENTITY-REGISTRY-ID
+        CALL "Registries-LookupRegistry" USING "minecraft:entity_type" ENTITY-REGISTRY-ID
+    END-IF
+
     SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(LK-CHUNK-INDEX)
     MOVE 0 TO LK-FAILURE
 
@@ -177,7 +186,7 @@ SaveChunkRegion.
                 IF PALETTE-INDEX(CURRENT-BIOME-ID + 1) = 0
                     ADD 1 TO PALETTE-LENGTH
                     MOVE PALETTE-LENGTH TO PALETTE-INDEX(CURRENT-BIOME-ID + 1)
-                    CALL "Registries-Get-EntryName" USING "minecraft:worldgen/biome" CURRENT-BIOME-ID STR
+                    CALL "Registries-EntryName" USING BIOME-REGISTRY-ID CURRENT-BIOME-ID STR
                     MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
                     CALL "NbtEncode-String" USING NBTENC BUFFER OMITTED STR LEN
                 END-IF
@@ -239,7 +248,7 @@ SaveChunkRegion.
             MOVE CHUNK-BLOCK-ENTITY-ID(BLOCK-INDEX) TO INT32
             SET SERIALIZE-PTR TO CB-PTR-BLOCK-ENTITY-SERIALIZE(INT32 + 1)
 
-            CALL "Registries-Get-EntryName" USING "minecraft:block_entity_type" INT32 STR
+            CALL "Registries-EntryName" USING BLOCK-ENTITY-REGISTRY-ID INT32 STR
             MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
             CALL "NbtEncode-String" USING NBTENC BUFFER "id" STR LEN
 
@@ -305,7 +314,7 @@ SaveChunkEntities.
 
         CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
 
-        CALL "Registries-Get-EntryName" USING "minecraft:entity_type" ENTITY-TYPE STR
+        CALL "Registries-EntryName" USING ENTITY-REGISTRY-ID ENTITY-TYPE STR
         MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
         CALL "NbtEncode-String" USING NBTENC BUFFER "id" STR LEN
 
@@ -457,13 +466,13 @@ LoadChunkRegion.
     *> We are unable to continue generating partially-generated chunks ("proto-chunks"). Since we don't require light
     *> or heightmap data, any chunk that has progressed to at least the "surface" stage is acceptable.
     IF CHUNK-STATUS NOT = SPACES
-        CALL "Registries-Get-EntryId" USING "minecraft:chunk_status" CHUNK-STATUS CHUNK-STATUS-ID
+        CALL "Registries-Lookup" USING "minecraft:chunk_status" CHUNK-STATUS CHUNK-STATUS-ID
         IF CHUNK-STATUS-ID < 0
             DISPLAY "Unknown chunk status: " FUNCTION TRIM(CHUNK-STATUS)
             MOVE 1 TO LK-FAILURE
             GOBACK
         END-IF
-        CALL "Registries-Get-EntryId" USING "minecraft:chunk_status" "minecraft:surface" ACCEPTED-CHUNK-STATUS-ID
+        CALL "Registries-Lookup" USING "minecraft:chunk_status" "minecraft:surface" ACCEPTED-CHUNK-STATUS-ID
         IF ACCEPTED-CHUNK-STATUS-ID < 0
             DISPLAY "Unknown chunk status: minecraft:surface"
             MOVE 1 TO LK-FAILURE
@@ -564,7 +573,7 @@ DecodeBlockEntities.
             EVALUATE TAG
                 WHEN "id"
                     CALL "NbtDecode-String" USING NBTDEC BUFFER STR LEN
-                    CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" STR(1:LEN) BLOCK-ENTITY-ID
+                    CALL "Registries-Lookup" USING "minecraft:block_entity_type" STR(1:LEN) BLOCK-ENTITY-ID
                 WHEN "x"
                     CALL "NbtDecode-Int" USING NBTDEC BUFFER BLOCK-ENTITY-X
                 WHEN "y"
@@ -665,7 +674,7 @@ LoadChunkEntities.
         END-IF
 
         CALL "NbtDecode-String" USING SEEK-NBTDEC BUFFER STR LEN
-        CALL "Registries-Get-EntryId" USING "minecraft:entity_type" STR(1:LEN) ENTITY-TYPE
+        CALL "Registries-Lookup" USING "minecraft:entity_type" STR(1:LEN) ENTITY-TYPE
         IF ENTITY-TYPE < 0
             DISPLAY "ERROR: Unknown entity type: " FUNCTION TRIM(STR(1:LEN))
             MOVE 1 TO LK-FAILURE
@@ -949,7 +958,7 @@ LoadChunkEntities.
         CALL "NbtDecode-List" USING LK-NBTDEC LK-BUFFER PALETTE-LENGTH
         PERFORM VARYING PALETTE-INDEX FROM 1 BY 1 UNTIL PALETTE-INDEX > PALETTE-LENGTH
             CALL "NbtDecode-String" USING LK-NBTDEC LK-BUFFER STR LEN
-            CALL "Registries-Get-EntryId" USING "minecraft:worldgen/biome" STR(1:LEN) PALETTE-BIOME-IDS(PALETTE-INDEX)
+            CALL "Registries-Lookup" USING "minecraft:worldgen/biome" STR(1:LEN) PALETTE-BIOME-IDS(PALETTE-INDEX)
         END-PERFORM
         CALL "NbtDecode-EndList" USING LK-NBTDEC LK-BUFFER
 

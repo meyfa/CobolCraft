@@ -45,7 +45,7 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z LK-CHUNK-INDEX.
     END-PERFORM
 
     *> Set all sections to the plains biome
-    CALL "Registries-Get-EntryId" USING "minecraft:worldgen/biome" "minecraft:plains" BIOME-ID
+    CALL "Registries-Lookup" USING "minecraft:worldgen/biome" "minecraft:plains" BIOME-ID
     PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > CHUNK-SECTION-COUNT
         INITIALIZE CHUNK-SECTION-BIOMES(SECTION-INDEX) REPLACING NUMERIC BY BIOME-ID
     END-PERFORM

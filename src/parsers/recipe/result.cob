@@ -62,7 +62,7 @@ PROCEDURE DIVISION USING LK-JSON LK-OFFSET LK-FAILURE LK-RESULT.
     .
 
 LookupId.
-    CALL "Registries-Get-EntryId" USING "minecraft:item" RESULT-NAME LK-RESULT-ID
+    CALL "Registries-Lookup" USING "minecraft:item" RESULT-NAME LK-RESULT-ID
     IF LK-RESULT-ID <= 0 OR LK-RESULT-COUNT <= 0
         DISPLAY "Invalid recipe result: " FUNCTION TRIM(LK-RESULT-ID) " x" FUNCTION TRIM(LK-RESULT-COUNT)
         MOVE 1 TO LK-FAILURE

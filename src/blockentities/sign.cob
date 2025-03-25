@@ -26,7 +26,7 @@ WORKING-STORAGE SECTION.
     01 BLOCK-ENTITY-TYPE        BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
-    CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" "minecraft:sign" BLOCK-ENTITY-TYPE
+    CALL "Registries-Lookup" USING "minecraft:block_entity_type" "minecraft:sign" BLOCK-ENTITY-TYPE
     SET CB-PTR-BLOCK-ENTITY-ALLOCATE(BLOCK-ENTITY-TYPE + 1) TO ENTRY "Callback-Allocate"
     SET CB-PTR-BLOCK-ENTITY-SERIALIZE(BLOCK-ENTITY-TYPE + 1) TO ENTRY "Callback-Serialize"
     SET CB-PTR-BLOCK-ENTITY-DESERIALIZE(BLOCK-ENTITY-TYPE + 1) TO ENTRY "Callback-Deserialize"
@@ -216,7 +216,7 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-POSITION LK-IS-FRONT-TEXT LK-LINES.
     IF SIGN-BLOCK-ENTITY-TYPE < 0
-        CALL "Registries-Get-EntryId" USING "minecraft:block_entity_type" "minecraft:sign" SIGN-BLOCK-ENTITY-TYPE
+        CALL "Registries-Lookup" USING "minecraft:block_entity_type" "minecraft:sign" SIGN-BLOCK-ENTITY-TYPE
         COPY ASSERT REPLACING COND BY ==SIGN-BLOCK-ENTITY-TYPE >= 0==, MSG BY =="BlockEntity-Sign-Update: Failed block entity lookup"==.
     END-IF
 

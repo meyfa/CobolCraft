@@ -26,6 +26,7 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-PLAYERS.
     COPY DD-SERVER-PROPERTIES.
+    01 ITEM-REGISTRY-ID         BINARY-LONG                     VALUE -1.
     *> File name and data
     01 PLAYER-FILE-NAME         PIC X(64).
     01 ERRNO                    BINARY-LONG.
@@ -47,6 +48,10 @@ LINKAGE SECTION.
     01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
+    IF ITEM-REGISTRY-ID < 0
+        CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY-ID
+    END-IF
+
     MOVE 0 TO LK-FAILURE
 
     *> root tag
@@ -109,7 +114,7 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-FAILURE.
             CALL "NbtEncode-Byte" USING NBTENC BUFFER "Slot" INT8
 
             *> item ID needs to be converted to a string for future-proofing
-            CALL "Registries-Get-EntryName" USING "minecraft:item" PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, INVENTORY-INDEX) STR
+            CALL "Registries-EntryName" USING ITEM-REGISTRY-ID PLAYER-INVENTORY-SLOT-ID(LK-PLAYER-ID, INVENTORY-INDEX) STR
             MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
             CALL "NbtEncode-String" USING NBTENC BUFFER "id" STR LEN
 
@@ -312,7 +317,7 @@ PROCEDURE DIVISION USING LK-PLAYER-ID LK-PLAYER-UUID LK-FAILURE.
                             WHEN "id"
                                 *> Item ID needs to be converted from a string to a number
                                 CALL "NbtDecode-String" USING NBTDEC BUFFER STR LEN
-                                CALL "Registries-Get-EntryId" USING "minecraft:item" STR INVENTORY-SLOT-ID
+                                CALL "Registries-Lookup" USING "minecraft:item" STR INVENTORY-SLOT-ID
 
                             WHEN "count"
                                 CALL "NbtDecode-Byte" USING NBTDEC BUFFER INVENTORY-SLOT-COUNT

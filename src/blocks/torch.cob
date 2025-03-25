@@ -68,7 +68,7 @@ PROCEDURE DIVISION.
         END-EVALUATE
 
         IF PLAYER-GAMEMODE(LK-PLAYER) = 0 OR 2
-            CALL "Registries-Get-EntryId" USING "minecraft:item" CLICKED-NAME DROPPED-ITEM-SLOT-ID
+            CALL "Registries-Lookup" USING "minecraft:item" CLICKED-NAME DROPPED-ITEM-SLOT-ID
             IF DROPPED-ITEM-SLOT-ID >= 0
                 MOVE 1 TO DROPPED-ITEM-SLOT-COUNT
                 *> TODO data components

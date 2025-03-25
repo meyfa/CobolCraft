@@ -6,447 +6,339 @@ PROGRAM-ID. Registries-Parse.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGISTRIES.
-LOCAL-STORAGE SECTION.
-    01 OFFSET           BINARY-LONG UNSIGNED    VALUE 1.
-    01 EXIT-LOOP        BINARY-CHAR UNSIGNED    VALUE 0.
+    *> parsing
+    01 OFFSET                   BINARY-LONG UNSIGNED.
+    01 EXIT-LOOP                BINARY-CHAR UNSIGNED.
+    01 OBJECT-KEY               PIC X(64).
+    01 PROTOCOL-ID-OFFSET       BINARY-LONG UNSIGNED.
+    01 CURRENT-REGISTRY-NAME    PIC X(64).
+    01 CURRENT-REGISTRY-ID      BINARY-LONG.
+    01 CURRENT-ENTRY-NAME       PIC X(64).
+    01 CURRENT-ENTRY-ID         BINARY-LONG.
+    *> validation
+    01 REGISTRY-IDX             BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    01 LK-JSON          PIC X ANY LENGTH.
-    01 LK-JSON-LEN      BINARY-LONG UNSIGNED.
-    01 LK-FAILURE       BINARY-CHAR UNSIGNED.
+    01 LK-JSON                  PIC X ANY LENGTH.
+    01 LK-JSON-LEN              BINARY-LONG UNSIGNED.
+    01 LK-FAILURE               BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-JSON LK-JSON-LEN LK-FAILURE.
-    MOVE 0 TO REGISTRIES-COUNT
+    INITIALIZE REGISTRIES
 
-    *> Expect start of the root object.
+    MOVE 1 TO OFFSET
+
     CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
+    PERFORM CheckFailure
 
     *> Loop over each key in the root object, each representing a registry.
-    PERFORM UNTIL LK-FAILURE NOT = 0 OR EXIT-LOOP = 1
-        *> Read the registry.
-        ADD 1 TO REGISTRIES-COUNT
-        CALL "Registries-Parse-Registry" USING LK-JSON OFFSET LK-FAILURE REGISTRIES-COUNT
-
-        *> Continue reading if there is a comma.
+    PERFORM UNTIL EXIT
+        PERFORM ParseRegistry
         CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
+        IF EXIT-LOOP NOT = 0 EXIT PERFORM END-IF
     END-PERFORM
 
-    *> Expect end of the root object.
     CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
+    PERFORM CheckFailure
+
+    *> There should be no gaps in the registry IDs.
+    PERFORM VARYING REGISTRY-IDX FROM 1 BY 1 UNTIL REGISTRY-IDX > REGISTRY-COUNT
+        IF REGISTRY-NAME(REGISTRY-IDX) = SPACES
+            MOVE 1 TO LK-FAILURE
+            GOBACK
+        END-IF
+    END-PERFORM
 
     GOBACK.
 
-    *> --- Registries-Parse-Registry ---
-    IDENTIFICATION DIVISION.
-    PROGRAM-ID. Registries-Parse-Registry.
+ParseRegistry.
+    ADD 1 TO REGISTRY-COUNT
 
-    DATA DIVISION.
-    WORKING-STORAGE SECTION.
-        COPY DD-REGISTRIES.
-        01 EXIT-LOOP        BINARY-CHAR UNSIGNED.
-        01 OBJECT-KEY       PIC X(100).
-    LINKAGE SECTION.
-        01 LK-JSON          PIC X ANY LENGTH.
-        01 LK-OFFSET        BINARY-LONG UNSIGNED.
-        01 LK-FAILURE       BINARY-CHAR UNSIGNED.
-        01 LK-REGISTRY      BINARY-LONG UNSIGNED.
+    CALL "JsonParse-ObjectKey" USING LK-JSON OFFSET LK-FAILURE CURRENT-REGISTRY-NAME
+    PERFORM CheckFailure
 
-    PROCEDURE DIVISION USING LK-JSON LK-OFFSET LK-FAILURE LK-REGISTRY.
-        MOVE 0 TO REGISTRY-REQUIRES-PACKET(LK-REGISTRY)
-        MOVE 0 TO REGISTRY-ENTRIES-COUNT(LK-REGISTRY)
+    CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
+    PERFORM CheckFailure
 
-        *> Read the registry name.
-        CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE REGISTRY-NAME(LK-REGISTRY)
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
+    *> Find the protocol_id first, as we use it to identify the registry.
+    MOVE OFFSET TO PROTOCOL-ID-OFFSET
+    CALL "JsonParse-FindValue" USING LK-JSON PROTOCOL-ID-OFFSET "protocol_id" LK-FAILURE
+    PERFORM CheckFailure
+    CALL "JsonParse-Integer" USING LK-JSON PROTOCOL-ID-OFFSET LK-FAILURE CURRENT-REGISTRY-ID
+    PERFORM CheckFailure
 
-        *> Expect start of the registry object.
-        CALL "JsonParse-ObjectStart" USING LK-JSON LK-OFFSET LK-FAILURE
-        IF LK-FAILURE NOT = 0
-            GOBACK
-        END-IF
+    *> Now we have the ID, we can store the name.
+    MOVE CURRENT-REGISTRY-NAME TO REGISTRY-NAME(CURRENT-REGISTRY-ID + 1)
 
-        *> Loop over each key in the registry object. We expect the keys "entries" and "protocol_id".
-        PERFORM UNTIL EXIT
-            *> Read the key.
-            CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE OBJECT-KEY
-            IF LK-FAILURE NOT = 0
-                GOBACK
-            END-IF
+    *> Parse the object to find the entries.
+    PERFORM UNTIL EXIT
+        CALL "JsonParse-ObjectKey" USING LK-JSON OFFSET LK-FAILURE OBJECT-KEY
+        PERFORM CheckFailure
 
-            EVALUATE OBJECT-KEY
-                WHEN "protocol_id"
-                    CALL "JsonParse-Integer" USING LK-JSON LK-OFFSET LK-FAILURE REGISTRY-ID(LK-REGISTRY)
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
+        EVALUATE OBJECT-KEY
+            WHEN "entries"
+                PERFORM ParseRegistryEntries
+            WHEN OTHER
+                CALL "JsonParse-SkipValue" USING LK-JSON OFFSET LK-FAILURE
+                PERFORM CheckFailure
+        END-EVALUATE
 
-                WHEN "entries"
-                    *> Expect the start of the entries object.
-                    CALL "JsonParse-ObjectStart" USING LK-JSON LK-OFFSET LK-FAILURE
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
+        CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
+        IF EXIT-LOOP NOT = 0 EXIT PERFORM END-IF
+    END-PERFORM
 
-                    *> Loop over each key in the entries object, each representing an entry.
-                    PERFORM UNTIL EXIT
-                        *> Read the entry.
-                        ADD 1 TO REGISTRY-ENTRIES-COUNT(LK-REGISTRY)
-                        CALL "Registries-Parse-Entry" USING LK-JSON LK-OFFSET LK-FAILURE REGISTRY-ENTRY(LK-REGISTRY, REGISTRY-ENTRIES-COUNT(LK-REGISTRY))
-                        IF LK-FAILURE NOT = 0
-                            GOBACK
-                        END-IF
+    CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
+    PERFORM CheckFailure
+    .
 
-                        *> Check if there is a comma; if not, exit the loop.
-                        CALL "JsonParse-Comma" USING LK-JSON LK-OFFSET EXIT-LOOP
-                        IF EXIT-LOOP = 1
-                            EXIT PERFORM
-                        END-IF
-                    END-PERFORM
+ParseRegistryEntries.
+    CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
+    PERFORM CheckFailure
 
-                    *> Expect the end of the entries object.
-                    CALL "JsonParse-ObjectEnd" USING LK-JSON LK-OFFSET LK-FAILURE
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
+    *> Parse each entry.
+    PERFORM UNTIL EXIT
+        PERFORM ParseRegistryEntry
+        CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
+        IF EXIT-LOOP NOT = 0 EXIT PERFORM END-IF
+    END-PERFORM
 
-                WHEN OTHER
-                    CALL "JsonParse-SkipValue" USING LK-JSON LK-OFFSET LK-FAILURE
-                    IF LK-FAILURE NOT = 0
-                        GOBACK
-                    END-IF
-            END-EVALUATE
+    CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
+    PERFORM CheckFailure
+    .
 
-            *> Check if there is a comma; if not, exit the loop.
-            CALL "JsonParse-Comma" USING LK-JSON LK-OFFSET EXIT-LOOP
-            IF EXIT-LOOP = 1
-                EXIT PERFORM
-            END-IF
-        END-PERFORM
+ParseRegistryEntry.
+    ADD 1 TO REGISTRY-ENTRY-COUNT(CURRENT-REGISTRY-ID + 1)
 
-        *> Expect the end of the registry object.
-        CALL "JsonParse-ObjectEnd" USING LK-JSON LK-OFFSET LK-FAILURE
+    CALL "JsonParse-ObjectKey" USING LK-JSON OFFSET LK-FAILURE CURRENT-ENTRY-NAME
+    PERFORM CheckFailure
 
-        GOBACK.
+    CALL "JsonParse-ObjectStart" USING LK-JSON OFFSET LK-FAILURE
+    PERFORM CheckFailure
 
-        *> --- Registries-Parse-Entry ---
-        IDENTIFICATION DIVISION.
-        PROGRAM-ID. Registries-Parse-Entry.
+    MOVE -1 TO CURRENT-ENTRY-ID
 
-        DATA DIVISION.
-        WORKING-STORAGE SECTION.
-            01 EXIT-LOOP        BINARY-CHAR UNSIGNED.
-            01 OBJECT-KEY       PIC X(100).
-        LINKAGE SECTION.
-            01 LK-JSON          PIC X ANY LENGTH.
-            01 LK-OFFSET        BINARY-LONG UNSIGNED.
-            01 LK-FAILURE       BINARY-CHAR UNSIGNED.
-            01 LK-REGISTRY-ENTRY.
-                02 LK-REGISTRY-ENTRY-NAME PIC X(100).
-                02 LK-REGISTRY-ENTRY-ID BINARY-LONG UNSIGNED.
+    *> Loop over each key looking for "protocol_id", which is all we care about.
+    PERFORM UNTIL EXIT
+        CALL "JsonParse-ObjectKey" USING LK-JSON OFFSET LK-FAILURE OBJECT-KEY
+        PERFORM CheckFailure
 
-        PROCEDURE DIVISION USING LK-JSON LK-OFFSET LK-FAILURE LK-REGISTRY-ENTRY.
-            *> Read the entry name.
-            CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE LK-REGISTRY-ENTRY-NAME
-            IF LK-FAILURE NOT = 0
-                GOBACK
-            END-IF
+        EVALUATE OBJECT-KEY
+            WHEN "protocol_id"
+                CALL "JsonParse-Integer" USING LK-JSON OFFSET LK-FAILURE CURRENT-ENTRY-ID
+                PERFORM CheckFailure
+            WHEN OTHER
+                CALL "JsonParse-SkipValue" USING LK-JSON OFFSET LK-FAILURE
+                PERFORM CheckFailure
+        END-EVALUATE
 
-            *> Expect the start of the entry object.
-            CALL "JsonParse-ObjectStart" USING LK-JSON LK-OFFSET LK-FAILURE
-            IF LK-FAILURE NOT = 0
-                GOBACK
-            END-IF
+        CALL "JsonParse-Comma" USING LK-JSON OFFSET EXIT-LOOP
+        IF EXIT-LOOP NOT = 0 EXIT PERFORM END-IF
+    END-PERFORM
 
-            *> Loop over each key looking for "protocol_id".
-            PERFORM UNTIL EXIT
-                *> Read the key.
-                CALL "JsonParse-ObjectKey" USING LK-JSON LK-OFFSET LK-FAILURE OBJECT-KEY
-                IF LK-FAILURE NOT = 0
-                    GOBACK
-                END-IF
+    CALL "JsonParse-ObjectEnd" USING LK-JSON OFFSET LK-FAILURE
+    PERFORM CheckFailure
 
-                EVALUATE OBJECT-KEY
-                    WHEN "protocol_id"
-                        CALL "JsonParse-Integer" USING LK-JSON LK-OFFSET LK-FAILURE LK-REGISTRY-ENTRY-ID
+    IF CURRENT-ENTRY-ID < 0
+        MOVE 1 TO LK-FAILURE
+        GOBACK
+    END-IF
 
-                    WHEN OTHER
-                        CALL "JsonParse-SkipValue" USING LK-JSON LK-OFFSET LK-FAILURE
-                END-EVALUATE
+    *> Store the name
+    MOVE CURRENT-ENTRY-NAME TO REGISTRY-ENTRY-NAME(CURRENT-REGISTRY-ID + 1, CURRENT-ENTRY-ID + 1)
+    .
 
-                IF LK-FAILURE NOT = 0
-                    GOBACK
-                END-IF
-
-                *> Check if there is a comma; if not, exit the loop.
-                CALL "JsonParse-Comma" USING LK-JSON LK-OFFSET EXIT-LOOP
-                IF EXIT-LOOP = 1
-                    EXIT PERFORM
-                END-IF
-            END-PERFORM
-
-            *> Expect the end of the entry object.
-            CALL "JsonParse-ObjectEnd" USING LK-JSON LK-OFFSET LK-FAILURE
-
-            GOBACK.
-
-        END PROGRAM Registries-Parse-Entry.
-
-    END PROGRAM Registries-Parse-Registry.
+CheckFailure.
+    IF LK-FAILURE NOT = 0
+        GOBACK
+    END-IF
+    .
 
 END PROGRAM Registries-Parse.
 
 *> --- Registries-Create ---
-*> Create a new, empty registry. The registry's protocol ID will be the current highest ID + 1.
+*> Create a new, empty registry. The registry will be assigned the next available ID.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Registries-Create.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGISTRIES.
-    01 REGISTRY-LOOP-INDEX  BINARY-LONG UNSIGNED.
-    01 MAX-REGISTRY-ID      BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    01 LK-REGISTRY-NAME     PIC X ANY LENGTH.
-    01 LK-PACKET-REQUIRED   BINARY-CHAR UNSIGNED.
+    01 LK-REGISTRY-NAME         PIC X ANY LENGTH.
+    01 LK-PACKET-REQUIRED       BINARY-CHAR UNSIGNED.
 
 PROCEDURE DIVISION USING LK-REGISTRY-NAME LK-PACKET-REQUIRED.
-    *> On the first call, determine the current highest protocol ID.
-    IF MAX-REGISTRY-ID = 0
-        PERFORM VARYING REGISTRY-LOOP-INDEX FROM 1 BY 1 UNTIL REGISTRY-LOOP-INDEX > REGISTRIES-COUNT
-            IF REGISTRY-ID(REGISTRY-LOOP-INDEX) > MAX-REGISTRY-ID
-                MOVE REGISTRY-ID(REGISTRY-LOOP-INDEX) TO MAX-REGISTRY-ID
-            END-IF
-        END-PERFORM
-    END-IF
-
-    *> Assign the new protocol ID.
-    ADD 1 TO MAX-REGISTRY-ID
-
-    *> Create the new registry.
-    ADD 1 TO REGISTRIES-COUNT
-    MOVE LK-REGISTRY-NAME TO REGISTRY-NAME(REGISTRIES-COUNT)
-    MOVE MAX-REGISTRY-ID TO REGISTRY-ID(REGISTRIES-COUNT)
-    MOVE LK-PACKET-REQUIRED TO REGISTRY-REQUIRES-PACKET(REGISTRIES-COUNT)
-    MOVE 0 TO REGISTRY-ENTRIES-COUNT(REGISTRIES-COUNT)
-
+    *> We can presume that (count = max_id + 1) is always true, hence using the current count as the next ID.
+    ADD 1 TO REGISTRY-COUNT
+    MOVE LK-REGISTRY-NAME TO REGISTRY-NAME(REGISTRY-COUNT)
+    MOVE LK-PACKET-REQUIRED TO REGISTRY-REQUIRES-PACKET(REGISTRY-COUNT)
     GOBACK.
 
 END PROGRAM Registries-Create.
 
 *> --- Registries-CreateEntry ---
-*> Create a new entry in a registry.
+*> Create a new entry in a registry. The entry will be assigned the next available ID.
 IDENTIFICATION DIVISION.
 PROGRAM-ID. Registries-CreateEntry.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGISTRIES.
+    01 IDX                      BINARY-LONG.
 LINKAGE SECTION.
-    01 LK-REGISTRY-INDEX    BINARY-LONG UNSIGNED.
-    01 LK-ENTRY-NAME        PIC X ANY LENGTH.
-    01 LK-ENTRY-ID          BINARY-LONG.
+    01 LK-REGISTRY-ID           BINARY-LONG.
+    01 LK-ENTRY-NAME            PIC X ANY LENGTH.
 
-PROCEDURE DIVISION USING LK-REGISTRY-INDEX LK-ENTRY-NAME LK-ENTRY-ID.
-    ADD 1 TO REGISTRY-ENTRIES-COUNT(LK-REGISTRY-INDEX)
-    MOVE LK-ENTRY-NAME TO REGISTRY-ENTRY-NAME(LK-REGISTRY-INDEX, REGISTRY-ENTRIES-COUNT(LK-REGISTRY-INDEX))
-    MOVE LK-ENTRY-ID TO REGISTRY-ENTRY-ID(LK-REGISTRY-INDEX, REGISTRY-ENTRIES-COUNT(LK-REGISTRY-INDEX))
+PROCEDURE DIVISION USING LK-REGISTRY-ID LK-ENTRY-NAME.
+    COMPUTE IDX = LK-REGISTRY-ID + 1
+    ADD 1 TO REGISTRY-ENTRY-COUNT(IDX)
+    MOVE LK-ENTRY-NAME TO REGISTRY-ENTRY-NAME(IDX, REGISTRY-ENTRY-COUNT(IDX))
     GOBACK.
 
 END PROGRAM Registries-CreateEntry.
 
-*> --- Registries-GetCount ---
-*> Get the number of registries.
+*> --- Registries-Count ---
+*> Get the number of registries. Incidentally, this is also one greater than the highest registry ID.
 IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-GetCount.
+PROGRAM-ID. Registries-Count.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGISTRIES.
 LINKAGE SECTION.
-    01 LK-REGISTRY-COUNT    BINARY-LONG UNSIGNED.
+    01 LK-REGISTRY-COUNT        BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-REGISTRY-COUNT.
-    MOVE REGISTRIES-COUNT TO LK-REGISTRY-COUNT
+    MOVE REGISTRY-COUNT TO LK-REGISTRY-COUNT
     GOBACK.
 
-END PROGRAM Registries-GetCount.
+END PROGRAM Registries-Count.
 
-*> --- Registries-GetRegistryIndex ---
-*> Get the index of a registry by its name for faster access.
+*> --- Registries-EntryCount ---
+*> Get the number of entries in a registry by its ID.
 IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-GetRegistryIndex.
+PROGRAM-ID. Registries-EntryCount.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGISTRIES.
 LINKAGE SECTION.
-    01 LK-REGISTRY-NAME     PIC X ANY LENGTH.
-    01 LK-REGISTRY-INDEX    BINARY-LONG.
+    01 LK-REGISTRY-ID           BINARY-LONG.
+    01 LK-ENTRY-COUNT           BINARY-LONG UNSIGNED.
 
-PROCEDURE DIVISION USING LK-REGISTRY-NAME LK-REGISTRY-INDEX.
-    PERFORM VARYING LK-REGISTRY-INDEX FROM 1 BY 1 UNTIL LK-REGISTRY-INDEX > REGISTRIES-COUNT
-        IF LK-REGISTRY-NAME = REGISTRY-NAME(LK-REGISTRY-INDEX)
+PROCEDURE DIVISION USING LK-REGISTRY-ID LK-ENTRY-COUNT.
+    MOVE REGISTRY-ENTRY-COUNT(LK-REGISTRY-ID + 1) TO LK-ENTRY-COUNT
+    GOBACK.
+
+END PROGRAM Registries-EntryCount.
+
+*> --- Registries-Name ---
+*> Get the name of a registry by its zero-based ID.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Registries-Name.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-REGISTRIES.
+LINKAGE SECTION.
+    01 LK-REGISTRY-ID           BINARY-LONG.
+    01 LK-REGISTRY-NAME         PIC X ANY LENGTH.
+
+PROCEDURE DIVISION USING LK-REGISTRY-ID LK-REGISTRY-NAME.
+    MOVE REGISTRY-NAME(LK-REGISTRY-ID + 1) TO LK-REGISTRY-NAME
+    GOBACK.
+
+END PROGRAM Registries-Name.
+
+*> --- Registries-EntryName ---
+*> Get the name of an entry by its zero-based ID.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Registries-EntryName.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-REGISTRIES.
+LINKAGE SECTION.
+    01 LK-REGISTRY-ID           BINARY-LONG.
+    01 LK-ENTRY-ID              BINARY-LONG.
+    01 LK-ENTRY-NAME            PIC X ANY LENGTH.
+
+PROCEDURE DIVISION USING LK-REGISTRY-ID LK-ENTRY-ID LK-ENTRY-NAME.
+    MOVE REGISTRY-ENTRY-NAME(LK-REGISTRY-ID + 1, LK-ENTRY-ID + 1) TO LK-ENTRY-NAME
+    GOBACK.
+
+END PROGRAM Registries-EntryName.
+
+*> --- Registries-LookupRegistry ---
+*> Get the zero-based ID of a registry by its name. Negative values indicate failure.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Registries-LookupRegistry.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+    COPY DD-REGISTRIES.
+    01 IDX                      BINARY-LONG UNSIGNED.
+LINKAGE SECTION.
+    01 LK-REGISTRY-NAME         PIC X ANY LENGTH.
+    01 LK-REGISTRY-ID           BINARY-LONG.
+
+PROCEDURE DIVISION USING LK-REGISTRY-NAME LK-REGISTRY-ID.
+    PERFORM VARYING IDX FROM 1 BY 1 UNTIL IDX > REGISTRY-COUNT
+        IF LK-REGISTRY-NAME = REGISTRY-NAME(IDX)
+            COMPUTE LK-REGISTRY-ID = IDX - 1
             GOBACK
         END-IF
     END-PERFORM
-    MOVE -1 TO LK-REGISTRY-INDEX
+    MOVE -1 TO LK-REGISTRY-ID
     GOBACK.
 
-END PROGRAM Registries-GetRegistryIndex.
+END PROGRAM Registries-LookupRegistry.
 
-*> --- Registries-GetRegistryLength ---
-*> Get the number of entries in a registry by its index.
+*> --- Registries-Lookup ---
+*> Get the zero-based ID of an entry by its registry's name and the entry's name. Negative values indicate failure.
 IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-GetRegistryLength.
+PROGRAM-ID. Registries-Lookup.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGISTRIES.
+    01 IDX-REGISTRY             BINARY-LONG UNSIGNED.
+    01 IDX-ENTRY                BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    01 LK-REGISTRY-INDEX    BINARY-LONG UNSIGNED.
-    01 LK-REGISTRY-LENGTH   BINARY-LONG UNSIGNED.
-
-PROCEDURE DIVISION USING LK-REGISTRY-INDEX LK-REGISTRY-LENGTH.
-    MOVE REGISTRY-ENTRIES-COUNT(LK-REGISTRY-INDEX) TO LK-REGISTRY-LENGTH
-    GOBACK.
-
-END PROGRAM Registries-GetRegistryLength.
-
-*> --- Registries-Iterate-Name ---
-*> Get the name of a registry by its index.
-IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-Iterate-Name.
-
-DATA DIVISION.
-WORKING-STORAGE SECTION.
-    COPY DD-REGISTRIES.
-LINKAGE SECTION.
-    01 LK-REGISTRY-INDEX    BINARY-LONG UNSIGNED.
-    01 LK-REGISTRY-NAME     PIC X ANY LENGTH.
-
-PROCEDURE DIVISION USING LK-REGISTRY-INDEX LK-REGISTRY-NAME.
-    MOVE REGISTRY-NAME(LK-REGISTRY-INDEX) TO LK-REGISTRY-NAME
-    GOBACK.
-
-END PROGRAM Registries-Iterate-Name.
-
-*> --- Registries-Iterate-ReqPacket ---
-*> Get whether a registry requires a packet by its index.
-IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-Iterate-ReqPacket.
-
-DATA DIVISION.
-WORKING-STORAGE SECTION.
-    COPY DD-REGISTRIES.
-LINKAGE SECTION.
-    01 LK-REGISTRY-INDEX    BINARY-LONG UNSIGNED.
-    01 LK-REQUIRES-PACKET   BINARY-CHAR UNSIGNED.
-
-PROCEDURE DIVISION USING LK-REGISTRY-INDEX LK-REQUIRES-PACKET.
-    MOVE REGISTRY-REQUIRES-PACKET(LK-REGISTRY-INDEX) TO LK-REQUIRES-PACKET
-    GOBACK.
-
-END PROGRAM Registries-Iterate-ReqPacket.
-
-*> --- Registries-Iterate-EntryId ---
-*> Get the ID of an entry by its index.
-IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-Iterate-EntryId.
-
-DATA DIVISION.
-WORKING-STORAGE SECTION.
-    COPY DD-REGISTRIES.
-    01 REGISTRY-INDEX       BINARY-LONG UNSIGNED.
-    01 ENTRY-INDEX          BINARY-LONG UNSIGNED.
-LINKAGE SECTION.
-    01 LK-REGISTRY-INDEX    BINARY-LONG UNSIGNED.
-    01 LK-ENTRY-INDEX       BINARY-LONG UNSIGNED.
-    01 LK-ENTRY-ID          BINARY-LONG.
-
-PROCEDURE DIVISION USING LK-REGISTRY-INDEX LK-ENTRY-INDEX LK-ENTRY-ID.
-    MOVE REGISTRY-ENTRY-ID(LK-REGISTRY-INDEX, LK-ENTRY-INDEX) TO LK-ENTRY-ID
-    GOBACK.
-
-END PROGRAM Registries-Iterate-EntryId.
-
-*> --- Registries-Iterate-EntryName ---
-*> Get the name of an entry by its index.
-IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-Iterate-EntryName.
-
-DATA DIVISION.
-WORKING-STORAGE SECTION.
-    COPY DD-REGISTRIES.
-    01 REGISTRY-INDEX       BINARY-LONG UNSIGNED.
-    01 ENTRY-INDEX          BINARY-LONG UNSIGNED.
-LINKAGE SECTION.
-    01 LK-REGISTRY-INDEX    BINARY-LONG UNSIGNED.
-    01 LK-ENTRY-INDEX       BINARY-LONG UNSIGNED.
-    01 LK-ENTRY-NAME        PIC X ANY LENGTH.
-
-PROCEDURE DIVISION USING LK-REGISTRY-INDEX LK-ENTRY-INDEX LK-ENTRY-NAME.
-    MOVE REGISTRY-ENTRY-NAME(LK-REGISTRY-INDEX, LK-ENTRY-INDEX) TO LK-ENTRY-NAME
-    GOBACK.
-
-END PROGRAM Registries-Iterate-EntryName.
-
-*> --- Registries-Get-EntryId ---
-IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-Get-EntryId.
-
-DATA DIVISION.
-WORKING-STORAGE SECTION.
-    COPY DD-REGISTRIES.
-    01 REGISTRY-INDEX   BINARY-LONG.
-    01 ENTRY-INDEX      BINARY-LONG UNSIGNED.
-LINKAGE SECTION.
-    01 LK-REGISTRY-NAME PIC X ANY LENGTH.
-    01 LK-ENTRY-NAME    PIC X ANY LENGTH.
-    01 LK-ENTRY-ID      BINARY-LONG.
+    01 LK-REGISTRY-NAME         PIC X ANY LENGTH.
+    01 LK-ENTRY-NAME            PIC X ANY LENGTH.
+    01 LK-ENTRY-ID              BINARY-LONG.
 
 PROCEDURE DIVISION USING LK-REGISTRY-NAME LK-ENTRY-NAME LK-ENTRY-ID.
-    MOVE -1 TO LK-ENTRY-ID
-    CALL "Registries-GetRegistryIndex" USING LK-REGISTRY-NAME REGISTRY-INDEX
-    IF REGISTRY-INDEX = -1
-        GOBACK
-    END-IF
-    PERFORM VARYING ENTRY-INDEX FROM 1 BY 1 UNTIL ENTRY-INDEX > REGISTRY-ENTRIES-COUNT(REGISTRY-INDEX)
-        IF LK-ENTRY-NAME = REGISTRY-ENTRY-NAME(REGISTRY-INDEX, ENTRY-INDEX)
-            MOVE REGISTRY-ENTRY-ID(REGISTRY-INDEX, ENTRY-INDEX) TO LK-ENTRY-ID
-            GOBACK
+    PERFORM VARYING IDX-REGISTRY FROM 1 BY 1 UNTIL IDX-REGISTRY > REGISTRY-COUNT
+        IF LK-REGISTRY-NAME = REGISTRY-NAME(IDX-REGISTRY)
+            PERFORM VARYING IDX-ENTRY FROM 1 BY 1 UNTIL IDX-ENTRY > REGISTRY-ENTRY-COUNT(IDX-REGISTRY)
+                IF LK-ENTRY-NAME = REGISTRY-ENTRY-NAME(IDX-REGISTRY, IDX-ENTRY)
+                    COMPUTE LK-ENTRY-ID = IDX-ENTRY - 1
+                    GOBACK
+                END-IF
+            END-PERFORM
+            EXIT PERFORM
         END-IF
     END-PERFORM
+    MOVE -1 TO LK-ENTRY-ID
     GOBACK.
 
-END PROGRAM Registries-Get-EntryId.
+END PROGRAM Registries-Lookup.
 
-*> --- Registries-Get-EntryName ---
+*> --- Registries-RequiresPacket ---
+*> Get whether a registry requires a packet by its ID.
 IDENTIFICATION DIVISION.
-PROGRAM-ID. Registries-Get-EntryName.
+PROGRAM-ID. Registries-RequiresPacket.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     COPY DD-REGISTRIES.
-    01 REGISTRY-INDEX   BINARY-LONG.
-    01 ENTRY-INDEX      BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
-    01 LK-REGISTRY-NAME PIC X ANY LENGTH.
-    01 LK-ENTRY-ID      BINARY-LONG.
-    01 LK-ENTRY-NAME    PIC X ANY LENGTH.
+    01 LK-REGISTRY-ID           BINARY-LONG.
+    01 LK-REQUIRES-PACKET       BINARY-CHAR UNSIGNED.
 
-PROCEDURE DIVISION USING LK-REGISTRY-NAME LK-ENTRY-ID LK-ENTRY-NAME.
-    MOVE SPACES TO LK-ENTRY-NAME
-    CALL "Registries-GetRegistryIndex" USING LK-REGISTRY-NAME REGISTRY-INDEX
-    IF REGISTRY-INDEX = -1
-        GOBACK
-    END-IF
-    PERFORM VARYING ENTRY-INDEX FROM 1 BY 1 UNTIL ENTRY-INDEX > REGISTRY-ENTRIES-COUNT(REGISTRY-INDEX)
-        IF LK-ENTRY-ID = REGISTRY-ENTRY-ID(REGISTRY-INDEX, ENTRY-INDEX)
-            MOVE REGISTRY-ENTRY-NAME(REGISTRY-INDEX, ENTRY-INDEX) TO LK-ENTRY-NAME
-            GOBACK
-        END-IF
-    END-PERFORM
+PROCEDURE DIVISION USING LK-REGISTRY-ID LK-REQUIRES-PACKET.
+    MOVE REGISTRY-REQUIRES-PACKET(LK-REGISTRY-ID + 1) TO LK-REQUIRES-PACKET
     GOBACK.
 
-END PROGRAM Registries-Get-EntryName.
+END PROGRAM Registries-RequiresPacket.
