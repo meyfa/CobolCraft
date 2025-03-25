@@ -19,7 +19,12 @@ PROCEDURE DIVISION CHAINING OPTIONAL DATADIR OPTIONAL OUTDIR OPTIONAL TPLDIR.
     CALL "Codegen-SetOutputDirectory" USING OUTDIR
     CALL "Codegen-SetTemplateDirectory" USING TPLDIR
 
+    *> Registry data is helpful in multiple generators, so load it into memory
+    DISPLAY "Loading registries..."
+    CALL "CG-LoadRegistries" USING DATADIR
+
     CALL "CG-Packets" USING OUTDIR TPLDIR
+    CALL "CG-Registries" USING OUTDIR TPLDIR
     CALL "CG-Items" USING OUTDIR TPLDIR
     CALL "CG-BlocksLootTable" USING OUTDIR TPLDIR
 
