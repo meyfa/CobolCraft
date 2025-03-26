@@ -5,13 +5,15 @@ PROGRAM-ID. RegisterBlock-Lava.
 DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 FACE-PTR                 PROGRAM-POINTER.
-    01 BLOCK-STATE-ID           BINARY-LONG.
+    01 BLOCK-ID                 BINARY-LONG.
+    01 BLOCK-STATE              BINARY-LONG.
 
 PROCEDURE DIVISION.
     SET FACE-PTR TO ENTRY "Callback-Face"
 
-    CALL "Blocks-Get-DefaultStateId" USING "minecraft:lava" BLOCK-STATE-ID
-    CALL "SetCallback-BlockFace" USING BLOCK-STATE-ID FACE-PTR
+    CALL "Registries-Lookup" USING "minecraft:block" "minecraft:lava" BLOCK-ID
+    CALL "Blocks-GetDefaultStateId" USING BLOCK-ID BLOCK-STATE
+    CALL "SetCallback-BlockFace" USING BLOCK-STATE FACE-PTR
 
     GOBACK.
 

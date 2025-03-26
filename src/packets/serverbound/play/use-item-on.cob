@@ -3,7 +3,7 @@ PROGRAM-ID. RecvPacket-UseItemOn.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 ITEM-REGISTRY-ID         BINARY-LONG                     VALUE -1.
+    01 ITEM-REGISTRY            BINARY-LONG                     VALUE -1.
     COPY DD-CLIENTS.
     COPY DD-PLAYERS.
     01 PLAYER-ID                BINARY-LONG.
@@ -22,7 +22,7 @@ WORKING-STORAGE SECTION.
     *> variables
     01 SLOT-INDEX               BINARY-LONG UNSIGNED.
     01 ITEM-ID                  BINARY-LONG.
-    01 BLOCK-STATE-ID           BINARY-LONG.
+    01 BLOCK-STATE              BINARY-LONG.
     01 ITEM-IDENTIFIER          PIC X(255).
     01 CALLBACK-PTR-ITEM        PROGRAM-POINTER.
     01 CALLBACK-PTR-BLOCK       PROGRAM-POINTER.
@@ -32,8 +32,8 @@ LINKAGE SECTION.
     01 LK-OFFSET                BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
-    IF ITEM-REGISTRY-ID < 0
-        CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY-ID
+    IF ITEM-REGISTRY < 0
+        CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY
     END-IF
 
     MOVE CLIENT-PLAYER(LK-CLIENT) TO PLAYER-ID
@@ -61,13 +61,13 @@ PROCEDURE DIVISION USING LK-CLIENT LK-BUFFER LK-OFFSET.
         SET CALLBACK-PTR-ITEM TO NULL
     ELSE
         MOVE PLAYER-INVENTORY-SLOT-ID(PLAYER-ID, SLOT-INDEX + 1) TO ITEM-ID
-        CALL "Registries-EntryName" USING ITEM-REGISTRY-ID ITEM-ID ITEM-IDENTIFIER
+        CALL "Registries-EntryName" USING ITEM-REGISTRY ITEM-ID ITEM-IDENTIFIER
         CALL "GetCallback-ItemUse" USING ITEM-IDENTIFIER CALLBACK-PTR-ITEM
     END-IF
 
     *> Determine the current block's "interact" callback
-    CALL "World-GetBlock" USING LOCATION BLOCK-STATE-ID
-    CALL "GetCallback-BlockInteract" USING BLOCK-STATE-ID CALLBACK-PTR-BLOCK
+    CALL "World-GetBlock" USING LOCATION BLOCK-STATE
+    CALL "GetCallback-BlockInteract" USING BLOCK-STATE CALLBACK-PTR-BLOCK
 
     *> If the player is sneaking, we should execute the item's "use" callback instead of the block's
     *> "interact" callback - unless the item has no "use" callback.

@@ -115,7 +115,7 @@ LoadItems.
     DISPLAY "Loading items...                " WITH NO ADVANCING
     CALL "Generated-Items"
 
-    CALL "Items-GetCount" USING TEMP-INT32
+    CALL "Items-Count" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
     DISPLAY FUNCTION TRIM(DISPLAY-INT) " items loaded"
     .
@@ -131,7 +131,7 @@ LoadBlocks.
     COPY ASSERT REPLACING COND BY ==DATA-FAILURE = 0==,
         MSG BY =="Failed to parse: " FUNCTION TRIM(FILE-BLOCKS)==.
 
-    CALL "Blocks-GetCount" USING TEMP-INT32
+    CALL "Blocks-Count" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
     DISPLAY FUNCTION TRIM(DISPLAY-INT) " blocks loaded"
     .
@@ -162,7 +162,7 @@ LoadPackets.
     DISPLAY "Loading packets...              " WITH NO ADVANCING
     CALL "Generated-Packets"
 
-    CALL "Packets-GetCount" USING TEMP-INT32
+    CALL "Packets-Count" USING TEMP-INT32
     MOVE TEMP-INT32 TO DISPLAY-INT
     DISPLAY FUNCTION TRIM(DISPLAY-INT) " packets loaded"
     .
@@ -225,7 +225,7 @@ RegisterItems.
     CALL "Registries-EntryCount" USING REGISTRY-ID REGISTRY-LENGTH
     PERFORM VARYING REGISTRY-ENTRY-ID FROM 0 BY 1 UNTIL REGISTRY-ENTRY-ID >= REGISTRY-LENGTH
         CALL "Registries-EntryName" USING REGISTRY-ID REGISTRY-ENTRY-ID REGISTRY-ENTRY-NAME
-        CALL "Blocks-Get-DefaultStateId" USING REGISTRY-ENTRY-NAME TEMP-INT32
+        CALL "Registries-Lookup" USING "minecraft:block" REGISTRY-ENTRY-NAME TEMP-INT32
         IF TEMP-INT32 > 0
             CALL "RegisterItem-Block" USING REGISTRY-ENTRY-NAME
         END-IF

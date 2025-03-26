@@ -18,8 +18,8 @@ WORKING-STORAGE SECTION.
     01 SEQUENCE-ID              BINARY-LONG.
     *> variables
     01 BLOCK-FACE               BINARY-LONG.
-    01 BLOCK-STATE-ID           BINARY-LONG.
-    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-STATE              BINARY-LONG.
+    01 BLOCK-ID                 BINARY-LONG UNSIGNED.
     01 BOUNDS-CHECK             BINARY-CHAR UNSIGNED.
     01 BLOCK-HARDNESS           FLOAT-SHORT.
     01 CALLBACK-PTR             PROGRAM-POINTER.
@@ -76,12 +76,12 @@ StartedDigging.
             CALL "World-CheckBounds" USING LOCATION BOUNDS-CHECK
             IF BOUNDS-CHECK = 0
                 *> TODO take held item, potion effects, etc. into account for instamine
-                CALL "World-GetBlock" USING LOCATION BLOCK-STATE-ID
-                CALL "Blocks-StateIdToIndex" USING BLOCK-STATE-ID BLOCK-INDEX
-                IF BLOCK-INDEX <= 0
+                CALL "World-GetBlock" USING LOCATION BLOCK-STATE
+                CALL "Blocks-ForStateId" USING BLOCK-STATE BLOCK-ID
+                IF BLOCK-ID <= 0
                     PERFORM StartBreakingBlock
                 ELSE
-                    CALL "Blocks-GetHardness" USING BLOCK-INDEX BLOCK-HARDNESS
+                    CALL "Blocks-GetHardness" USING BLOCK-ID BLOCK-HARDNESS
                     IF BLOCK-HARDNESS > 0
                         PERFORM StartBreakingBlock
                     ELSE
@@ -113,8 +113,8 @@ FinishedDigging.
 BreakBlock.
     CALL "World-CheckBounds" USING LOCATION BOUNDS-CHECK
     IF BOUNDS-CHECK = 0
-        CALL "World-GetBlock" USING LOCATION BLOCK-STATE-ID
-        CALL "GetCallback-BlockDestroy" USING BLOCK-STATE-ID CALLBACK-PTR
+        CALL "World-GetBlock" USING LOCATION BLOCK-STATE
+        CALL "GetCallback-BlockDestroy" USING BLOCK-STATE CALLBACK-PTR
         IF CALLBACK-PTR NOT = NULL
             CALL CALLBACK-PTR USING PLAYER-ID LOCATION BLOCK-FACE
         END-IF

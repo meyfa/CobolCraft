@@ -27,6 +27,7 @@ PROCEDURE DIVISION USING LK-ITEM-NAME.
             02 BLOCK-Z              BINARY-LONG.
         01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
         01 BLOCK-ID                 BINARY-LONG.
+        01 BLOCK-STATE              BINARY-LONG.
         01 PLACE-AABB.
             COPY DD-AABB REPLACING LEADING ==PREFIX== BY ==PLACE==.
     LINKAGE SECTION.
@@ -53,9 +54,10 @@ PROCEDURE DIVISION USING LK-ITEM-NAME.
         END-IF
 
         *> Place the block. For this default handler, we assume the block has the same name as the item.
-        CALL "Blocks-Get-DefaultStateId" USING LK-ITEM-NAME BLOCK-ID
+        CALL "Registries-Lookup" USING "minecraft:block" LK-ITEM-NAME BLOCK-ID
         IF BLOCK-ID > 0
-            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+            CALL "Blocks-GetDefaultStateId" USING BLOCK-ID BLOCK-STATE
+            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-STATE
         END-IF
 
         CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT

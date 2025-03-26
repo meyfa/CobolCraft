@@ -21,7 +21,7 @@ callgrind.out.*
 /test.log
 
 # Application files
-/save
-/world
+/save*
+/world*
 /server.properties
 /whitelist.json

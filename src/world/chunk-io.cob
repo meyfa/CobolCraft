@@ -114,7 +114,7 @@ SaveChunkRegion.
                 IF PALETTE-INDEX(CURRENT-BLOCK-ID + 1) = 0
                     ADD 1 TO PALETTE-LENGTH
                     MOVE PALETTE-LENGTH TO PALETTE-INDEX(CURRENT-BLOCK-ID + 1)
-                    CALL "Blocks-Get-StateDescription" USING CURRENT-BLOCK-ID PALETTE-BLOCK-DESCRIPTION
+                    CALL "Blocks-ToDescription" USING CURRENT-BLOCK-ID PALETTE-BLOCK-DESCRIPTION
 
                     CALL "NbtEncode-Compound" USING NBTENC BUFFER OMITTED
 
@@ -764,7 +764,7 @@ LoadChunkEntities.
         01 LONG-ARRAY-ENTRY-SIGNED  REDEFINES LONG-ARRAY-ENTRY BINARY-LONG-LONG.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==PALETTE-BLOCK==.
         *> A map of palette indices to block state IDs
-        01 BLOCK-STATE-IDS          BINARY-LONG UNSIGNED OCCURS 4096 TIMES.
+        01 BLOCK-STATES             BINARY-LONG UNSIGNED OCCURS 4096 TIMES.
     LINKAGE SECTION.
         COPY DD-NBT-DECODER REPLACING LEADING ==NBTDEC== BY ==LK-NBTDEC==.
         01 LK-BUFFER                PIC X ANY LENGTH.
@@ -832,7 +832,7 @@ LoadChunkEntities.
 
             *> end palette entry
             CALL "NbtDecode-EndCompound" USING LK-NBTDEC LK-BUFFER
-            CALL "Blocks-Get-StateId" USING PALETTE-BLOCK-DESCRIPTION BLOCK-STATE-IDS(PALETTE-INDEX)
+            CALL "Blocks-FromDescription" USING PALETTE-BLOCK-DESCRIPTION BLOCK-STATES(PALETTE-INDEX)
         END-PERFORM
 
         *> end palette
@@ -841,7 +841,7 @@ LoadChunkEntities.
         *> If the palette has length 1, we don't care about the data. In fact, it might not be there.
         IF PALETTE-LENGTH = 1
             *> Fill the section with the singular block state (unless it is air).
-            MOVE BLOCK-STATE-IDS(1) TO CURRENT-BLOCK-ID
+            MOVE BLOCK-STATES(1) TO CURRENT-BLOCK-ID
             IF CURRENT-BLOCK-ID > 0
                 INITIALIZE LK-BLOCKS REPLACING NUMERIC BY CURRENT-BLOCK-ID
                 MOVE 4096 TO LK-NON-AIR
@@ -882,7 +882,7 @@ LoadChunkEntities.
                     >>ELSE
                         DIVIDE LONG-ARRAY-ENTRY BY PALETTE-BITS-POW GIVING LONG-ARRAY-ENTRY REMAINDER PALETTE-INDEX
                     >>END-IF
-                    MOVE BLOCK-STATE-IDS(PALETTE-INDEX + 1) TO CURRENT-BLOCK-ID
+                    MOVE BLOCK-STATES(PALETTE-INDEX + 1) TO CURRENT-BLOCK-ID
                     IF CURRENT-BLOCK-ID > 0
                         MOVE CURRENT-BLOCK-ID TO LK-BLOCK-ID(BLOCK-INDEX)
                         ADD 1 TO LK-NON-AIR

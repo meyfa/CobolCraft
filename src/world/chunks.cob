@@ -140,7 +140,8 @@ LOCAL-STORAGE SECTION.
     01 CHUNK-INDEX              BINARY-LONG UNSIGNED.
     01 SECTION-INDEX            BINARY-LONG UNSIGNED.
     01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
-    01 TEMP-INT32               BINARY-LONG.
+    01 BLOCK-ID                 BINARY-LONG.
+    01 BLOCK-STATE              BINARY-LONG.
 LINKAGE SECTION.
     01 LK-CHUNK-X               BINARY-LONG.
     01 LK-CHUNK-Z               BINARY-LONG.
@@ -154,20 +155,24 @@ PROCEDURE DIVISION USING LK-CHUNK-X LK-CHUNK-Z.
     SET ADDRESS OF CHUNK TO WORLD-CHUNK-POINTER(CHUNK-INDEX)
 
     *> turn all blocks with Y <= 63 (= the bottom 128 blocks = the bottom 8 sections) into stone
-    CALL "Blocks-Get-DefaultStateId" USING "minecraft:stone" TEMP-INT32
+    CALL "Registries-Lookup" USING "minecraft:block" "minecraft:stone" BLOCK-ID
+    CALL "Blocks-GetDefaultStateId" USING BLOCK-ID BLOCK-STATE
+
     PERFORM VARYING SECTION-INDEX FROM 1 BY 1 UNTIL SECTION-INDEX > 8
         PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > 4096
-            MOVE TEMP-INT32 TO CHUNK-SECTION-BLOCK(SECTION-INDEX, BLOCK-INDEX)
+            MOVE BLOCK-STATE TO CHUNK-SECTION-BLOCK(SECTION-INDEX, BLOCK-INDEX)
         END-PERFORM
         MOVE 4096 TO CHUNK-SECTION-NON-AIR(SECTION-INDEX)
     END-PERFORM
 
     *> turn all blocks with Y = 63 (i.e., the top 16x16 blocks) into grass
-    CALL "Blocks-Get-DefaultStateId" USING "minecraft:grass_block" TEMP-INT32
+    CALL "Registries-Lookup" USING "minecraft:block" "minecraft:grass_block" BLOCK-ID
+    CALL "Blocks-GetDefaultStateId" USING BLOCK-ID BLOCK-STATE
+
     MOVE 8 TO SECTION-INDEX
     COMPUTE BLOCK-INDEX = 4096 - 256 + 1
     PERFORM 256 TIMES
-        MOVE TEMP-INT32 TO CHUNK-SECTION-BLOCK(SECTION-INDEX, BLOCK-INDEX)
+        MOVE BLOCK-STATE TO CHUNK-SECTION-BLOCK(SECTION-INDEX, BLOCK-INDEX)
         *> Note: No need to increment CHUNK-SECTION-NON-AIR, as the section is already full
         ADD 1 TO BLOCK-INDEX
     END-PERFORM

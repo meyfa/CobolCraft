@@ -4,7 +4,7 @@ PROGRAM-ID. RegisterItem-Sign.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 ITEM-REGISTRY-ID         BINARY-LONG                 GLOBAL.
+    01 ITEM-REGISTRY            BINARY-LONG                 GLOBAL.
     01 BLOCK-ENTITY-TYPE        BINARY-LONG                 GLOBAL.
     01 USE-PTR                  PROGRAM-POINTER.
     COPY DD-TAGS.
@@ -14,7 +14,7 @@ WORKING-STORAGE SECTION.
     01 ITEM-NAME                PIC X(64).
 
 PROCEDURE DIVISION.
-    CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY-ID
+    CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY
 
     CALL "Registries-Lookup" USING "minecraft:block_entity_type" "minecraft:sign" BLOCK-ENTITY-TYPE
     COPY ASSERT REPLACING COND BY ==BLOCK-ENTITY-TYPE >= 0==, MSG BY =="RegisterItem-Sign: Failed block entity lookup"==.
@@ -38,7 +38,7 @@ PROCEDURE DIVISION.
 
     PERFORM VARYING IDX-ITEM FROM 1 BY 1 UNTIL IDX-ITEM > TAGS-REGISTRY-TAG-LENGTH(IDX-REGISTRY, IDX-TAG)
         *> TODO avoid the name lookup
-        CALL "Registries-EntryName" USING ITEM-REGISTRY-ID TAGS-REGISTRY-TAG-ENTRY(IDX-REGISTRY, IDX-TAG, IDX-ITEM) ITEM-NAME
+        CALL "Registries-EntryName" USING ITEM-REGISTRY TAGS-REGISTRY-TAG-ENTRY(IDX-REGISTRY, IDX-TAG, IDX-ITEM) ITEM-NAME
         CALL "SetCallback-ItemUse" USING ITEM-NAME USE-PTR
     END-PERFORM
 
@@ -58,7 +58,7 @@ PROCEDURE DIVISION.
             02 BLOCK-Z              BINARY-LONG.
         01 FACING                   PIC X(5).
         01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
-        01 BLOCK-ID                 BINARY-LONG.
+        01 BLOCK-STATE              BINARY-LONG.
         01 ROTATION-INT             BINARY-LONG.
         01 ROTATION-DISPLAY         PIC -(2)9.
         01 BLOCK-NAME-LENGTH        BINARY-LONG UNSIGNED.
@@ -82,9 +82,9 @@ PROCEDURE DIVISION.
                 PERFORM GetStandingSignBlock
         END-EVALUATE
 
-        CALL "Blocks-Get-StateId" USING PLACE-DESCRIPTION BLOCK-ID
-        IF BLOCK-ID > 0
-            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+        CALL "Blocks-FromDescription" USING PLACE-DESCRIPTION BLOCK-STATE
+        IF BLOCK-STATE > 0
+            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-STATE
             CALL "World-SetBlockEntity" USING BLOCK-POSITION BLOCK-ENTITY-TYPE
 
             CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT

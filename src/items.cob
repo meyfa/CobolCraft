@@ -1,6 +1,6 @@
-*> --- Items-GetCount ---
+*> --- Items-Count ---
 IDENTIFICATION DIVISION.
-PROGRAM-ID. Items-GetCount.
+PROGRAM-ID. Items-Count.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
@@ -12,7 +12,7 @@ PROCEDURE DIVISION USING LK-ITEM-COUNT.
     MOVE ITEMS-COUNT TO LK-ITEM-COUNT
     GOBACK.
 
-END PROGRAM Items-GetCount.
+END PROGRAM Items-Count.
 
 *> --- Items-Get-MaxStackSize ---
 IDENTIFICATION DIVISION.
