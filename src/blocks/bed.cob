@@ -4,32 +4,35 @@ PROGRAM-ID. RegisterBlock-Bed.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 BLOCK-REGISTRY           BINARY-LONG.
     01 HARDNESS                 FLOAT-SHORT                 VALUE 0.2.
     01 DESTROY-PTR              PROGRAM-POINTER.
     01 FACE-PTR                 PROGRAM-POINTER.
     01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-ID                 BINARY-LONG UNSIGNED.
     01 BLOCK-TYPE               PIC X(64).
     01 BLOCK-MINIMUM-STATE-ID   BINARY-LONG.
     01 BLOCK-MAXIMUM-STATE-ID   BINARY-LONG.
     01 STATE-ID                 BINARY-LONG.
 
 PROCEDURE DIVISION.
+    CALL "Registries-LookupRegistry" USING "minecraft:block" BLOCK-REGISTRY
+
     SET DESTROY-PTR TO ENTRY "Callback-Destroy"
     SET FACE-PTR TO ENTRY "Callback-Face"
 
     *> Loop over all blocks and register the callback for each matching block type
-    CALL "Blocks-GetCount" USING BLOCK-COUNT
-    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
-        CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
+    CALL "Registries-EntryCount" USING BLOCK-REGISTRY BLOCK-COUNT
+    PERFORM VARYING BLOCK-ID FROM 0 BY 1 UNTIL BLOCK-ID >= BLOCK-COUNT
+        CALL "Blocks-GetType" USING BLOCK-ID BLOCK-TYPE
         IF BLOCK-TYPE = "minecraft:bed"
-            CALL "Blocks-Iterate-StateIds" USING BLOCK-INDEX BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
+            CALL "Blocks-GetStateIds" USING BLOCK-ID BLOCK-MINIMUM-STATE-ID BLOCK-MAXIMUM-STATE-ID
             PERFORM VARYING STATE-ID FROM BLOCK-MINIMUM-STATE-ID BY 1 UNTIL STATE-ID > BLOCK-MAXIMUM-STATE-ID
                 CALL "SetCallback-BlockDestroy" USING STATE-ID DESTROY-PTR
                 CALL "SetCallback-BlockFace" USING STATE-ID FACE-PTR
             END-PERFORM
             *> set metadata
-            CALL "Blocks-SetHardness" USING BLOCK-INDEX HARDNESS
+            CALL "Blocks-SetHardness" USING BLOCK-ID HARDNESS
         END-IF
     END-PERFORM
 
@@ -43,7 +46,7 @@ PROCEDURE DIVISION.
     WORKING-STORAGE SECTION.
         COPY DD-PLAYERS.
         01 AIR-BLOCK-STATE          BINARY-LONG             VALUE 0.
-        01 BLOCK-ID                 BINARY-LONG.
+        01 BLOCK-STATE              BINARY-LONG.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CLICKED==.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==OTHER-PART==.
         01 FACING-VALUE-CLICKED     PIC X(16).
@@ -61,8 +64,8 @@ PROCEDURE DIVISION.
 
     PROCEDURE DIVISION USING LK-PLAYER LK-POSITION LK-FACE.
         *> Obtain the clicked block state description
-        CALL "World-GetBlock" USING LK-POSITION BLOCK-ID
-        CALL "Blocks-Get-StateDescription" USING BLOCK-ID CLICKED-DESCRIPTION
+        CALL "World-GetBlock" USING LK-POSITION BLOCK-STATE
+        CALL "Blocks-ToDescription" USING BLOCK-STATE CLICKED-DESCRIPTION
 
         *> Set the clicked block to air
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) LK-POSITION AIR-BLOCK-STATE
@@ -102,8 +105,8 @@ PROCEDURE DIVISION.
             WHEN "west" ALSO "head"
                 ADD 1 TO BLOCK-X
         END-EVALUATE
-        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
-        CALL "Blocks-Get-StateDescription" USING BLOCK-ID OTHER-PART-DESCRIPTION
+        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-STATE
+        CALL "Blocks-ToDescription" USING BLOCK-STATE OTHER-PART-DESCRIPTION
 
         *> Check if the block matches (normally there shouldn't be single-block beds, but just in case)
         IF OTHER-PART-NAME NOT = CLICKED-NAME

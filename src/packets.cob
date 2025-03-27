@@ -68,10 +68,10 @@ PROCEDURE DIVISION USING LK-STATE LK-DIRECTION LK-PACKET-NAME LK-PACKET-ID.
 
 END PROGRAM Packets-Register.
 
-*> --- Packets-GetCount ---
+*> --- Packets-Count ---
 *> Get the number of packets defined in the packets.json file.
 IDENTIFICATION DIVISION.
-PROGRAM-ID. Packets-GetCount.
+PROGRAM-ID. Packets-Count.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
@@ -83,7 +83,7 @@ PROCEDURE DIVISION USING LK-COUNT.
     MOVE PACKET-ID-COUNT TO LK-COUNT
     GOBACK.
 
-END PROGRAM Packets-GetCount.
+END PROGRAM Packets-Count.
 
 *> --- Packets-GetId ---
 *> Look up the numeric ID of a packet by its string reference (e.g. "play/clientbound/minecraft:block_changed_ack").

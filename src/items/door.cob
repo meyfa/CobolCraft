@@ -4,21 +4,24 @@ PROGRAM-ID. RegisterItem-Door.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 BLOCK-REGISTRY           BINARY-LONG.
     01 USE-PTR                  PROGRAM-POINTER.
     01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-ID                 BINARY-LONG UNSIGNED.
     01 BLOCK-NAME               PIC X(64).
     01 BLOCK-TYPE               PIC X(64).
 
 PROCEDURE DIVISION.
+    CALL "Registries-LookupRegistry" USING "minecraft:block" BLOCK-REGISTRY
+
     SET USE-PTR TO ENTRY "Callback-Use"
 
     *> Loop over all blocks and register the callback for each door
-    CALL "Blocks-GetCount" USING BLOCK-COUNT
-    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
-        CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
+    CALL "Registries-EntryCount" USING BLOCK-REGISTRY BLOCK-COUNT
+    PERFORM VARYING BLOCK-ID FROM 0 BY 1 UNTIL BLOCK-ID >= BLOCK-COUNT
+        CALL "Blocks-GetType" USING BLOCK-ID BLOCK-TYPE
         IF BLOCK-TYPE = "minecraft:door"
-            CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
+            CALL "Registries-EntryName" USING BLOCK-REGISTRY BLOCK-ID BLOCK-NAME
             CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
         END-IF
     END-PERFORM
@@ -44,7 +47,7 @@ PROCEDURE DIVISION.
             02 BLOCK-Z              BINARY-LONG.
         01 FACING                   PIC X(16).
         01 HINGE                    PIC X(16).
-        01 BLOCK-ID                 BINARY-LONG.
+        01 BLOCK-STATE              BINARY-LONG.
         01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
         01 CB-PTR-REPLACEABLE       PROGRAM-POINTER.
         *> Block state description for neighboring blocks.
@@ -78,9 +81,9 @@ PROCEDURE DIVISION.
         *> Compute the position of the upper block
         MOVE BLOCK-POSITION-LOWER TO BLOCK-POSITION-UPPER
         ADD 1 TO BLOCK-Y OF BLOCK-POSITION-UPPER
-        CALL "World-GetBlock" USING BLOCK-POSITION-UPPER BLOCK-ID
-        CALL "GetCallback-BlockReplaceable" USING BLOCK-ID CB-PTR-REPLACEABLE
-        CALL CB-PTR-REPLACEABLE USING BLOCK-ID CHECK-RESULT
+        CALL "World-GetBlock" USING BLOCK-POSITION-UPPER BLOCK-STATE
+        CALL "GetCallback-BlockReplaceable" USING BLOCK-STATE CB-PTR-REPLACEABLE
+        CALL CB-PTR-REPLACEABLE USING BLOCK-STATE CHECK-RESULT
         IF CHECK-RESULT = 0
             GOBACK
         END-IF
@@ -149,8 +152,8 @@ PROCEDURE DIVISION.
         END-EVALUATE
 
         *> left
-        CALL "World-GetBlock" USING NEIGHBOR-LEFT-POSITION BLOCK-ID
-        CALL "Blocks-Get-StateDescription" USING BLOCK-ID NEIGHBOR-DESCRIPTION
+        CALL "World-GetBlock" USING NEIGHBOR-LEFT-POSITION BLOCK-STATE
+        CALL "Blocks-ToDescription" USING BLOCK-STATE NEIGHBOR-DESCRIPTION
         MOVE 0 TO HAS-DOOR-LEFT
         IF NEIGHBOR-NAME = PLACE-NAME
             CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION "facing" NEIGHBOR-FACING
@@ -162,8 +165,8 @@ PROCEDURE DIVISION.
         END-IF
 
         *> right
-        CALL "World-GetBlock" USING NEIGHBOR-RIGHT-POSITION BLOCK-ID
-        CALL "Blocks-Get-StateDescription" USING BLOCK-ID NEIGHBOR-DESCRIPTION
+        CALL "World-GetBlock" USING NEIGHBOR-RIGHT-POSITION BLOCK-STATE
+        CALL "Blocks-ToDescription" USING BLOCK-STATE NEIGHBOR-DESCRIPTION
         MOVE 0 TO HAS-DOOR-RIGHT
         IF NEIGHBOR-NAME = PLACE-NAME
             CALL "Blocks-Description-GetValue" USING NEIGHBOR-DESCRIPTION "facing" NEIGHBOR-FACING
@@ -189,11 +192,11 @@ PROCEDURE DIVISION.
 
         *> Place the door
         MOVE "lower" TO PLACE-PROPERTY-VALUE(3)
-        CALL "Blocks-Get-StateId" USING PLACE-DESCRIPTION BLOCK-ID
-        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION-LOWER BLOCK-ID
+        CALL "Blocks-FromDescription" USING PLACE-DESCRIPTION BLOCK-STATE
+        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION-LOWER BLOCK-STATE
         MOVE "upper" TO PLACE-PROPERTY-VALUE(3)
-        CALL "Blocks-Get-StateId" USING PLACE-DESCRIPTION BLOCK-ID
-        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION-UPPER BLOCK-ID
+        CALL "Blocks-FromDescription" USING PLACE-DESCRIPTION BLOCK-STATE
+        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION-UPPER BLOCK-STATE
 
         CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT
 

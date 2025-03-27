@@ -28,6 +28,7 @@ PROCEDURE DIVISION.
         01 FACING                   PIC X(5).
         01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
         01 BLOCK-ID                 BINARY-LONG.
+        01 BLOCK-STATE              BINARY-LONG.
         01 TARGET-BLOCK-POSITION.
             02 TARGET-BLOCK-X       BINARY-LONG.
             02 TARGET-BLOCK-Y       BINARY-LONG.
@@ -55,16 +56,17 @@ PROCEDURE DIVISION.
             *> Check for solid block below
             MOVE BLOCK-POSITION TO TARGET-BLOCK-POSITION
             SUBTRACT 1 FROM TARGET-BLOCK-Y
-            CALL "World-GetBlock" USING TARGET-BLOCK-POSITION BLOCK-ID
-            CALL "GetCallback-BlockFace" USING BLOCK-ID FACE-CALLBACK
-            CALL FACE-CALLBACK USING BLOCK-ID "up" BLOCK-FACE
+            CALL "World-GetBlock" USING TARGET-BLOCK-POSITION BLOCK-STATE
+            CALL "GetCallback-BlockFace" USING BLOCK-STATE FACE-CALLBACK
+            CALL FACE-CALLBACK USING BLOCK-STATE "up" BLOCK-FACE
             IF BLOCK-FACE = 0
                 GOBACK
             END-IF
 
             *> Place the torch
-            CALL "Blocks-Get-DefaultStateId" USING LK-ITEM-NAME BLOCK-ID
-            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+            CALL "Registries-Lookup" USING "minecraft:block" LK-ITEM-NAME BLOCK-ID
+            CALL "Blocks-GetDefaultStateId" USING BLOCK-ID BLOCK-STATE
+            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-STATE
 
             CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT
         ELSE
@@ -80,9 +82,9 @@ PROCEDURE DIVISION.
                 WHEN "west"
                     ADD 1 TO TARGET-BLOCK-X
             END-EVALUATE
-            CALL "World-GetBlock" USING TARGET-BLOCK-POSITION BLOCK-ID
-            CALL "GetCallback-BlockFace" USING BLOCK-ID FACE-CALLBACK
-            CALL FACE-CALLBACK USING BLOCK-ID FACING BLOCK-FACE
+            CALL "World-GetBlock" USING TARGET-BLOCK-POSITION BLOCK-STATE
+            CALL "GetCallback-BlockFace" USING BLOCK-STATE FACE-CALLBACK
+            CALL FACE-CALLBACK USING BLOCK-STATE FACING BLOCK-FACE
             IF BLOCK-FACE = 0
                 GOBACK
             END-IF
@@ -101,8 +103,8 @@ PROCEDURE DIVISION.
             MOVE "facing" TO WALL_TORCH-PROPERTY-NAME(1)
             MOVE FACING TO WALL_TORCH-PROPERTY-VALUE(1)
 
-            CALL "Blocks-Get-StateId" USING WALL_TORCH-DESCRIPTION BLOCK-ID
-            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+            CALL "Blocks-FromDescription" USING WALL_TORCH-DESCRIPTION BLOCK-STATE
+            CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-STATE
 
             CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT
         END-IF

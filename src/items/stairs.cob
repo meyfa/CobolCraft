@@ -4,21 +4,24 @@ PROGRAM-ID. RegisterItem-Stairs.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 BLOCK-REGISTRY           BINARY-LONG.
     01 USE-PTR                  PROGRAM-POINTER.
     01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-ID                 BINARY-LONG UNSIGNED.
     01 BLOCK-NAME               PIC X(64).
     01 BLOCK-TYPE               PIC X(64).
 
 PROCEDURE DIVISION.
+    CALL "Registries-LookupRegistry" USING "minecraft:block" BLOCK-REGISTRY
+
     SET USE-PTR TO ENTRY "Callback-Use"
 
     *> Loop over all blocks and register the callback for each matching block type
-    CALL "Blocks-GetCount" USING BLOCK-COUNT
-    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
-        CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
+    CALL "Registries-EntryCount" USING BLOCK-REGISTRY BLOCK-COUNT
+    PERFORM VARYING BLOCK-ID FROM 0 BY 1 UNTIL BLOCK-ID >= BLOCK-COUNT
+        CALL "Blocks-GetType" USING BLOCK-ID BLOCK-TYPE
         IF BLOCK-TYPE = "minecraft:stair"
-            CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
+            CALL "Registries-EntryName" USING BLOCK-REGISTRY BLOCK-ID BLOCK-NAME
             CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
         END-IF
     END-PERFORM
@@ -90,7 +93,7 @@ PROCEDURE DIVISION.
 
         *> TODO connect with neighboring stairs
 
-        CALL "Blocks-Get-StateId" USING PLACE-DESCRIPTION BLOCK-ID
+        CALL "Blocks-FromDescription" USING PLACE-DESCRIPTION BLOCK-ID
         CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
 
         CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT

@@ -4,21 +4,24 @@ PROGRAM-ID. RegisterItem-Slab.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    01 BLOCK-REGISTRY           BINARY-LONG.
     01 USE-PTR                  PROGRAM-POINTER.
     01 BLOCK-COUNT              BINARY-LONG UNSIGNED.
-    01 BLOCK-INDEX              BINARY-LONG UNSIGNED.
+    01 BLOCK-ID                 BINARY-LONG UNSIGNED.
     01 BLOCK-NAME               PIC X(64).
     01 BLOCK-TYPE               PIC X(64).
 
 PROCEDURE DIVISION.
+    CALL "Registries-LookupRegistry" USING "minecraft:block" BLOCK-REGISTRY
+
     SET USE-PTR TO ENTRY "Callback-Use"
 
     *> Loop over all blocks and register the callback for each slab
-    CALL "Blocks-GetCount" USING BLOCK-COUNT
-    PERFORM VARYING BLOCK-INDEX FROM 1 BY 1 UNTIL BLOCK-INDEX > BLOCK-COUNT
-        CALL "Blocks-Iterate-Type" USING BLOCK-INDEX BLOCK-TYPE
+    CALL "Registries-EntryCount" USING BLOCK-REGISTRY BLOCK-COUNT
+    PERFORM VARYING BLOCK-ID FROM 0 BY 1 UNTIL BLOCK-ID >= BLOCK-COUNT
+        CALL "Blocks-GetType" USING BLOCK-ID BLOCK-TYPE
         IF BLOCK-TYPE = "minecraft:slab"
-            CALL "Blocks-Iterate-Name" USING BLOCK-INDEX BLOCK-NAME
+            CALL "Registries-EntryName" USING BLOCK-REGISTRY BLOCK-ID BLOCK-NAME
             CALL "SetCallback-ItemUse" USING BLOCK-NAME USE-PTR
         END-IF
     END-PERFORM
@@ -43,7 +46,7 @@ PROCEDURE DIVISION.
             02 BLOCK-Z              BINARY-LONG.
         01 FACING                   PIC X(16).
         01 CHECK-RESULT             BINARY-CHAR UNSIGNED.
-        01 BLOCK-ID                 BINARY-LONG.
+        01 BLOCK-STATE              BINARY-LONG.
         01 CB-PTR-REPLACEABLE       PROGRAM-POINTER.
         *> hitbox for the block to place
         01 PLACE-AABB.
@@ -80,15 +83,15 @@ PROCEDURE DIVISION.
 
         *> The slab can be placed at the clicked position if the block there is replaceable.
         MOVE LK-POSITION TO BLOCK-POSITION
-        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
-        CALL "GetCallback-BlockReplaceable" USING BLOCK-ID CB-PTR-REPLACEABLE
-        CALL CB-PTR-REPLACEABLE USING BLOCK-ID CHECK-RESULT
+        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-STATE
+        CALL "GetCallback-BlockReplaceable" USING BLOCK-STATE CB-PTR-REPLACEABLE
+        CALL CB-PTR-REPLACEABLE USING BLOCK-STATE CHECK-RESULT
         IF CHECK-RESULT = 1
             PERFORM PlaceBlock
         END-IF
 
         *> Otherwise, check if the clicked position is a single slab, and double it.
-        CALL "Blocks-Get-StateDescription" USING BLOCK-ID CURRENT-DESCRIPTION
+        CALL "Blocks-ToDescription" USING BLOCK-STATE CURRENT-DESCRIPTION
         IF CURRENT-NAME = SLAB-NAME
             CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION "type" CURRENT-TYPE
             EVALUATE FACING ALSO CURRENT-TYPE
@@ -109,15 +112,15 @@ PROCEDURE DIVISION.
         IF CHECK-RESULT NOT = 0
             GOBACK
         END-IF
-        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
-        CALL "GetCallback-BlockReplaceable" USING BLOCK-ID CB-PTR-REPLACEABLE
-        CALL CB-PTR-REPLACEABLE USING BLOCK-ID CHECK-RESULT
+        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-STATE
+        CALL "GetCallback-BlockReplaceable" USING BLOCK-STATE CB-PTR-REPLACEABLE
+        CALL CB-PTR-REPLACEABLE USING BLOCK-STATE CHECK-RESULT
         IF CHECK-RESULT = 1
             PERFORM PlaceBlock
         END-IF
 
         *> Try doubling the adjacent block.
-        CALL "Blocks-Get-StateDescription" USING BLOCK-ID CURRENT-DESCRIPTION
+        CALL "Blocks-ToDescription" USING BLOCK-STATE CURRENT-DESCRIPTION
         IF CURRENT-NAME = SLAB-NAME
             CALL "Blocks-Description-GetValue" USING CURRENT-DESCRIPTION "type" CURRENT-TYPE
             *> Counter-intuitively, Minecraft does not care about the slab type (top/bottom) here.
@@ -156,8 +159,8 @@ PROCEDURE DIVISION.
             GOBACK
         END-IF
 
-        CALL "Blocks-Get-StateId" USING SLAB-DESCRIPTION BLOCK-ID
-        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+        CALL "Blocks-FromDescription" USING SLAB-DESCRIPTION BLOCK-STATE
+        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-STATE
 
         CALL "ItemUtil-ConsumeItem" USING LK-PLAYER LK-SLOT
 

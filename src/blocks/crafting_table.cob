@@ -6,7 +6,8 @@ DATA DIVISION.
 WORKING-STORAGE SECTION.
     01 WINDOW-TYPE-CRAFTING     BINARY-LONG GLOBAL.
     01 INTERACT-PTR             PROGRAM-POINTER.
-    01 BLOCK-STATE-ID           BINARY-LONG.
+    01 BLOCK-ID                 BINARY-LONG.
+    01 BLOCK-STATE              BINARY-LONG.
 
 PROCEDURE DIVISION.
     SET INTERACT-PTR TO ENTRY "Callback-Interact"
@@ -17,8 +18,9 @@ PROCEDURE DIVISION.
         GOBACK
     END-IF
 
-    CALL "Blocks-Get-DefaultStateId" USING "minecraft:crafting_table" BLOCK-STATE-ID
-    CALL "SetCallback-BlockInteract" USING BLOCK-STATE-ID INTERACT-PTR
+    CALL "Registries-Lookup" USING "minecraft:block" "minecraft:crafting_table" BLOCK-ID
+    CALL "Blocks-GetDefaultStateId" USING BLOCK-ID BLOCK-STATE
+    CALL "SetCallback-BlockInteract" USING BLOCK-STATE INTERACT-PTR
 
     GOBACK.
 

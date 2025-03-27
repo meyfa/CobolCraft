@@ -4,14 +4,14 @@ PROGRAM-ID. RegisterEntity-Item.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 ITEM-REGISTRY-ID         BINARY-LONG                     GLOBAL.
+    01 ITEM-REGISTRY            BINARY-LONG                     GLOBAL.
     01 SERIALIZE-PTR            PROGRAM-POINTER.
     01 DESERIALIZE-PTR          PROGRAM-POINTER.
     01 TICK-PTR                 PROGRAM-POINTER.
     01 ENTITY-TYPE              BINARY-LONG UNSIGNED.
 
 PROCEDURE DIVISION.
-    CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY-ID
+    CALL "Registries-LookupRegistry" USING "minecraft:item" ITEM-REGISTRY
 
     SET SERIALIZE-PTR TO ENTRY "Callback-Serialize"
     SET DESERIALIZE-PTR TO ENTRY "Callback-Deserialize"
@@ -50,7 +50,7 @@ PROCEDURE DIVISION.
 
         *> Item: id
         MOVE ENTITY-ITEM-SLOT-ID TO INT32
-        CALL "Registries-EntryName" USING ITEM-REGISTRY-ID INT32 STR
+        CALL "Registries-EntryName" USING ITEM-REGISTRY INT32 STR
         MOVE FUNCTION STORED-CHAR-LENGTH(STR) TO LEN
         CALL "NbtEncode-String" USING LK-NBTENC LK-BUFFER "id" STR LEN
 

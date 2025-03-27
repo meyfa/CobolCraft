@@ -158,16 +158,23 @@ PROGRAM-ID. World-FindSpawnLocation.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
+    *> constants
     78 SPAWN-RADIUS             VALUE 10.
     78 SPAWN-ATTEMPTS           VALUE 100.
+    *> initialized once
+    01 INIT-DONE                BINARY-CHAR UNSIGNED.
+    01 RANDOM-VALUE             FLOAT-LONG.
+    01 BLOCK-ID-AIR             BINARY-LONG.
+    01 BLOCK-ID-CAVE-AIR        BINARY-LONG.
+    01 BLOCK-ID-VOID-AIR        BINARY-LONG.
+    *> variables
     COPY DD-WORLD.
     01 BLOCK-POSITION.
         02 POS-X                BINARY-LONG.
         02 POS-Y                BINARY-LONG.
         02 POS-Z                BINARY-LONG.
-    01 RANDOM-VALUE             FLOAT-LONG                  VALUE 0.
-    01 BLOCK-STATE-ID           BINARY-LONG.
-    01 BLOCK-IDENTIFIER         PIC X(256).
+    01 BLOCK-STATE              BINARY-LONG.
+    01 BLOCK-ID                 BINARY-LONG.
     01 AIR-COUNT                BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-POSITION.
@@ -176,8 +183,12 @@ LINKAGE SECTION.
         02 LK-Z                 FLOAT-LONG.
 
 PROCEDURE DIVISION USING LK-POSITION.
-    IF RANDOM-VALUE = 0
+    IF INIT-DONE = 0
         MOVE FUNCTION RANDOM(FUNCTION CURRENT-DATE(1:16)) TO RANDOM-VALUE
+
+        CALL "Registries-Lookup" USING "minecraft:block" "minecraft:air" BLOCK-ID-AIR
+        CALL "Registries-Lookup" USING "minecraft:block" "minecraft:cave_air" BLOCK-ID-CAVE-AIR
+        CALL "Registries-Lookup" USING "minecraft:block" "minecraft:void_air" BLOCK-ID-VOID-AIR
     END-IF
 
     MOVE WORLD-SPAWN-X TO POS-X LK-X
@@ -192,10 +203,10 @@ PROCEDURE DIVISION USING LK-POSITION.
 
         MOVE 0 TO AIR-COUNT
         PERFORM VARYING POS-Y FROM 319 BY -1 UNTIL POS-Y < -63
-            CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-STATE-ID
-            CALL "Blocks-Get-Name" USING BLOCK-STATE-ID BLOCK-IDENTIFIER
-            EVALUATE BLOCK-IDENTIFIER
-                WHEN = "minecraft:air" OR = "minecraft:cave_air" OR = "minecraft:void_air"
+            CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-STATE
+            CALL "Blocks-ForStateId" USING BLOCK-STATE BLOCK-ID
+            EVALUATE BLOCK-ID
+                WHEN = BLOCK-ID-AIR OR = BLOCK-ID-CAVE-AIR OR = BLOCK-ID-VOID-AIR
                     ADD 1 TO AIR-COUNT
                 WHEN OTHER
                     IF AIR-COUNT >= 2

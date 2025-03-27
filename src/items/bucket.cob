@@ -29,18 +29,19 @@ PROCEDURE DIVISION.
         COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==CURRENT==.
         01 FLUID-LEVEL              PIC X(32).
         01 BLOCK-ID                 BINARY-LONG.
+        01 BLOCK-STATE              BINARY-LONG.
         01 ITEM-ID                  BINARY-LONG.
     LINKAGE SECTION.
         COPY DD-CALLBACK-ITEM-USE.
 
     PROCEDURE DIVISION USING LK-PLAYER LK-SLOT LK-ITEM-NAME LK-POSITION LK-FACE LK-CURSOR.
         MOVE LK-POSITION TO BLOCK-POSITION
-        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
+        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-STATE
         CALL "Facing-GetRelative" USING LK-FACE BLOCK-POSITION
 
         *> Allow replacing water or lava source blocks (fluid level 0)
-        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-ID
-        CALL "Blocks-Get-StateDescription" USING BLOCK-ID CURRENT-DESCRIPTION
+        CALL "World-GetBlock" USING BLOCK-POSITION BLOCK-STATE
+        CALL "Blocks-ToDescription" USING BLOCK-STATE CURRENT-DESCRIPTION
         IF CURRENT-NAME NOT = "minecraft:water" AND CURRENT-NAME NOT = "minecraft:lava"
             GOBACK
         END-IF
@@ -50,8 +51,9 @@ PROCEDURE DIVISION.
         END-IF
 
         *> Place air
-        CALL "Blocks-Get-DefaultStateId" USING "minecraft:air" BLOCK-ID
-        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-ID
+        CALL "Registries-Lookup" USING "minecraft:block" "minecraft:air" BLOCK-ID
+        CALL "Blocks-GetDefaultStateId" USING BLOCK-ID BLOCK-STATE
+        CALL "World-SetBlock" USING PLAYER-CLIENT(LK-PLAYER) BLOCK-POSITION BLOCK-STATE
 
         *> Replace the bucket with a water or lava bucket
         IF PLAYER-GAMEMODE(LK-PLAYER) NOT = 1

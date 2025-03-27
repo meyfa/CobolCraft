@@ -3,7 +3,10 @@
 78 BLOCKS-CAPACITY VALUE 2000.
 
 01 BLOCKS EXTERNAL.
-    02 BLOCKS-COUNT BINARY-LONG UNSIGNED.
+    02 BLOCK-COUNT BINARY-LONG UNSIGNED.
+
+    *> Each entry corresponds directly to an entry in the "minecraft:block" registry,
+    *> that is, this table is indexed by the block ID +1 (since block IDs are 0-based).
     02 BLOCK-ENTRY OCCURS BLOCKS-CAPACITY TIMES.
         03 BLOCK-ENTRY-NAME PIC X(100).
         *> The value of "definition"."type". For example, "minecraft:slab" for slab blocks.
@@ -24,12 +27,15 @@
         03 BLOCK-ENTRY-DEFAULT-STATE-ID BINARY-LONG UNSIGNED.
         *> Metadata about the block. This is not part of the data generator, but added by us afterwards.
         03 BLOCK-ENTRY-HARDNESS FLOAT-SHORT.
+
     *> This table is sorted (SORT) by the block name, and is used for binary search (SEARCH ALL) to find the block's
     *> index in the BLOCK-ENTRY table.
+    *> TODO: Make this generic for registries.
     02 BLOCK-NAMES OCCURS BLOCKS-CAPACITY TIMES
             ASCENDING KEY IS BLOCK-NAMES-ENTRY-NAME
             INDEXED BY BLOCK-NAMES-INDEX.
         03 BLOCK-NAMES-ENTRY-NAME PIC X(100).
         03 BLOCK-NAMES-ENTRY-INDEX BINARY-LONG UNSIGNED.
+
     *> For fast access, keep track of the highest block ID that has been assigned.
     02 BLOCKS-MAXIMUM-STATE-ID BINARY-LONG UNSIGNED.
