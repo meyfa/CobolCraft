@@ -59,8 +59,12 @@ COBC_OPTS += -O2 --debug -Wall -fnotrunc -fstatic-call
 
 ifeq ($(shell test $(GCVERSION) -ge 32; echo $$?),0)
 COBC_OPTS += -Werror=typing
-COB_MTFLAGS = -MF $(basename $@).d -MT $@
 GLOBALDEPS =
+ifeq ($(shell test $(GCVERSION) -ge 33; echo $$?),0)
+COB_MTFLAGS = -MF $(basename $@).d -MD
+else
+COB_MTFLAGS = -MF $(basename $@).d -MT $@
+endif
 # include dependency files for all existing object files
 -include $(OBJECTS:.o=.d)
 else
