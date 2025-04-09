@@ -1,4 +1,4 @@
-FROM docker.io/library/ubuntu:oracular AS base
+FROM docker.io/library/ubuntu:oracular-20250225 AS base
 
 WORKDIR /app
 
