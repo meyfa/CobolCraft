@@ -1,4 +1,4 @@
-FROM docker.io/library/ubuntu:oracular AS base
+FROM docker.io/library/ubuntu:plucky AS base
 
 WORKDIR /app
 
