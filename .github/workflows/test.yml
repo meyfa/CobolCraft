@@ -16,8 +16,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Ubuntu 24.04 has GnuCOBOL 3.1.2, while Ubuntu 24.10 has GnuCOBOL 3.2.0.
-        image-tag: ["24.04", "24.10"]
+        # Ubuntu 24.04 (LTS) has GnuCOBOL 3.1.2, while Ubuntu 25.04 (non-LTS) has GnuCOBOL 3.2.0.
+        image-tag: ["24.04", "25.04"]
         # Test on both x86 and ARM host architectures.
         os: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
