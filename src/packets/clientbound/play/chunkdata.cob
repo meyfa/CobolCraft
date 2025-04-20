@@ -66,9 +66,9 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK-X LK-CHUNK-Z LK-SECTIONS LK-BLOCK-EN
     *> chunk z
     CALL "Encode-Int" USING LK-CHUNK-Z PAYLOAD PAYLOADPOS
 
-    *> heightmap NBT - send an empty compound tag for now
-    MOVE X"0a00" TO PAYLOAD(PAYLOADPOS:2)
-    ADD 2 TO PAYLOADPOS
+    *> heightmap count: 0
+    MOVE 0 TO INT32
+    CALL "Encode-VarInt" USING INT32 PAYLOAD PAYLOADPOS
 
     *> construct chunk data
     MOVE 1 TO CHUNK-DATA-POS
@@ -201,9 +201,6 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK-X LK-CHUNK-Z LK-SECTIONS LK-BLOCK-EN
         ADD 1 TO LK-BUFFERPOS
         *> palette entry
         CALL "Encode-VarInt" USING LK-PALETTE-VALUE LK-BUFFER LK-BUFFERPOS
-        *> data array length
-        MOVE X"00" TO LK-BUFFER(LK-BUFFERPOS:1)
-        ADD 1 TO LK-BUFFERPOS
         GOBACK.
 
     END PROGRAM EncodePalette-SingleValued.
@@ -249,7 +246,6 @@ PROCEDURE DIVISION USING LK-CLIENT LK-CHUNK-X LK-CHUNK-Z LK-SECTIONS LK-BLOCK-EN
         *>     => ceil((length of ids table) / floor((64 bits per long) / (bits per entry)))
         DIVIDE 64 BY BITS-PER-ENTRY GIVING IDS-PER-ENTRY
         DIVIDE LK-IDS-LENGTH BY IDS-PER-ENTRY GIVING DATA-ARRAY-LENGTH ROUNDED MODE IS TOWARD-GREATER
-        CALL "Encode-VarInt" USING DATA-ARRAY-LENGTH LK-BUFFER LK-BUFFERPOS
 
         *> Data array: pack as many IDs as possible into each long starting from the least significant bit
         >>IF GCVERSION >= 32
