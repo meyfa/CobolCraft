@@ -32,49 +32,49 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
 
     *> https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/Slot_Data#Structured_components
     EVALUATE COMPONENT
-        WHEN 0
+        WHEN 0 *> minecraft:custom_data
             PERFORM Nbt
-        WHEN 1
+        WHEN 1 *> minecraft:max_stack_size
             Perform VarInt
-        WHEN 2
+        WHEN 2 *> minecraft:max_damage
             PERFORM VarInt
-        WHEN 3
+        WHEN 3 *> minecraft:damage
             PERFORM VarInt
-        WHEN 4
+        WHEN 4 *> minecraft:unbreakable
             PERFORM Bool
-        WHEN 5
+        WHEN 5 *> minecraft:custom_name
             PERFORM TextComponent
-        WHEN 6
+        WHEN 6 *> minecraft:item_name
             PERFORM TextComponent
-        WHEN 7
+        WHEN 7 *> minecraft:item_model
             PERFORM Identifier
-        WHEN 8
+        WHEN 8 *> minecraft:lore
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM TextComponent
             END-PERFORM
-        WHEN 9
+        WHEN 9 *> minecraft:rarity
             PERFORM VarInt
-        WHEN 10
+        WHEN 10 *> minecraft:enchantments
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM VarInt
                 PERFORM VarInt
             END-PERFORM
             PERFORM Bool
-        WHEN 11
+        WHEN 11 *> minecraft:can_place_on
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM BlockPredicate
             END-PERFORM
             PERFORM Bool
-        WHEN 12
+        WHEN 12 *> minecraft:can_break
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM BlockPredicate
             END-PERFORM
             PERFORM Bool
-        WHEN 13
+        WHEN 13 *> minecraft:attribute_modifiers
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM VarInt
@@ -84,7 +84,7 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
                 PERFORM VarInt
             END-PERFORM
             PERFORM Bool
-        WHEN 14
+        WHEN 14 *> minecraft:custom_model_data
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM FloatShort
@@ -101,23 +101,22 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
             PERFORM TEMP-INT32 TIMES
                 PERFORM Int
             END-PERFORM
-        WHEN 15
+        WHEN 15 *> minecraft:tooltip_display
+            *> TODO: add (the wiki does not have this yet)
             CONTINUE
-        WHEN 16
-            CONTINUE
-        WHEN 17
+        WHEN 16 *> minecraft:repair_cost
             PERFORM VarInt
-        WHEN 18
+        WHEN 17 *> minecraft:creative_slot_lock
             CONTINUE
-        WHEN 19
+        WHEN 18 *> minecraft:enchantment_glint_override
             PERFORM Bool
-        WHEN 20
-            CONTINUE
-        WHEN 21
+        WHEN 19 *> minecraft:intangible_projectile
+            PERFORM Nbt
+        WHEN 20 *> minecraft:food
             PERFORM VarInt
             PERFORM FloatShort
             PERFORM Bool
-        WHEN 22
+        WHEN 21 *> minecraft:consumable
             PERFORM FloatShort
             PERFORM VarInt
             *> inline (=0) or ID + 1
@@ -125,17 +124,22 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
             IF TEMP-INT32 = 0
                 PERFORM SoundEvent
             END-IF
-        WHEN 23
+            PERFORM Bool
+            CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
+            PERFORM TEMP-INT32 TIMES
+                PERFORM ConsumeEffect
+            END-PERFORM
+        WHEN 22 *> minecraft:use_remainder
             PERFORM Slot
-        WHEN 24
+        WHEN 23 *> minecraft:use_cooldown
             PERFORM FloatShort
             CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS TEMP-INT8
             IF TEMP-INT8 NOT = 0
                 PERFORM Identifier
             END-IF
-        WHEN 25
+        WHEN 24 *> minecraft:damage_resistant
             PERFORM Identifier
-        WHEN 26
+        WHEN 25 *> minecraft:tool
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM IdSet
@@ -150,9 +154,12 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
             END-PERFORM
             PERFORM FloatShort
             PERFORM VarInt
-        WHEN 27
+        WHEN 26 *> minecraft:weapon
             PERFORM VarInt
-        WHEN 28
+            PERFORM FloatShort
+        WHEN 27 *> minecraft:enchantable
+            PERFORM VarInt
+        WHEN 28 *> minecraft:equippable
             PERFORM VarInt
             *> inline (=0) or ID + 1
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
@@ -174,65 +181,49 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
             PERFORM Bool
             PERFORM Bool
             PERFORM Bool
-        WHEN 29
+        WHEN 29 *> minecraft:repairable
             PERFORM IdSet
-        WHEN 30
+        WHEN 30 *> minecraft:glider
             CONTINUE
-        WHEN 31
+        WHEN 31 *> minecraft:tooltip_style
             PERFORM Identifier
-        WHEN 32
+        WHEN 32 *> minecraft:death_protection
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
-                *> consume effect
-                *> TODO avoid hardcoding these IDs
-                CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
-                EVALUATE TEMP-INT32
-                    WHEN 0
-                        *> wiki says this is a plain array, but that is not possible?!
-                        CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
-                        PERFORM TEMP-INT32 TIMES
-                            PERFORM PotionEffect
-                        END-PERFORM
-                        PERFORM FloatShort
-                    WHEN 1
-                        PERFORM IdSet
-                    WHEN 2
-                        CONTINUE
-                    WHEN 3
-                        PERFORM FloatShort
-                    WHEN 4
-                        PERFORM SoundEvent
-                END-EVALUATE
+                PERFORM ConsumeEffect
             END-PERFORM
-        WHEN 33
+        WHEN 33 *> minecraft:blocks_attacks
+            *> TODO: add (the wiki does not have this yet)
+            CONTINUE
+        WHEN 34 *> minecraft:stored_enchantments
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM VarInt
                 PERFORM VarInt
             END-PERFORM
             PERFORM Bool
-        WHEN 34
+        WHEN 35 *> minecraft:dyed_color
             PERFORM Int
             PERFORM Bool
-        WHEN 35
+        WHEN 36 *> minecraft:map_color
             PERFORM Int
-        WHEN 36
+        WHEN 37 *> minecraft:map_id
             PERFORM VarInt
-        WHEN 37
+        WHEN 38 *> minecraft:map_decorations
             PERFORM Nbt
-        WHEN 38
+        WHEN 39 *> minecraft:map_post_processing
             PERFORM VarInt
-        WHEN 39
+        WHEN 40 *> minecraft:charged_projectiles
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM Slot
             END-PERFORM
-        WHEN 40
+        WHEN 41 *> minecraft:bundle_contents
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM Slot
             END-PERFORM
-        WHEN 41
+        WHEN 42 *> minecraft:potion_contents
             CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS TEMP-INT8
             IF TEMP-INT8 NOT = 0
                 PERFORM VarInt
@@ -246,13 +237,15 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
                 PERFORM PotionEffect
             END-PERFORM
             PERFORM Str
-        WHEN 42
+        WHEN 43 *> minecraft:potion_duration_scale
+            PERFORM FloatShort
+        WHEN 44 *> minecraft:suspicious_stew_effects
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM VarInt
                 PERFORM VarInt
             END-PERFORM
-        WHEN 43
+        WHEN 45 *> minecraft:writable_book_content
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM Str
@@ -261,7 +254,7 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
                     PERFORM Str
                 END-IF
             END-PERFORM
-        WHEN 44
+        WHEN 46 *> minecraft:written_book_content
             PERFORM Str
             CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS TEMP-INT8
             IF TEMP-INT8 NOT = 0
@@ -278,7 +271,7 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
                 END-IF
             END-PERFORM
             PERFORM Bool
-        WHEN 45
+        WHEN 47 *> minecraft:trim
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             IF TEMP-INT32 = 0
                 PERFORM TrimMaterial
@@ -288,22 +281,25 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
                 PERFORM TrimPattern
             END-IF
             PERFORM Bool
-        WHEN 46
+        WHEN 48 *> minecraft:debug_stick_state
             PERFORM Nbt
-        WHEN 47
+        WHEN 49 *> minecraft:entity_data
             PERFORM Nbt
-        WHEN 48
+        WHEN 50 *> minecraft:bucket_entity_data
             PERFORM Nbt
-        WHEN 49
+        WHEN 51 *> minecraft:block_entity_data
             PERFORM Nbt
-        WHEN 50
+        WHEN 52 *> minecraft:instrument
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             IF TEMP-INT32 = 0
                 PERFORM Instrument
             END-IF
-        WHEN 51
+        WHEN 53 *> minecraft:provides_trim_material
+            *> TODO: add (the wiki does not have this yet)
+            CONTINUE
+        WHEN 54 *> minecraft:ominous_bottle_amplifier
             PERFORM VarInt
-        WHEN 52
+        WHEN 55 *> minecraft:jukebox_playable
             CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS TEMP-INT8
             IF TEMP-INT8 NOT = 0
                 CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
@@ -314,24 +310,27 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
                 PERFORM Identifier
             END-IF
             PERFORM Bool
-        WHEN 53
+        WHEN 56 *> minecraft:provides_banner_pattern
+            *> TODO: add (the wiki does not have this yet)
+            CONTINUE
+        WHEN 57 *> minecraft:recipes
             PERFORM Nbt
-        WHEN 54
+        WHEN 58 *> minecraft:lodestone_tracker
             CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS TEMP-INT8
             IF TEMP-INT8 NOT = 0
                 PERFORM Identifier
                 PERFORM Position8
             END-IF
             PERFORM Bool
-        WHEN 55
+        WHEN 59 *> minecraft:firework_explosion
             PERFORM FireworkExplosion
-        WHEN 56
+        WHEN 60 *> minecraft:fireworks
             PERFORM VarInt
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM FireworkExplosion
             END-PERFORM
-        WHEN 57
+        WHEN 61 *> minecraft:profile
             CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS TEMP-INT8
             IF TEMP-INT8 NOT = 0
                 PERFORM Str
@@ -349,9 +348,9 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
                     PERFORM Str
                 END-IF
             END-PERFORM
-        WHEN 58
+        WHEN 62 *> minecraft:note_block_sound
             PERFORM Identifier
-        WHEN 59
+        WHEN 63 *> minecraft:banner_patterns
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
@@ -361,35 +360,37 @@ PROCEDURE DIVISION USING LK-BUFFER LK-OFFSET LK-COMPONENT-LENGTH.
                 END-IF
                 PERFORM DyeColor
             END-PERFORM
-        WHEN 60
+        WHEN 64 *> minecraft:base_color
             PERFORM DyeColor
-        WHEN 61
+        WHEN 65 *> minecraft:pot_decorations
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM VarInt
             END-PERFORM
-        WHEN 62
+        WHEN 66 *> minecraft:container
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM Slot
             END-PERFORM
-        WHEN 63
+        WHEN 67 *> minecraft:block_state
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM Str
                 PERFORM Str
             END-PERFORM
-        WHEN 64
+        WHEN 68 *> minecraft:bees
             CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS TEMP-INT32
             PERFORM TEMP-INT32 TIMES
                 PERFORM Nbt
                 PERFORM VarInt
                 PERFORM VarInt
             END-PERFORM
-        WHEN 65
+        WHEN 69 *> minecraft:lock
             PERFORM Nbt
-        WHEN 66
+        WHEN 70 *> minecraft:container_loot
             PERFORM Nbt
+        WHEN 71 *> minecraft:break_sound
+            PERFORM SoundEvent
 
         WHEN OTHER
             DISPLAY "Unknown component ID: " COMPONENT
@@ -450,15 +451,38 @@ SoundEvent.
 
 PotionEffect.
     PERFORM VarInt
-    PERFORM VarInt
-    PERFORM VarInt
-    PERFORM Bool
-    PERFORM Bool
-    PERFORM Bool
-    CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS SUB-INT8
-    IF SUB-INT8 NOT = 0
+    *> parse detail; loop until "has hidden effect" is false
+    MOVE 1 TO SUB-INT8
+    PERFORM UNTIL SUB-INT8 = 0
+        PERFORM VarInt
+        PERFORM VarInt
         PERFORM Bool
-    END-IF
+        PERFORM Bool
+        PERFORM Bool
+        CALL "Decode-Byte" USING LK-BUFFER BUFFERPOS SUB-INT8
+    END-PERFORM
+    .
+
+ConsumeEffect.
+    *> TODO avoid hardcoding these IDs
+    CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS SUB-INT32
+    EVALUATE SUB-INT32
+        WHEN 0
+            *> wiki says this is a plain array, but that is not possible?!
+            CALL "Decode-VarInt" USING LK-BUFFER BUFFERPOS SUB-INT32
+            PERFORM SUB-INT32 TIMES
+                PERFORM PotionEffect
+            END-PERFORM
+            PERFORM FloatShort
+        WHEN 1
+            PERFORM IdSet
+        WHEN 2
+            CONTINUE
+        WHEN 3
+            PERFORM FloatShort
+        WHEN 4
+            PERFORM SoundEvent
+    END-EVALUATE
     .
 
 BlockPredicate.
