@@ -1,4 +1,4 @@
-FROM docker.io/library/ubuntu:plucky AS base
+FROM docker.io/library/ubuntu:plucky-20250521 AS base
 
 WORKDIR /app
 
