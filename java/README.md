@@ -3,7 +3,10 @@
 This module collects shared Java utilities and integration tests used to exercise the COBOL examples. It is self-contained so additional Java tooling (such as future adapters or verifiers) can live alongside the tests. Maven with JUnit 5 powers the suite locally and in CI.
 
 ## Running Tests Locally
-
+compile test cobol wrapper programs
+```bash
+make test-programs
+```
 ```bash
 mvn -f java/pom.xml test
 ```
@@ -32,14 +35,6 @@ GCVERSION := $(shell $(COBC) --version | head -n1 | sed -E 's/.* ([0-9]+)\.([0-9
 ### Build with
 ```bash
 make -j$(sysctl -n hw.ncpu)
-```
-
-### Build specific files
-```bash
-mkdir -p out
-cobc -free -O2 --debug -Wall -fnotrunc -fstatic-call \
-  $(find src/_copybooks -type d -exec printf -- '-I %s ' {} \;) \
-  -c -o out/json-parse.o src/encoding/json-parse.cob
 ```
 
 ## Adding a New COBOL Test

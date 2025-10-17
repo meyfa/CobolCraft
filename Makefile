@@ -50,8 +50,19 @@ TEST_SRC = $(filter-out $(TEST_MAIN_SRC), $(wildcard $(ROOT_DIR)/tests/*.cob $(R
 TEST_OBJECTS = $(patsubst $(ROOT_DIR)/tests/%.cob, $(OBJECTS_DIR)/tests/%.o, $(TEST_SRC))
 TEST_BIN = $(OBJECTS_DIR)/test_bin
 
+# Test programs: sources and binaries for Java test programs
+TEST_PROG_DIR = $(ROOT_DIR)/java/src/test/resources/programs
+TEST_PROG_SRC = $(wildcard $(TEST_PROG_DIR)/*.cob $(TEST_PROG_DIR)/*/*.cob)
+TEST_PROG_BINS = $(patsubst $(TEST_PROG_DIR)/%.cob, $(OBJECTS_DIR)/%, $(TEST_PROG_SRC))
+
+# Dependencies that test programs typically need
+TEST_PROG_DEPS = $(OBJECTS_DIR)/blocks.o $(OBJECTS_DIR)/encoding/json-parse.o $(OBJECTS_DIR)/registries.o $(OBJECTS_DIR)/encoding/strings.o
+
+# Include dependency files for test programs too
+-include $(TEST_PROG_BINS:=.d)
+
 # GnuCOBOL >=3.2 added functions that drastically improve performance. Query the installed version (may have one sub-digit)
-GCVERSION := $(shell $(COBC) --version | head -n1 | sed 's/.*\s\([0-9]\+\)\.\([0-9]\).*/\1\2/g' )
+GCVERSION := $(shell $(COBC) --version | head -n1 | sed -E 's/.* ([0-9]+)\.([0-9]+).*/\1\2/')
 
 # Common compiler options, note: COB_FLAGS can be user-specified
 COBC_OPTS = -free -DGCVERSION=$(GCVERSION) $(patsubst %,-I %,$(wildcard $(CPY_DIR)/*)) $(COB_FLAGS)
@@ -74,7 +85,7 @@ GLOBALDEPS = $(wildcard $(CPY_DIR)/*.cpy $(CPY_DIR)/*/*.cpy)
 endif
 
 .SUFFIXES:
-.PHONY: all clean cobclean data codegen run test
+.PHONY: all clean cobclean data codegen run test test-programs
 
 # Default target
 all: $(BIN) data
@@ -86,6 +97,9 @@ run: all
 # Run unit tests
 test: $(TEST_BIN)
 	./$(TEST_BIN)
+
+# Build all test programs
+test-programs: $(TEST_PROG_BINS)
 
 # Clean compiled objects and binaries
 cobclean:
@@ -148,3 +162,7 @@ $(TEST_OBJECTS): $(OBJECTS_DIR)/tests/%.o: $(ROOT_DIR)/tests/%.cob $(GLOBALDEPS)
 $(TEST_BIN): $(TEST_MAIN_SRC) $(TEST_OBJECTS) $(OBJECTS) $(CPP_OBJECTS) $(CODEGEN_OUT_OBJECTS)
 	@mkdir -p $(@D)
 	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -I $(TEST_CPY_DIR) -lstdc++ -lz -o $@ $^
+
+$(TEST_PROG_BINS): $(OBJECTS_DIR)/%: $(TEST_PROG_DIR)/%.cob $(GLOBALDEPS) $(TEST_PROG_DEPS)
+	@mkdir -p $(@D)
+	$(COBC) -x $(COBC_OPTS) $(COB_MTFLAGS) -fstatic-call -o $@ $< $(TEST_PROG_DEPS)

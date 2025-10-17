@@ -1,80 +1,77 @@
 package com.grapeup.cobol.support;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Map;
 
-public final class CobolProgramRunner {
+public class CobolProgramRunner {
 
-    private static final Path MODULE_ROOT = Paths.get("").toAbsolutePath().normalize();
-    private static final Path REPO_ROOT = locateRepoRoot(MODULE_ROOT);
-    private static final Path BUILD_ROOT = REPO_ROOT.resolve("out");
-    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
+    /**
+     * Runs any COBOL subprogram via its Main wrapper.
+     * Input variables provided via CobolContext.
+     * Output variables read from a structured result file.
+     */
+    public static CobolContext runBuiltProgram(String mainExecutable, CobolContext inputContext) {
+        Path executable = Path.of("../out").resolve(Path.of(mainExecutable));
+        Path resultFile = Path.of("target/cobol-test/", mainExecutable + ".txt");
 
-    private CobolProgramRunner() {
-    }
-
-    public static Path getRepoRoot() {
-        return REPO_ROOT;
-    }
-
-    public static Path getBuildRoot() {
-        return BUILD_ROOT;
-    }
-
-    public static ProcessResult runBuiltProgram(Path relativeExecutable) {
-        return runBuiltProgram(relativeExecutable, DEFAULT_TIMEOUT);
-    }
-
-    public static ProcessResult runBuiltProgram(Path relativeExecutable, Duration timeout) {
-        Path executable = BUILD_ROOT.resolve(relativeExecutable);
-        if (Files.notExists(executable)) {
-            throw new IllegalStateException("Expected compiled executable not found: " + executable);
-        }
-
-        System.out.printf("[CobolProgramRunner] Running %s (cwd=%s)%n", executable, BUILD_ROOT);
         try {
-            return runProcess(List.of(executable.toString()), BUILD_ROOT, timeout);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted while executing COBOL program: " + executable, e);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to execute COBOL program: " + executable, e);
-        }
-    }
-    private static ProcessResult runProcess(List<String> command, Path workingDir, Duration timeout)
-            throws IOException, InterruptedException {
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.directory(workingDir.toFile());
-        builder.redirectErrorStream(false);
+            // Prepare process
+            ProcessBuilder builder = new ProcessBuilder(executable.toString());
+            builder.environment().put("COB_LIBRARY_PATH", Path.of("../out").toAbsolutePath().toString());
+            builder.environment().put("RESULT_FILE_PATH", resultFile.toString());
+            // Inject input variables as environment variables
+            inputContext.asMap().forEach((k, v) ->
+                    builder.environment().put(k.toUpperCase(), String.valueOf(v))
+            );
 
-        Process process = builder.start();
-        boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            throw new IOException("Process timed out: " + command);
-        }
+            builder.redirectErrorStream(true); // merge stderr into stdout
 
-        try (var stderrStream = process.getErrorStream()) {
-            String stderr = new String(stderrStream.readAllBytes(), StandardCharsets.UTF_8)
-                    .replace("\r\n", "\n");
-            return new ProcessResult(process.exitValue(), stderr);
-        }
-    }
+            // Run COBOL binary
+            Process process = builder.start();
 
-    private static Path locateRepoRoot(Path start) {
-        Path current = start;
-        for (int depth = 0; depth < 6 && current != null; depth++) {
-            if (Files.exists(current.resolve("codegen"))) {
-                return current;
+            // Capture DISPLAY output
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println("[COBOL DISPLAY] " + line); // debug log
+                }
             }
-            current = current.getParent();
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) throw new RuntimeException("COBOL program failed");
+
+            // Read outputs from result file
+            Map<String, Object> vars = new HashMap<>();
+            if (!Files.exists(resultFile.getParent())) {
+                    Files.createDirectories(resultFile.getParent());
+                }
+            if (!Files.exists(resultFile)) {
+                    Files.createFile(resultFile);
+                }
+            try (BufferedReader reader = Files.newBufferedReader(resultFile)) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.isEmpty()) continue;
+                    String[] parts = line.split("=", 2);
+                    if (parts.length == 2) {
+                        String name = parts[0].trim().toUpperCase();
+                        String val = parts[1].trim();
+                        vars.put(name, Integer.parseInt(val)); // parse as integer
+                    }
+                }
+            }
+
+            return new CobolContext(vars);
+
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
-        throw new IllegalStateException("Unable to locate repository root starting from " + start);
     }
 }
