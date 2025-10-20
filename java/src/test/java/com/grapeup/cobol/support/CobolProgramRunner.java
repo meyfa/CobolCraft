@@ -20,6 +20,15 @@ public class CobolProgramRunner {
         Path resultFile = Path.of("target/cobol-test/", mainExecutable + ".txt");
 
         try {
+            // Create result file
+            Map<String, Object> vars = new HashMap<>();
+            if (!Files.exists(resultFile.getParent())) {
+                Files.createDirectories(resultFile.getParent());
+            }
+            if (!Files.exists(resultFile)) {
+                Files.createFile(resultFile);
+            }
+
             // Prepare process
             ProcessBuilder builder = new ProcessBuilder(executable.toString());
             builder.environment().put("COB_LIBRARY_PATH", Path.of("../out").toAbsolutePath().toString());
@@ -46,14 +55,7 @@ public class CobolProgramRunner {
             int exitCode = process.waitFor();
             if (exitCode != 0) throw new RuntimeException("COBOL program failed");
 
-            // Read outputs from result file
-            Map<String, Object> vars = new HashMap<>();
-            if (!Files.exists(resultFile.getParent())) {
-                    Files.createDirectories(resultFile.getParent());
-                }
-            if (!Files.exists(resultFile)) {
-                    Files.createFile(resultFile);
-                }
+            // Read from result file
             try (BufferedReader reader = Files.newBufferedReader(resultFile)) {
                 String line;
                 while ((line = reader.readLine()) != null) {
