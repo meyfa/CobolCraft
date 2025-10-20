@@ -8,9 +8,9 @@ Rules for automatically generating Main wrapper programs for any given COBOL pro
 ### 1. IDENTIFICATION DIVISION
 ```cobol
 IDENTIFICATION DIVISION.
-PROGRAM-ID. Main-{TargetProgramName}.
+PROGRAM-ID. Main-{TargetProgramName}-{TestCaseId}.
 ```
-**Rule**: Always prefix with "Main-" followed by the target program name.
+**Rule**: Always prefix with "Main-" followed by the target program name and test case id.
 
 ### 2. ENVIRONMENT DIVISION
 ```cobol

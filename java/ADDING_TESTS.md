@@ -7,7 +7,7 @@ Follow these steps to add a new JUnit test for a COBOL program using the shared 
    The `Main` should not have a `USING` clause in its `PROCEDURE DIVISION` if it is to be run directly.
    - Place the `Main` program under `java/src/test/resources/programs/<path>/<MainProgramName>.cob`, where:
      - `<path>` can be nested folders reflecting the program's logical grouping (e.g., `blocks/`, `encoding/json/`, etc.)
-     - Program name follows the pattern `Main<TargetProgram>` (e.g., `MainBlocksCount.cob` for testing `Blocks-Count`)
+     - Program name follows the pattern `Main<TargetProgram>_<TestCaseId>` (e.g., `MainBlocksCount_TC-1.cob` for testing `Blocks-Count`)
    - For Main program structure and requirements, see `MAIN_GENERATION_RULES.md` in the repository root.
 
 2. **Create test data (if needed)**
@@ -27,6 +27,7 @@ Follow these steps to add a new JUnit test for a COBOL program using the shared 
 5. **Add a test class**
    - Add JUnit test under `java/src/test/java/com/grapeup/cobol/<package>/` where package reflects the COBOL program's domain (e.g., `blocks` for block-related programs).
    - Test class name should match the target COBOL program name with "Test" suffix (e.g., `BlocksCountTest` for `Blocks-Count`).
+   - Test name should match the specific functionality being tested with test case id prefix, eg. `TC-1_testBlocksCountSubprogram`.
    - Use `CobolProgramRunner.runBuiltProgram(String mainExecutable, CobolContext inputContext)` to execute the binary.
    - Use `CobolContext` to set up input parameters and retrieve output results. (Don't set input parameters in CobolContext if the target program doesn't need them.)
    - **Program Path**: Include the full path relative to the `out/` directory:
