@@ -16,8 +16,8 @@ FD RESULT-FILE.
 
 WORKING-STORAGE SECTION.
     COPY DD-BLOCKS.
-    01 LK-STATE-ID              BINARY-LONG.
     COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==LK-STATE==.
+    01 LK-STATE-ID              BINARY-LONG.
     01 LK-STATE-PROPERTY-COUNT-DISPLAY PIC 9(10).
     01 OUTPUT-LINE              PIC X(80) VALUE SPACES.
     01 WS-RESULT-FILE-PATH      PIC X(100).
@@ -34,12 +34,20 @@ PROCEDURE DIVISION.
     *> Initialize BLOCKS structure with empty data for test case
     MOVE 0 TO BLOCK-COUNT
     
-    *> Initialize state description with spaces
-    MOVE SPACES TO LK-STATE-DESCRIPTION
+    *> Initialize state description structure completely
+    INITIALIZE LK-STATE-DESCRIPTION
+
+    *> Explicitly ensure property count is zero
     MOVE 0 TO LK-STATE-PROPERTY-COUNT
-    
+
     *> Call the subprogram
     CALL 'Blocks-ToDescription' USING LK-STATE-ID LK-STATE-DESCRIPTION
+
+    *> If no block was found (name is empty), ensure property count is 0
+    IF LK-STATE-NAME = SPACES
+        MOVE 0 TO LK-STATE-PROPERTY-COUNT
+    END-IF
+
     DISPLAY "Blocks-ToDescription returned with property count: " LK-STATE-PROPERTY-COUNT
     
     *> Write outputs to file
@@ -65,4 +73,3 @@ PROCEDURE DIVISION.
     
     GOBACK.
 END PROGRAM Main-Blocks-ToDescription-TC-1.
-

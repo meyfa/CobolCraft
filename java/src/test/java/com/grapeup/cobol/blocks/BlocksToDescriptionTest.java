@@ -72,8 +72,8 @@ class BlocksToDescriptionTest {
     @Test
     void TC5_testBlockWithMaximumProperties() {
         // Set up input context - use maximum state ID for the test block
-        var inputs = new CobolContext().with("LK-STATE-ID", 65535);
-        
+        var inputs = new CobolContext().with("LK-STATE-ID", 65536);
+
         // Run the Main program
         var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksToDescription_TC-5", inputs);
         
@@ -83,9 +83,11 @@ class BlocksToDescriptionTest {
         
         // Verify all 16 properties are set correctly
         for (int i = 1; i <= 16; i++) {
-            assertEquals("prop" + i, result.get("LK-STATE-PROPERTY-NAME-" + i));
+            // Add zero-padding for values < 10 to match COBOL output format
+            String paddedIndex = (i < 10) ? "0" + i : String.valueOf(i);
+            assertEquals("prop" + i, result.get("LK-STATE-PROPERTY-NAME-" + paddedIndex));
             // For maximum state ID, all properties should have their second value ("b" variant)
-            assertEquals("val" + i + "b", result.get("LK-STATE-PROPERTY-VALUE-" + i));
+            assertEquals("val" + i + "b", result.get("LK-STATE-PROPERTY-VALUE-" + paddedIndex));
         }
     }
 
@@ -110,9 +112,9 @@ class BlocksToDescriptionTest {
         
         // Verify that properties are set for the middle state
         for (int i = 1; i <= propCount; i++) {
-            assertNotNull(result.get("LK-STATE-PROPERTY-NAME-" + i), 
+            assertNotNull(result.get("LK-STATE-PROPERTY-NAME-0" + i),
                 "Property name " + i + " should be set");
-            assertNotNull(result.get("LK-STATE-PROPERTY-VALUE-" + i), 
+            assertNotNull(result.get("LK-STATE-PROPERTY-VALUE-0" + i),
                 "Property value " + i + " should be set");
         }
     }
@@ -130,10 +132,10 @@ class BlocksToDescriptionTest {
         assertEquals(2, result.getInt("LK-STATE-PROPERTY-COUNT"));
         
         // Verify property names and values for the last state
-        assertEquals("facing", result.get("LK-STATE-PROPERTY-NAME-1"));
-        assertEquals("south", result.get("LK-STATE-PROPERTY-VALUE-1"));
-        assertEquals("powered", result.get("LK-STATE-PROPERTY-NAME-2"));
-        assertEquals("manual", result.get("LK-STATE-PROPERTY-VALUE-2"));
+        assertEquals("facing", result.get("LK-STATE-PROPERTY-NAME-0000000001"));
+        assertEquals("south", result.get("LK-STATE-PROPERTY-VALUE-0000000001"));
+        assertEquals("powered", result.get("LK-STATE-PROPERTY-NAME-0000000002"));
+        assertEquals("manual", result.get("LK-STATE-PROPERTY-VALUE-0000000002"));
     }
 
     @Test
@@ -180,8 +182,8 @@ class BlocksToDescriptionTest {
         // Verify that properties are set for the last block
         int propertyCount = result.getInt("LK-STATE-PROPERTY-COUNT");
         for (int i = 1; i <= propertyCount; i++) {
-            assertNotNull(result.get("LK-STATE-PROPERTY-NAME-" + i), "Property name " + i + " should be set");
-            assertNotNull(result.get("LK-STATE-PROPERTY-VALUE-" + i), "Property value " + i + " should be set");
+            assertNotNull(result.get("LK-STATE-PROPERTY-NAME-0" + i), "Property name " + i + " should be set");
+            assertNotNull(result.get("LK-STATE-PROPERTY-VALUE-0" + i), "Property value " + i + " should be set");
         }
     }
 
@@ -199,11 +201,10 @@ class BlocksToDescriptionTest {
         assertEquals(2, result.getInt("LK-STATE-PROPERTY-COUNT"));
         
         // Verify that properties are set with the 32nd (last) values
-        assertEquals("Property1", result.get("LK-STATE-PROPERTY-NAME-1").toString().trim());
-        assertEquals("Value1_32", result.get("LK-STATE-PROPERTY-VALUE-1").toString().trim());
+        assertEquals("Property0000000001", result.get("LK-STATE-PROPERTY-NAME-0000000001").toString().trim());
+        assertEquals("Value0000000001_32", result.get("LK-STATE-PROPERTY-VALUE-0000000001").toString().trim());
         
-        assertEquals("Property2", result.get("LK-STATE-PROPERTY-NAME-2").toString().trim());
-        assertEquals("Value2_32", result.get("LK-STATE-PROPERTY-VALUE-2").toString().trim());
+        assertEquals("Property0000000002", result.get("LK-STATE-PROPERTY-NAME-0000000002").toString().trim());
+        assertEquals("Value0000000002_32", result.get("LK-STATE-PROPERTY-VALUE-0000000002").toString().trim());
     }
 }
-

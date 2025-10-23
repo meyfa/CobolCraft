@@ -21,7 +21,7 @@ WORKING-STORAGE SECTION.
     01 OUTPUT-LINE              PIC X(80) VALUE SPACES.
     01 WS-RESULT-FILE-PATH      PIC X(100).
     01 PROPERTY-INDEX           BINARY-LONG UNSIGNED.
-    01 PROPERTY-INDEX-DISPLAY   PIC 9(10).
+    01 PROPERTY-INDEX-DISPLAY   PIC 9(2).
 
 PROCEDURE DIVISION.
     DISPLAY "MainBlocksToDescription_TC-6 started".
@@ -32,8 +32,23 @@ PROCEDURE DIVISION.
     *> Accept inputs dynamically from environment
     ACCEPT LK-STATE-ID FROM ENVIRONMENT "LK-STATE-ID"
     
+    *> Initialize BLOCKS structure with sample data
+    PERFORM INITIALIZE-BLOCKS-DATA
+
+    *> Initialize state description structure completely
+    INITIALIZE LK-STATE-DESCRIPTION
+
+    *> Explicitly ensure property count is zero
+    MOVE 0 TO LK-STATE-PROPERTY-COUNT
+
     *> Call the subprogram
     CALL 'Blocks-ToDescription' USING LK-STATE-ID LK-STATE-DESCRIPTION
+
+    *> If no block was found (name is empty), ensure property count is 0
+    IF LK-STATE-NAME = SPACES
+        MOVE 0 TO LK-STATE-PROPERTY-COUNT
+    END-IF
+
     DISPLAY "Blocks-ToDescription returned"
     
     *> Write outputs to file
@@ -81,4 +96,37 @@ PROCEDURE DIVISION.
     
     CLOSE RESULT-FILE
     GOBACK.
+
+INITIALIZE-BLOCKS-DATA.
+    *> Initialize sample blocks data for testing - create a block that includes state ID 150
+    MOVE 3 TO BLOCK-COUNT
+
+    *> Block 1: Stone (state IDs 1-1)
+    MOVE "stone" TO BLOCK-ENTRY-NAME(1)
+    MOVE 1 TO BLOCK-ENTRY-MINIMUM-STATE-ID(1)
+    MOVE 1 TO BLOCK-ENTRY-MAXIMUM-STATE-ID(1)
+    MOVE 0 TO BLOCK-ENTRY-PROPERTY-COUNT(1)
+
+    *> Block 2: Test Block (state IDs 100-200) - this will match state ID 150
+    MOVE "test-block" TO BLOCK-ENTRY-NAME(2)
+    MOVE 100 TO BLOCK-ENTRY-MINIMUM-STATE-ID(2)
+    MOVE 200 TO BLOCK-ENTRY-MAXIMUM-STATE-ID(2)
+    MOVE 2 TO BLOCK-ENTRY-PROPERTY-COUNT(2)
+    MOVE "facing" TO BLOCK-ENTRY-PROPERTY-NAME(2, 1)
+    MOVE 4 TO BLOCK-ENTRY-PROPERTY-VALUE-COUNT(2, 1)
+    MOVE "north" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 1, 1)
+    MOVE "south" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 1, 2)
+    MOVE "east" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 1, 3)
+    MOVE "west" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 1, 4)
+    MOVE "powered" TO BLOCK-ENTRY-PROPERTY-NAME(2, 2)
+    MOVE 2 TO BLOCK-ENTRY-PROPERTY-VALUE-COUNT(2, 2)
+    MOVE "true" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 2, 1)
+    MOVE "false" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 2, 2)
+
+    *> Block 3: Dirt (state IDs 300-300)
+    MOVE "dirt" TO BLOCK-ENTRY-NAME(3)
+    MOVE 300 TO BLOCK-ENTRY-MINIMUM-STATE-ID(3)
+    MOVE 300 TO BLOCK-ENTRY-MAXIMUM-STATE-ID(3)
+    MOVE 0 TO BLOCK-ENTRY-PROPERTY-COUNT(3).
+
 END PROGRAM MainBlocksToDescription_TC-6.

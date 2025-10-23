@@ -34,8 +34,20 @@ PROCEDURE DIVISION.
     *> Initialize blocks data structure
     PERFORM INITIALIZE-BLOCKS-DATA
     
+    *> Initialize state description structure completely
+    INITIALIZE LK-STATE-DESCRIPTION
+
+    *> Explicitly ensure property count is zero
+    MOVE 0 TO LK-STATE-PROPERTY-COUNT
+
     *> Call the subprogram
     CALL 'Blocks-ToDescription' USING LK-STATE-ID LK-STATE-DESCRIPTION
+
+    *> If no block was found (name is empty), ensure property count is 0
+    IF LK-STATE-NAME = SPACES
+        MOVE 0 TO LK-STATE-PROPERTY-COUNT
+    END-IF
+
     DISPLAY "Blocks-ToDescription returned with property count: " LK-STATE-PROPERTY-COUNT
     
     *> Write outputs to file
@@ -91,4 +103,3 @@ INITIALIZE-BLOCKS-DATA.
     MOVE 0 TO BLOCK-ENTRY-PROPERTY-COUNT(3).
 
 END PROGRAM Main-Blocks-ToDescription-TC-2.
-

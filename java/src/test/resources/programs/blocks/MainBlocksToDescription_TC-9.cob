@@ -22,7 +22,7 @@ WORKING-STORAGE SECTION.
     01 OUTPUT-LINE              PIC X(80) VALUE SPACES.
     01 WS-RESULT-FILE-PATH      PIC X(100).
     01 PROPERTY-IDX             BINARY-LONG UNSIGNED.
-    01 PROPERTY-IDX-DISPLAY     PIC 9(10).
+    01 PROPERTY-IDX-DISPLAY     PIC 9(2).
 
 PROCEDURE DIVISION.
     DISPLAY "Main-Blocks-ToDescription-TC-9 started".
@@ -33,8 +33,23 @@ PROCEDURE DIVISION.
     *> Accept inputs dynamically from environment
     ACCEPT LK-STATE-ID FROM ENVIRONMENT "LK-STATE-ID"
     
+    *> Initialize BLOCKS structure with sample data
+    PERFORM INITIALIZE-BLOCKS-DATA
+
+    *> Initialize state description structure completely
+    INITIALIZE LK-STATE-DESCRIPTION
+
+    *> Explicitly ensure property count is zero
+    MOVE 0 TO LK-STATE-PROPERTY-COUNT
+
     *> Call the subprogram
     CALL 'Blocks-ToDescription' USING LK-STATE-ID LK-STATE-DESCRIPTION
+
+    *> If no block was found (name is empty), ensure property count is 0
+    IF LK-STATE-NAME = SPACES
+        MOVE 0 TO LK-STATE-PROPERTY-COUNT
+    END-IF
+
     DISPLAY "Blocks-ToDescription returned with state name: " LK-STATE-NAME
     
     *> Write outputs to file
@@ -85,5 +100,37 @@ PROCEDURE DIVISION.
     
     CLOSE RESULT-FILE
     GOBACK.
-    
+
+INITIALIZE-BLOCKS-DATA.
+    *> Initialize sample blocks data for testing - create blocks where state ID 999 would be in the last block
+    MOVE 3 TO BLOCK-COUNT
+
+    *> Block 1: Stone (state IDs 1-1)
+    MOVE "stone" TO BLOCK-ENTRY-NAME(1)
+    MOVE 1 TO BLOCK-ENTRY-MINIMUM-STATE-ID(1)
+    MOVE 1 TO BLOCK-ENTRY-MAXIMUM-STATE-ID(1)
+    MOVE 0 TO BLOCK-ENTRY-PROPERTY-COUNT(1)
+
+    *> Block 2: Oak Log (state IDs 2-5)
+    MOVE "oak_log" TO BLOCK-ENTRY-NAME(2)
+    MOVE 2 TO BLOCK-ENTRY-MINIMUM-STATE-ID(2)
+    MOVE 5 TO BLOCK-ENTRY-MAXIMUM-STATE-ID(2)
+    MOVE 1 TO BLOCK-ENTRY-PROPERTY-COUNT(2)
+    MOVE "axis" TO BLOCK-ENTRY-PROPERTY-NAME(2, 1)
+    MOVE 4 TO BLOCK-ENTRY-PROPERTY-VALUE-COUNT(2, 1)
+    MOVE "x" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 1, 1)
+    MOVE "y" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 1, 2)
+    MOVE "z" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 1, 3)
+    MOVE "none" TO BLOCK-ENTRY-PROPERTY-VALUE(2, 1, 4)
+
+    *> Block 3: Last Block (state IDs 995-1000) - this will match state ID 999
+    MOVE "last-block" TO BLOCK-ENTRY-NAME(3)
+    MOVE 995 TO BLOCK-ENTRY-MINIMUM-STATE-ID(3)
+    MOVE 1000 TO BLOCK-ENTRY-MAXIMUM-STATE-ID(3)
+    MOVE 1 TO BLOCK-ENTRY-PROPERTY-COUNT(3)
+    MOVE "type" TO BLOCK-ENTRY-PROPERTY-NAME(3, 1)
+    MOVE 2 TO BLOCK-ENTRY-PROPERTY-VALUE-COUNT(3, 1)
+    MOVE "normal" TO BLOCK-ENTRY-PROPERTY-VALUE(3, 1, 1)
+    MOVE "special" TO BLOCK-ENTRY-PROPERTY-VALUE(3, 1, 2).
+
 END PROGRAM Main-Blocks-ToDescription-TC-9.

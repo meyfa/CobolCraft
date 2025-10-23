@@ -68,8 +68,12 @@ public class CobolProgramRunner {
                         if (val.isEmpty()) {
                             vars.put(name, val); // keep empty string as is
                         } else {
-                        vars.put(name, Long.parseLong(val)); // parse as integer
+                            try {
+                                vars.put(name, Long.parseLong(val)); // parse as integer
+                            } catch (NumberFormatException e) {
+                                vars.put(name, val); // treat as string
                             }
+                        }
                     }
                 }
             }

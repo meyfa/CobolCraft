@@ -26,7 +26,7 @@ class BlocksGetDefaultStateIdTest {
         var inputs = new CobolContext().with("LK-BLOCK-ID", 4);
 
         // Run the Main program
-        var result = CobolProgramRunner.runBuiltProgram("blocks/Main-Blocks-GetDefStateId_TC-2", inputs);
+        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefStateId_TC-2", inputs);
 
         // Assert the output parameter - should contain the default state ID for the last block (500)
         assertEquals(500, result.getInt("LK-STATE-ID"));
@@ -73,7 +73,6 @@ class BlocksGetDefaultStateIdTest {
         
         // Additional assertion: verify that some state ID value is returned
         // (could be 0, garbage value, or implementation-specific sentinel)
-        assertTrue(result.get("LK-STATE-ID") instanceof Integer);
+        assertTrue(result.get("LK-STATE-ID") instanceof Long);
     }
 }
-
