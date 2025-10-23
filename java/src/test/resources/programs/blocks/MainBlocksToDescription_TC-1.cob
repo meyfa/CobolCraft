@@ -1,0 +1,68 @@
+*> --- Main-Blocks-ToDescription-TC-1 ---
+*> Main program to test Blocks-ToDescription with empty BLOCKS structure
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Main-Blocks-ToDescription-TC-1.
+
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION.
+FILE-CONTROL.
+    SELECT RESULT-FILE ASSIGN TO WS-RESULT-FILE-PATH
+        ORGANIZATION IS LINE SEQUENTIAL.
+
+DATA DIVISION.
+FILE SECTION.
+FD RESULT-FILE.
+01 RESULT-REC PIC X(80).
+
+WORKING-STORAGE SECTION.
+    COPY DD-BLOCKS.
+    01 LK-STATE-ID              BINARY-LONG.
+    COPY DD-BLOCK-STATE REPLACING LEADING ==PREFIX== BY ==LK-STATE==.
+    01 LK-STATE-PROPERTY-COUNT-DISPLAY PIC 9(10).
+    01 OUTPUT-LINE              PIC X(80) VALUE SPACES.
+    01 WS-RESULT-FILE-PATH      PIC X(100).
+
+PROCEDURE DIVISION.
+    DISPLAY "Main-Blocks-ToDescription-TC-1 started".
+    
+    *> Accept result file path from environment
+    ACCEPT WS-RESULT-FILE-PATH FROM ENVIRONMENT "RESULT_FILE_PATH"
+    
+    *> Accept inputs dynamically from environment
+    ACCEPT LK-STATE-ID FROM ENVIRONMENT "LK-STATE-ID"
+    
+    *> Initialize BLOCKS structure with empty data for test case
+    MOVE 0 TO BLOCK-COUNT
+    
+    *> Initialize state description with spaces
+    MOVE SPACES TO LK-STATE-DESCRIPTION
+    MOVE 0 TO LK-STATE-PROPERTY-COUNT
+    
+    *> Call the subprogram
+    CALL 'Blocks-ToDescription' USING LK-STATE-ID LK-STATE-DESCRIPTION
+    DISPLAY "Blocks-ToDescription returned with property count: " LK-STATE-PROPERTY-COUNT
+    
+    *> Write outputs to file
+    OPEN OUTPUT RESULT-FILE
+    
+    MOVE LK-STATE-PROPERTY-COUNT TO LK-STATE-PROPERTY-COUNT-DISPLAY
+    STRING "LK-STATE-PROPERTY-COUNT=" DELIMITED BY SIZE
+           LK-STATE-PROPERTY-COUNT-DISPLAY DELIMITED BY SIZE
+           INTO OUTPUT-LINE
+    END-STRING
+    MOVE OUTPUT-LINE TO RESULT-REC
+    WRITE RESULT-REC
+    
+    MOVE SPACES TO OUTPUT-LINE
+    STRING "LK-STATE-NAME=" DELIMITED BY SIZE
+           LK-STATE-NAME DELIMITED BY SIZE
+           INTO OUTPUT-LINE
+    END-STRING
+    MOVE OUTPUT-LINE TO RESULT-REC
+    WRITE RESULT-REC
+    
+    CLOSE RESULT-FILE
+    
+    GOBACK.
+END PROGRAM Main-Blocks-ToDescription-TC-1.
+
