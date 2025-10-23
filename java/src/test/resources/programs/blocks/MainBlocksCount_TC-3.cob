@@ -30,8 +30,8 @@ PROCEDURE DIVISION.
     *> Initialize BLOCKS structure to maximum capacity
     MOVE BLOCKS-CAPACITY TO BLOCK-COUNT
     PERFORM VARYING I FROM 1 BY 1 UNTIL I > BLOCKS-CAPACITY
-        MOVE "BLOCK" TO BLOCK-TYPE(I)
-        MOVE I TO BLOCK-ID(I)
+        MOVE "BLOCK" TO BLOCK-ENTRY-TYPE(I)
+        *> Block ID is represented by the index I itself
     END-PERFORM
 
     *> Call the subprogram
@@ -51,4 +51,3 @@ PROCEDURE DIVISION.
 
     GOBACK.
 END PROGRAM Main-Blocks-Count-TC-3.
-

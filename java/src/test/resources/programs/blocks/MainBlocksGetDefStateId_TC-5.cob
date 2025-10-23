@@ -1,5 +1,5 @@
 IDENTIFICATION DIVISION.
-PROGRAM-ID. MainBlocksGetDefaultStateId_TC-5.
+PROGRAM-ID. MainBlocksGetDefStateId_TC-5.
 
 ENVIRONMENT DIVISION.
 INPUT-OUTPUT SECTION.
@@ -21,7 +21,7 @@ WORKING-STORAGE SECTION.
     01 WS-RESULT-FILE-PATH      PIC X(100).
 
 PROCEDURE DIVISION.
-    DISPLAY "MainBlocksGetDefaultStateId_TC-5 started".
+    DISPLAY "MainBlocksGetDefStateId_TC-5 started".
     
     *> Accept result file path from environment
     ACCEPT WS-RESULT-FILE-PATH FROM ENVIRONMENT "RESULT_FILE_PATH"
@@ -45,5 +45,5 @@ PROCEDURE DIVISION.
     CLOSE RESULT-FILE
     
     GOBACK.
-END PROGRAM MainBlocksGetDefaultStateId_TC-5.
+END PROGRAM MainBlocksGetDefStateId_TC-5.
 

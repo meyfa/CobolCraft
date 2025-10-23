@@ -13,7 +13,7 @@ class BlocksGetDefaultStateIdTest {
         var inputs = new CobolContext().with("LK-BLOCK-ID", 0);
 
         // Run the Main program (note: no file extension, executable name only)
-        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefaultStateId_TC-1", inputs);
+        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksDefStateId_TC-1", inputs);
 
         // Assert the output parameters
         assertEquals(42, result.getInt("LK-STATE-ID"));
@@ -26,7 +26,7 @@ class BlocksGetDefaultStateIdTest {
         var inputs = new CobolContext().with("LK-BLOCK-ID", 4);
 
         // Run the Main program
-        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefaultStateId_TC-2", inputs);
+        var result = CobolProgramRunner.runBuiltProgram("blocks/Main-Blocks-GetDefStateId_TC-2", inputs);
 
         // Assert the output parameter - should contain the default state ID for the last block (500)
         assertEquals(500, result.getInt("LK-STATE-ID"));
@@ -38,7 +38,7 @@ class BlocksGetDefaultStateIdTest {
         var inputs = new CobolContext().with("LK-BLOCK-ID", 0);
 
         // Run the Main program
-        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefaultStateId_TC-3", inputs);
+        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefStateId_TC-3", inputs);
 
         // Assert the output - should return the default state ID (3)
         // which differs from both min (1) and max (5) state IDs
@@ -51,7 +51,7 @@ class BlocksGetDefaultStateIdTest {
         var inputs = new CobolContext().with("LK-BLOCK-ID", 0);
 
         // Run the Main program
-        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefaultStateId_TC-4", inputs);
+        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefStateId_TC-4", inputs);
 
         // Assert the output parameter - should return the single state ID (100)
         assertEquals(100, result.getInt("LK-STATE-ID"));
@@ -64,7 +64,7 @@ class BlocksGetDefaultStateIdTest {
         var inputs = new CobolContext().with("LK-BLOCK-ID", 10);
 
         // Run the Main program
-        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefaultStateId_TC-5", inputs);
+        var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksGetDefStateId_TC-5", inputs);
 
         // The behavior is implementation-specific for invalid block ID
         // We verify that the program executes without crashing and returns some value

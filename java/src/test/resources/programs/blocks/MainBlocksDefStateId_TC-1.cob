@@ -1,5 +1,5 @@
 IDENTIFICATION DIVISION.
-PROGRAM-ID. MainBlocksGetDefaultStateId_TC-3.
+PROGRAM-ID. MainBlocksDefStateId_TC-1.
 
 ENVIRONMENT DIVISION.
 INPUT-OUTPUT SECTION.
@@ -21,18 +21,17 @@ WORKING-STORAGE SECTION.
     01 WS-RESULT-FILE-PATH      PIC X(100).
 
 PROCEDURE DIVISION.
-    DISPLAY "MainBlocksGetDefaultStateId_TC-3 started".
+    DISPLAY "MainBlocksDefStateId_TC-1 started".
 
     *> Accept result file path from environment
     ACCEPT WS-RESULT-FILE-PATH FROM ENVIRONMENT "RESULT_FILE_PATH"
 
-    *> Accept inputs from environment
+    *> Accept inputs dynamically from environment
     ACCEPT LK-BLOCK-ID FROM ENVIRONMENT "LK-BLOCK-ID"
 
-    *> Initialize BLOCKS structure with test data for multiple states
-    MOVE 1 TO BLOCK-ENTRY-MIN-STATE-ID(LK-BLOCK-ID + 1)
-    MOVE 5 TO BLOCK-ENTRY-MAX-STATE-ID(LK-BLOCK-ID + 1)
-    MOVE 3 TO BLOCK-ENTRY-DEFAULT-STATE-ID(LK-BLOCK-ID + 1)
+    *> Initialize BLOCKS structure with test data
+    MOVE 1 TO BLOCK-COUNT
+    MOVE 42 TO BLOCK-ENTRY-DEFAULT-STATE-ID(1)
 
     *> Call the subprogram
     CALL 'Blocks-GetDefaultStateId' USING LK-BLOCK-ID LK-STATE-ID
@@ -50,5 +49,4 @@ PROCEDURE DIVISION.
     CLOSE RESULT-FILE
 
     GOBACK.
-END PROGRAM MainBlocksGetDefaultStateId_TC-3.
-
+END PROGRAM MainBlocksDefStateId_TC-1.

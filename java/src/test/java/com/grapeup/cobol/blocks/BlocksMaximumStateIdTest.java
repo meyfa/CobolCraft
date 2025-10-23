@@ -53,7 +53,7 @@ class BlocksMaximumStateIdTest {
         var result = CobolProgramRunner.runBuiltProgram("blocks/MainBlocksMaximumStateId_TC-4", inputs);
 
         // Assert the output parameter - maximum value for BINARY-LONG UNSIGNED (4294967295)
-        assertEquals(4294967295L, result.getInt("LK-MAXIMUM-ID"));
+        assertEquals(4294967295L, result.get("LK-MAXIMUM-ID"));
     }
 
     @Test

@@ -65,7 +65,11 @@ public class CobolProgramRunner {
                     if (parts.length == 2) {
                         String name = parts[0].trim().toUpperCase();
                         String val = parts[1].trim();
-                        vars.put(name, Integer.parseInt(val)); // parse as integer
+                        if (val.isEmpty()) {
+                            vars.put(name, val); // keep empty string as is
+                        } else {
+                        vars.put(name, Long.parseLong(val)); // parse as integer
+                            }
                     }
                 }
             }
