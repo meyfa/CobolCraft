@@ -27,7 +27,7 @@ jobs:
       - run: uname -a && dpkg --print-architecture
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install GnuCOBOL
         run: apt-get update && apt-get install -y gnucobol build-essential zlib1g-dev curl openjdk-21-jre-headless
