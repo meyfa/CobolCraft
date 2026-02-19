@@ -184,7 +184,10 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-POSITION.
     IF INIT-DONE = 0
-        MOVE FUNCTION RANDOM(FUNCTION CURRENT-DATE(1:16)) TO RANDOM-VALUE
+        *>  GnuCOBOL 3.2 has a better internal seed, so we let it use that instead
+        >>IF GCVERSION < 32
+        MOVE FUNCTION RANDOM(FUNCTION NUMVAL(FUNCTION CURRENT-DATE(1:16))) TO RANDOM-VALUE
+        >>END-IF
 
         CALL "Registries-Lookup" USING "minecraft:block" "minecraft:air" BLOCK-ID-AIR
         CALL "Registries-Lookup" USING "minecraft:block" "minecraft:cave_air" BLOCK-ID-CAVE-AIR
