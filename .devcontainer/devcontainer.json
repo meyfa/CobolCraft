@@ -1,0 +1,27 @@
+{
+    "name": "Ubuntu",
+
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "OCamlPro.SuperBOL",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.makefile-tools",
+                "ms-azuretools.vscode-containers"
+            ],
+            "settings": {
+                "superbol.cobol.sourceFormat": "free"
+
+                // Note: To disable "<n> references" in the editor, add the following to .vscode/settings.json:
+                //     "[cobol]": {
+                //         "editor.codeLens": false
+                //     }
+            }
+        }
+    }
+}
