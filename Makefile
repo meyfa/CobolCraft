@@ -55,7 +55,8 @@ GCVERSION := $(shell $(COBC) --version | head -n1 | sed 's/.*\s\([0-9]\+\)\.\([0
 
 # Common compiler options, note: COB_FLAGS can be user-specified
 COBC_OPTS = -free -DGCVERSION=$(GCVERSION) $(patsubst %,-I %,$(wildcard $(CPY_DIR)/*)) $(COB_FLAGS)
-COBC_OPTS += -O2 --debug -Wall -fnotrunc -fstatic-call
+COBC_OPTS += -O2 -g --debug -Wall -fnotrunc -fstatic-call
+COBC_OPTS += -std=cobol2002 -fconstant-78=ok -freserved=binary-long-long,stored-char-length
 
 ifeq ($(shell test $(GCVERSION) -ge 32; echo $$?),0)
 COBC_OPTS += -Werror=typing
