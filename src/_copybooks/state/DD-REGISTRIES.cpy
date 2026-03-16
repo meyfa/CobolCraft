@@ -4,7 +4,7 @@
     02 REGISTRY-COUNT BINARY-LONG UNSIGNED.
 
     *> Registries indexed by ID (+1), must be without gaps
-    02 REGISTRY OCCURS 100 TIMES.
+    02 REGISTRY OCCURS 128 TIMES.
         *> Resource location of the registry
         03 REGISTRY-NAME PIC X(64).
         03 REGISTRY-REQUIRES-PACKET BINARY-CHAR UNSIGNED.

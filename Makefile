@@ -14,8 +14,8 @@ CPP_HEADERS = $(wildcard $(ROOT_DIR)/cpp/*.h)
 CPP_OBJECTS = $(patsubst $(ROOT_DIR)/cpp/%.cpp, $(OBJECTS_DIR)/cpp/%.o, $(CPP_SRC))
 
 # Data extraction from Mojang's server.jar
-SERVER_JAR_URL = https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar
-SERVER_JAR_EXTRACTED = $(DATA_DIR)/versions/1.21.4/server-1.21.4.jar
+SERVER_JAR_URL = https://piston-data.mojang.com/v1/objects/e6ec2f64e6080b9b5d9b471b291c33cc7f509733/server.jar
+SERVER_JAR_EXTRACTED = $(DATA_DIR)/versions/1.21.5/server-1.21.5.jar
 
 # Code generator: templates, sources (without templates), objects, and binary
 CODEGEN_TPL_DIR = $(ROOT_DIR)/codegen/templates
