@@ -28,6 +28,8 @@
         *> Last time the client created a Debug Sample Subscription. The subscription is valid for 10 seconds, and the
         *> client resubscribes every 5 seconds.
         03 DEBUG-SUBSCRIBE-TIME BINARY-LONG-LONG.
+        *> Number of chat messages sent to the client.
+        03 CHAT-MESSAGES-SENT   BINARY-LONG UNSIGNED.
         *> Last sent center of the loaded chunk area. Once the player moves across a chunk border, the server sends new
         *> chunks around the player.
         03 CENTER-CHUNK-X       BINARY-LONG.

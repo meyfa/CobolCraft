@@ -102,6 +102,12 @@ LoadRegistries.
     CALL "Registries-Create" USING "minecraft:trim_pattern" TEMP-INT8
     CALL "Registries-Create" USING "minecraft:trim_material" TEMP-INT8
     CALL "Registries-Create" USING "minecraft:wolf_variant" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:wolf_sound_variant" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:cat_variant" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:chicken_variant" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:cow_variant" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:pig_variant" TEMP-INT8
+    CALL "Registries-Create" USING "minecraft:frog_variant" TEMP-INT8
     CALL "Registries-Create" USING "minecraft:painting_variant" TEMP-INT8
     CALL "Registries-Create" USING "minecraft:dimension_type" TEMP-INT8
     CALL "Registries-Create" USING "minecraft:damage_type" TEMP-INT8
