@@ -3,6 +3,10 @@
 /.idea
 /.vscode
 
+# CI/CD and development environment
+/.github
+/.devcontainer
+
 # Build output
 /build*
 /data
@@ -30,7 +34,6 @@
 /.git
 /.gitignore
 /.gitattributes
-/.github
 
 # Files excluded from the image
 /.dockerignore

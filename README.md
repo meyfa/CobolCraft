@@ -38,6 +38,8 @@ CobolCraft was developed using GnuCOBOL and is meant to be run on Linux (x86_64 
 Support for other operating systems such as Windows has not been tested.
 However, it is possible to use Docker for a platform-independent deployment.
 
+You can use the provided devcontainer configuration with VS Code for a ready-to-use development environment.
+
 To deploy on Linux, make sure all prerequisites are installed:
 
 * GnuCOBOL 3.1.2 or later (e.g., from the `gnucobol` package on Debian/Ubuntu)
