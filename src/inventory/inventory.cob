@@ -187,6 +187,47 @@ StoreInSlot.
 
 END PROGRAM Inventory-StoreItem.
 
+*> --- Inventory-ItemsEqual ---
+*> Check if two items are equal, i.e., if they have the same ID, count, and component data.
+IDENTIFICATION DIVISION.
+PROGRAM-ID. Inventory-ItemsEqual.
+
+DATA DIVISION.
+LINKAGE SECTION.
+    01 LK-FIRST.
+        COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK-FIRST==.
+    01 LK-SECOND.
+        COPY DD-INVENTORY-SLOT REPLACING LEADING ==PREFIX== BY ==LK-SECOND==.
+    01 LK-EQUAL                     BINARY-CHAR UNSIGNED.
+
+PROCEDURE DIVISION USING LK-FIRST LK-SECOND LK-EQUAL.
+    IF LK-FIRST-SLOT-COUNT = 0 AND LK-SECOND-SLOT-COUNT = 0
+        MOVE 1 TO LK-EQUAL
+        GOBACK
+    END-IF
+
+    IF LK-FIRST-SLOT-COUNT NOT = LK-SECOND-SLOT-COUNT
+        MOVE 0 TO LK-EQUAL
+        GOBACK
+    END-IF
+
+    IF LK-FIRST-SLOT-ID NOT = LK-SECOND-SLOT-ID
+        MOVE 0 TO LK-EQUAL
+        GOBACK
+    END-IF
+
+    *> TODO Actually compare components, not just their encoding
+    IF LK-FIRST-SLOT-NBT-LENGTH NOT = LK-SECOND-SLOT-NBT-LENGTH OR
+            LK-FIRST-SLOT-NBT-DATA(1:LK-FIRST-SLOT-NBT-LENGTH) NOT = LK-SECOND-SLOT-NBT-DATA(1:LK-SECOND-SLOT-NBT-LENGTH)
+        MOVE 0 TO LK-EQUAL
+        GOBACK
+    END-IF
+
+    MOVE 1 TO LK-EQUAL
+    GOBACK.
+
+END PROGRAM Inventory-ItemsEqual.
+
 *> --- Inventory-CompareItems ---
 *> Compare two items for compatibility, i.e., if they could be stacked together (ignoring max stack size).
 IDENTIFICATION DIVISION.

@@ -8,20 +8,26 @@ WORKING-STORAGE SECTION.
     01 WINDOW-TYPE                  BINARY-LONG                 VALUE -1.
     01 SYNC-PTR                     PROGRAM-POINTER.
     01 CLOSE-PTR                    PROGRAM-POINTER.
+    01 GET-SLOT-PTR                 PROGRAM-POINTER.
     01 SET-SLOT-PTR                 PROGRAM-POINTER.
     01 DROP-PTR                     PROGRAM-POINTER.
+    01 SHIFT-PTR                    PROGRAM-POINTER.
 
 PROCEDURE DIVISION.
 
     SET SYNC-PTR TO ENTRY "Callback-Sync"
     SET CLOSE-PTR TO ENTRY "Callback-Close"
+    SET GET-SLOT-PTR TO ENTRY "Callback-GetSlot"
     SET SET-SLOT-PTR TO ENTRY "Callback-SetSlot"
     SET DROP-PTR TO ENTRY "Callback-Drop"
+    SET SHIFT-PTR TO ENTRY "Callback-Shift"
 
     CALL "SetCallback-WindowSync" USING WINDOW-TYPE SYNC-PTR
     CALL "SetCallback-WindowClose" USING WINDOW-TYPE CLOSE-PTR
+    CALL "SetCallback-WindowGetSlot" USING WINDOW-TYPE GET-SLOT-PTR
     CALL "SetCallback-WindowSetSlot" USING WINDOW-TYPE SET-SLOT-PTR
     CALL "SetCallback-WindowDrop" USING WINDOW-TYPE DROP-PTR
+    CALL "SetCallback-WindowShift" USING WINDOW-TYPE SHIFT-PTR
 
     GOBACK.
 
@@ -95,6 +101,25 @@ PROCEDURE DIVISION.
 
     END PROGRAM Callback-Close.
 
+    *> --- Callback-GetSlot ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-GetSlot.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
+        01 PLAYER-INVENTORY-LENGTH  BINARY-LONG UNSIGNED        VALUE 46.
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-WINDOW-GET-SLOT.
+
+    PROCEDURE DIVISION USING LK-PLAYER LK-INDEX LK-SLOT.
+        COPY ASSERT REPLACING COND BY ==LK-INDEX >= 0 AND LK-INDEX < PLAYER-INVENTORY-LENGTH==,
+            MSG BY =="Invalid slot number: " LK-INDEX==.
+        MOVE PLAYER-INVENTORY-SLOT(LK-PLAYER, LK-INDEX + 1) TO LK-SLOT
+        GOBACK.
+
+    END PROGRAM Callback-GetSlot.
+
     *> --- Callback-SetSlot ---
     IDENTIFICATION DIVISION.
     PROGRAM-ID. Callback-SetSlot.
@@ -109,24 +134,26 @@ PROCEDURE DIVISION.
     LINKAGE SECTION.
         COPY DD-CALLBACK-WINDOW-SET-SLOT.
 
-    PROCEDURE DIVISION USING LK-PLAYER LK-INDEX LK-SLOT LK-SYNC-REQUIRED.
-        MOVE 0 TO LK-SYNC-REQUIRED
+    PROCEDURE DIVISION USING LK-PLAYER LK-INDEX LK-SLOT LK-CHANGES.
+        MOVE 0 TO LK-CHANGES
 
         EVALUATE LK-INDEX
             WHEN 0 *> crafting output
-                 MOVE LK-SLOT TO PLAYER-INVENTORY-SLOT(LK-PLAYER, LK-INDEX + 1)
+                MOVE LK-SLOT TO PLAYER-INVENTORY-SLOT(LK-PLAYER, LK-INDEX + 1)
+                ADD 1 TO LK-CHANGES
 
             WHEN 1 THRU 4 *> crafting input
-                 MOVE LK-SLOT TO PLAYER-INVENTORY-SLOT(LK-PLAYER, LK-INDEX + 1)
+                MOVE LK-SLOT TO PLAYER-INVENTORY-SLOT(LK-PLAYER, LK-INDEX + 1)
                 CALL "Inventory-UpdateCraftingOutput" USING PLAYER-INVENTORY-LENGTH PLAYER-INVENTORY(LK-PLAYER)
                     CRAFTING-GRID-SIZE CRAFTING-GRID-START CRAFTING-OUTPUT-SLOT
-                MOVE 1 TO LK-SYNC-REQUIRED
+                ADD 2 TO LK-CHANGES
 
             WHEN 5 THRU 45 *> armor, inventory, offhand
                 MOVE LK-SLOT TO PLAYER-INVENTORY-SLOT(LK-PLAYER, LK-INDEX + 1)
+                ADD 1 TO LK-CHANGES
 
             WHEN OTHER
-                DISPLAY "Invalid slot number: " LK-INDEX
+                COPY ASSERT-FAILED REPLACING MSG BY =="Invalid slot number: " LK-INDEX==.
         END-EVALUATE
 
         GOBACK.
@@ -151,7 +178,9 @@ PROCEDURE DIVISION.
     LINKAGE SECTION.
         COPY DD-CALLBACK-WINDOW-DROP.
 
-    PROCEDURE DIVISION USING LK-PLAYER LK-INDEX LK-STACK LK-SYNC-REQUIRED.
+    PROCEDURE DIVISION USING LK-PLAYER LK-INDEX LK-STACK LK-CHANGES.
+        MOVE 0 TO LK-CHANGES
+
         EVALUATE LK-INDEX
             WHEN 0 *> crafting output
                 *> TODO support dropping entire crafting output (LK-STACK = 1)
@@ -159,9 +188,11 @@ PROCEDURE DIVISION.
                 IF DROP-SLOT-COUNT > 0
                     *> crafting output becomes empty, input is reduced by 1 each
                     MOVE 0 TO PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, LK-INDEX + 1)
+                    ADD 1 TO LK-CHANGES
                     PERFORM VARYING SLOT-INDEX FROM 1 BY 1 UNTIL SLOT-INDEX > 4
                         IF PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, SLOT-INDEX + 1) > 0
                             SUBTRACT 1 FROM PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, SLOT-INDEX + 1)
+                            ADD 1 TO LK-CHANGES
                         END-IF
                     END-PERFORM
                     CALL "World-DropItem-FromPlayer" USING DROP-SLOT LK-PLAYER
@@ -176,6 +207,7 @@ PROCEDURE DIVISION.
                     END-IF
                     SUBTRACT DROP-SLOT-COUNT FROM PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, LK-INDEX + 1)
                     CALL "World-DropItem-FromPlayer" USING DROP-SLOT LK-PLAYER
+                    ADD 1 TO LK-CHANGES
                     PERFORM UpdateCrafting
                 END-IF
 
@@ -187,10 +219,11 @@ PROCEDURE DIVISION.
                     END-IF
                     SUBTRACT DROP-SLOT-COUNT FROM PLAYER-INVENTORY-SLOT-COUNT(LK-PLAYER, LK-INDEX + 1)
                     CALL "World-DropItem-FromPlayer" USING DROP-SLOT LK-PLAYER
+                    ADD 1 TO LK-CHANGES
                 END-IF
 
             WHEN OTHER
-                DISPLAY "Invalid slot number: " LK-INDEX
+                COPY ASSERT-FAILED REPLACING MSG BY =="Invalid slot number: " LK-INDEX==.
         END-EVALUATE
 
         GOBACK.
@@ -199,9 +232,25 @@ PROCEDURE DIVISION.
         CALL "Inventory-UpdateCraftingOutput" USING WINDOW-INVENTORY-LENGTH PLAYER-WINDOW-SLOTS(LK-PLAYER)
             CRAFTING-GRID-SIZE CRAFTING-GRID-START CRAFTING-OUTPUT-SLOT
         *> TODO only set this when the output slot is actually changed
-        MOVE 1 TO LK-SYNC-REQUIRED
+        ADD 1 TO LK-CHANGES
         .
 
     END PROGRAM Callback-Drop.
+
+    *> --- Callback-Shift ---
+    IDENTIFICATION DIVISION.
+    PROGRAM-ID. Callback-Shift.
+
+    DATA DIVISION.
+    WORKING-STORAGE SECTION.
+        COPY DD-PLAYERS.
+    LINKAGE SECTION.
+        COPY DD-CALLBACK-WINDOW-SHIFT.
+
+    PROCEDURE DIVISION USING LK-PLAYER LK-INDEX LK-CHANGES.
+        MOVE 0 TO LK-CHANGES
+        GOBACK.
+
+    END PROGRAM Callback-Shift.
 
 END PROGRAM RegisterWindow-Player.
