@@ -16,6 +16,7 @@
 
 #define ERRNO_PARAMS 99
 #define ERRNO_SYSTEM 98
+#define ERRNO_EOF 97
 
 std::set<socket_t> CLIENT_SOCKETS;
 constexpr int SOCKET_CHUNK_LIMIT = 64000;
@@ -372,13 +373,12 @@ EXTERN_DECL int GzipDecompress(char *compressed, unsigned long *compressed_lengt
     return 0;
 }
 
-static int SocketSelectRead(const std::set<socket_t>& sockets, socket_t begin_after, socket_t& selected_socket)
+static int SocketSelectRead(socket_t server, const std::set<socket_t>& sockets, socket_t begin_after, socket_t& selected_socket)
 {
-    std::vector<pollfd> pollfds(sockets.size());
+    std::vector<pollfd> pollfds;
+    pollfds.reserve(sockets.size() + 1);
 
-    auto socket_iterator = sockets.find(begin_after);
-    if (socket_iterator != sockets.end())
-        socket_iterator++;
+    auto socket_iterator = sockets.upper_bound(begin_after);
 
     for (size_t i = 0, n = sockets.size(); i < n; ++i)
     {
@@ -388,13 +388,15 @@ static int SocketSelectRead(const std::set<socket_t>& sockets, socket_t begin_af
         socket_iterator++;
     }
 
+    pollfds.push_back({server, POLLIN, 0});
+
     int poll_result = poll(pollfds.data(), pollfds.size(), 0);
     if (poll_result == -1 || poll_result == 0)
         return poll_result;
 
     for (const auto& item : pollfds)
     {
-        if (item.revents & POLLIN)
+        if (item.revents & (POLLIN | POLLERR | POLLHUP))
         {
             selected_socket = item.fd;
             return 1;
@@ -476,10 +478,7 @@ EXTERN_DECL int SocketPoll(socket_t *server, socket_t *client)
         return ERRNO_PARAMS;
 
     socket_t selected_socket;
-    std::set<socket_t> poll_sockets = CLIENT_SOCKETS;
-    poll_sockets.insert(*server);
-
-    int poll_result = SocketSelectRead(poll_sockets, last_read_socket, selected_socket);
+    int poll_result = SocketSelectRead(*server, CLIENT_SOCKETS, last_read_socket, selected_socket);
     if (poll_result == -1)
         return ERRNO_SYSTEM;
 
@@ -524,6 +523,10 @@ EXTERN_DECL int SocketRead(socket_t *socket, unsigned long *count, char *buffer)
     int result = read(*socket, buffer, *count);
     if (result == -1)
         return ERRNO_SYSTEM;
+
+    // read of 0 after poll indicated readability means the peer closed the connection
+    if (result == 0)
+        return ERRNO_EOF;
 
     *count = result;
 

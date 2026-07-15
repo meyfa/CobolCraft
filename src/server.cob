@@ -27,6 +27,8 @@ WORKING-STORAGE SECTION.
     *> Socket variables (server socket handle, error number from last operation)
     01 SERVER-HNDL                  PIC X(4)                EXTERNAL.
     01 ERRNO                        PIC 9(3).
+    *> Peer closed the connection (must match ERRNO_EOF in cobolcraft_util.cpp)
+    78 ERRNO-EOF                    VALUE 97.
     *> Connected clients
     COPY DD-CLIENTS.
     *> The client handle of the connection that is currently being processed, and the index in the CLIENTS array
@@ -389,7 +391,7 @@ ServerLoop.
                 WHEN CLIENT-ERRNO-SEND(CLIENT-ID) NOT = 0
                     MOVE CLIENT-ERRNO-SEND(CLIENT-ID) TO ERRNO
                     PERFORM HandleClientError
-                WHEN CLIENT-STATE(CLIENT-ID) = CLIENT-STATE-PLAY
+                WHEN OTHER
                     PERFORM KeepAlive
             END-EVALUATE
         END-PERFORM
@@ -668,9 +670,14 @@ HandleServerError.
     .
 
 HandleClientError.
-    IF ERRNO NOT = 0
-        CALL "Server-ClientError" USING CLIENT-ID ERRNO
-    END-IF
+    EVALUATE ERRNO
+        WHEN 0
+            CONTINUE
+        WHEN ERRNO-EOF
+            CALL "Server-DisconnectClient" USING CLIENT-ID
+        WHEN OTHER
+            CALL "Server-ClientError" USING CLIENT-ID ERRNO
+    END-EVALUATE
     .
 
 END PROGRAM Server.
