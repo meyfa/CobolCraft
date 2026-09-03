@@ -389,6 +389,8 @@ WORKING-STORAGE SECTION.
     01 CHAR-ALPHA.
         02 CHARCODE         BINARY-CHAR UNSIGNED.
     01 MULTIPLIER       FLOAT-LONG.
+    01 IS-NEGATIVE      BINARY-CHAR UNSIGNED.
+    01 SIGN-OFFSET      BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-INPUT         PIC X ANY LENGTH.
     01 LK-OFFSET        BINARY-LONG UNSIGNED.
@@ -397,6 +399,17 @@ LINKAGE SECTION.
 
 PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
     MOVE FUNCTION LENGTH(LK-INPUT) TO INPUT-LENGTH
+    *> Detect the sign up-front: a negative value with a zero integer part
+    *> (e.g. "-0.5") yields an integer of 0, which would otherwise drop the
+    *> sign when the fractional part is applied. Peek without consuming input;
+    *> JsonParse-Integer skips the same leading whitespace itself.
+    MOVE LK-OFFSET TO SIGN-OFFSET
+    COPY PROC-SKIP-WHITESPACE REPLACING ==STR== BY ==LK-INPUT== ==LEN== BY ==INPUT-LENGTH== ==IDX== BY ==SIGN-OFFSET==.
+    IF SIGN-OFFSET <= INPUT-LENGTH AND LK-INPUT(SIGN-OFFSET:1) = "-"
+        MOVE 1 TO IS-NEGATIVE
+    ELSE
+        MOVE 0 TO IS-NEGATIVE
+    END-IF
     *> start by reading the integer part
     CALL "JsonParse-Integer" USING LK-INPUT LK-OFFSET LK-FLAG INT-VALUE
     MOVE INT-VALUE TO LK-VALUE
@@ -406,7 +419,7 @@ PROCEDURE DIVISION USING LK-INPUT LK-OFFSET LK-FLAG LK-VALUE.
     END-IF
     ADD 1 TO LK-OFFSET
     *> read digits after the decimal point
-    IF LK-VALUE < 0
+    IF IS-NEGATIVE = 1
         MOVE -0.1 TO MULTIPLIER
     ELSE
         MOVE 0.1 TO MULTIPLIER
