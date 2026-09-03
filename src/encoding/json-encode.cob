@@ -190,8 +190,11 @@ PROGRAM-ID. JsonEncode-Integer.
 
 DATA DIVISION.
 WORKING-STORAGE SECTION.
-    01 VALUE-DISPLAY    PIC -(9)9.
-    01 ENCODED          PIC X(10).
+    *> A 32-bit integer needs up to 10 digits plus a sign, i.e. 11 characters
+    *> (e.g. "-2147483648"). A narrower picture would silently drop the leading
+    *> digit of any 10-digit value.
+    01 VALUE-DISPLAY    PIC -(10)9.
+    01 ENCODED          PIC X(11).
     01 ENCODED-LENGTH   BINARY-LONG UNSIGNED.
 LINKAGE SECTION.
     01 LK-BUFFER        PIC X ANY LENGTH.
