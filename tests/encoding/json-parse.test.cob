@@ -496,6 +496,28 @@ PROCEDURE DIVISION.
         MOVE 1 TO FLAG
         CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
         COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 11 AND FLAG = 0 AND RESULT = -1.23e-4==.
+    NegativeFractionOnly.
+        *> Regression: a negative value with a zero integer part must keep its sign.
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  -0.5  '"==.
+        MOVE "  -0.5  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 7 AND FLAG = 0 AND RESULT = -0.5==.
+    NegativeFractionSmall.
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  -0.0009  '"==.
+        MOVE "  -0.0009  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 10 AND FLAG = 0 AND RESULT = -0.0009==.
+    NegativeFractionExponent.
+        COPY TEST-CASE REPLACING ==NAME== BY =="'  -0.5e1  '"==.
+        MOVE "  -0.5e1  " TO STR
+        MOVE 1 TO OFFSET
+        MOVE 1 TO FLAG
+        CALL "JsonParse-Float" USING STR OFFSET FLAG RESULT
+        COPY TEST-ASSERT REPLACING COND BY ==OFFSET = 9 AND FLAG = 0 AND RESULT = -5.0==.
 
         GOBACK.
 
